@@ -1,8 +1,11 @@
 import React from 'react'
+import Sidebar from '../../component/Sidebar'
 
 function Recovery_dashboard() {
   return (
-    <div>Recovery_dashboard</div>
+    <>
+      <Sidebar />
+    </>
   )
 }
 
