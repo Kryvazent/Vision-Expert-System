@@ -30,7 +30,7 @@ function SideMenu() {
         theme="dark"
         inlineCollapsed={collapsed}
         items={items}
-        style={{background:"transparent", border:"none", marginTop:8}}
+        style={{background:"transparent", border:"none", marginTop:8, textAlign:"left", fontSize:16}}
       />
     </div>
   )
