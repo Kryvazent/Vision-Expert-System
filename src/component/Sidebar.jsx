@@ -1,8 +1,7 @@
 import React from "react";
 import { Flex, Layout } from "antd";
 import logo from "../assets/images/logo.jpeg";
-import SideMenu from "./SideMenu"; // Import the SideMenu component
-import TopHeader from "./TopHeader";
+import SideMenu from "./SideMenu"; 
 import LogOut from "./LogOut";
 
 const { Sider } = Layout;
@@ -15,15 +14,8 @@ const siderStyle = {
   minHeight: "100vh",
 };
 
-const layoutStyle = {
-  overflow: "hidden",
-  width: "100%",
-  maxWidth: "100%",
-};
-
 function Sidebar() {
   return (
-  <Layout className="min-h-screen" style={layoutStyle}>
         <Sider width="280" style={siderStyle} className="flex flex-col">
           {/*Logo*/}
           <div className="flex items-center gap-3 px-6 py-5">
@@ -46,11 +38,8 @@ function Sidebar() {
             <LogOut />
 
         </Sider>
-
-        {/* {Top Header} */}
-        <TopHeader />
-      </Layout>
   );
 }
+
 
 export default Sidebar;

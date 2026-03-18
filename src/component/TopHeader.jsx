@@ -15,7 +15,6 @@ const headerStyle = {
 
 function TopHeader() {
   return (
-  < Layout>
         <Header style={headerStyle} className='flex items-center justify-between border-b border-gray-200'>
           <Title level={3} className='mb-0' style={{fontWeight: '500'}}>Recovery Officer Dashboard</Title>
           <Space size="{8}">
@@ -23,8 +22,8 @@ function TopHeader() {
             <Text strong className='p-2'>David Kim</Text>
           </Space>
         </Header>
-      </Layout>
   )
 }
 
 export default TopHeader
+

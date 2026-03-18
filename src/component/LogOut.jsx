@@ -5,7 +5,7 @@ const { Text } = Typography;
 
 function LogOut() {
   return (
-    <div className='mt-auto px-10 py-30'>
+    <div className='absolute bottom-0 left-0 w-full px-10 py-6'>
         <div className='flex items-center gap-2 cursor-pointer' style={{ color: '#fff' }}>
             <LogoutOutlined />
             <Text style={{color: '#fff',fontSize:16}}>Logout</Text>
