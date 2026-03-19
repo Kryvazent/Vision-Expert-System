@@ -7,7 +7,6 @@ const { Text,Title } = Typography;
 const headerStyle = {
   color: '#fff',
   height: 64,
-  lineHeight: '64px',
   padding:"0 32 px",
   lineHeight: '64px',
   backgroundColor: '#F3F4F8',
