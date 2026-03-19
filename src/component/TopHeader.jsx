@@ -1,4 +1,3 @@
-import React from 'react'
 import {Layout, Space,Avatar ,Typography} from 'antd';
 const { Header } = Layout;
 const { Text,Title } = Typography;
