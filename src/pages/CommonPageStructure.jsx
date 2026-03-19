@@ -2,14 +2,15 @@ import { Layout } from "antd";
 import Sidebar from "../component/Sidebar";
 import TopHeader from "../component/TopHeader";
 
-function CommonPageStructure({ children }) {
+function CommonPageStructure({ children, user }) {
+
     return (
         <>
             <Layout>
                 <Sidebar />
 
                 <Layout>
-                    <TopHeader />
+                    <TopHeader user={{...user}} />
 
                     {children}
                 </Layout>
