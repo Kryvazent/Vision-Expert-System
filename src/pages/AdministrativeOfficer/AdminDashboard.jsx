@@ -1,22 +1,15 @@
 import React from 'react'
-import { Flex, Layout ,Card,Table,Button,Typography} from "antd";
+import {  Layout ,Table,Typography} from "antd";
 import Sidebar from "../../component/Sidebar";
+import { adminMenu } from '../../component/Admin/AdminDashMenu';
 import TopHeader from '../../component/TopHeader';
-import {DashboardOutlined, UserOutlined, StockOutlined, ProjectOutlined, HistoryOutlined} from "@ant-design/icons";
+import logo from "../../assets/images/logo.jpeg";
+import Card from 'antd/es/card/Card';
 
 const {Content } = Layout;
-const { Text,Title } = Typography;
-
+const { Title } = Typography;
 
 function AdminDashboard() {
-
- const menuItems = [
-    { key: '1', icon: <DashboardOutlined />, label: 'Dashboard' },
-    { key: '2', icon: <UserOutlined />, label: 'Customer Lookup' },
-    { key: '3', icon: < StockOutlined />, label: 'Inventory Management' },
-    { key: '4', icon: <ProjectOutlined />, label: 'Project Clinics' },
-    { key: '5', icon: <HistoryOutlined />, label: 'Batch Tracking' },
-  ]; 
 
 const recentCustomers = [
   {
@@ -68,8 +61,6 @@ const columns = [
 
   },
 ];
-
-<Table dataSource={recentCustomers} columns={columns} />;
 
 const inventoryData = [
   {
@@ -129,44 +120,41 @@ const inventoryColumns = [
 
   return (
     <>
-    <div>
-      <Layout>
+    <Layout>
         {/* Sidebar */}
-     <Sidebar />
+        <Sidebar logo={logo} title="Vision Expert" menuItems={adminMenu} />
 
         <Layout>
+
           {/* Header */}
-          <TopHeader />
+          <TopHeader title="Admin Dashboard" userName="David Kim" />
 
-          <Content>
+          {/* Content */}
+          <Content className="p-8" style={{ padding: "20px" }}>
+            <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }>
+            
+              {/* Customers */}
+              <Title level={5} className=".mb-0 " style={{fontWeight:600}}>Recent Customers</Title>
+              <Table dataSource={recentCustomers} columns={columns} />
 
-          </Content>
+            </Card>
 
-
-
-    <div className="flex items-center justify-between mb-6">
-              <Title level={5} className="!mb-0" style={{ fontWeight: 600 }}>   Recent Customers</Title>
-        </div>
-        
-          <Table dataSource={recentCustomers} columns={columns} rowClassName="hover:bg-blue-50 transition-colors" style={{ borderRadius: 12, overflow: "hidden" }}/>
-
-
-         <div className="flex items-center justify-between mb-6">
-              <Title level={5} className="!mb-0" style={{ fontWeight: 600 }}>Inventory Status</Title>
-        </div> 
-
-          <Table dataSource={ inventoryData} columns={inventoryColumns} rowClassName="hover:bg-blue-50 transition-colors" style={{ borderRadius: 12, overflow: "hidden" }} />
-       
-          
+            <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"}}>
+              {/* Inventory */}
+              <Title level={5} style={{ marginTop: 20, fontWeight:600 }} className=".mb-0 ">Inventory Status</Title>
+              <Table dataSource={inventoryData} columns={inventoryColumns} />
+ 
+            </Card>
+           </Content>
         </Layout>
       </Layout>
-    </div>
-
     </>
   )
 }
 
 export default AdminDashboard
+
+
 
 
 

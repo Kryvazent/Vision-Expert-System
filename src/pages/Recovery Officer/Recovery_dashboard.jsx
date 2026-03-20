@@ -3,6 +3,8 @@ import { Flex, Layout ,Card,Table,Button,Typography} from "antd";
 import Sidebar from "../../component/Sidebar";
 import StatCard from "../../component/recoveryOfficer/StatCard";
 import TopHeader from "../../component/TopHeader";
+import logo from "../../assets/images/logo.jpeg";
+import { recoveryMenu } from "../../component/recoveryOfficer/RecoveryDashboardMenu";
 
 const {Content } = Layout; 
 const { Text,Title } = Typography;
@@ -89,11 +91,11 @@ function Recovery_dashboard() {
     <>
       <Layout>
         {/* Sidebar */}
-        <Sidebar />
+        <Sidebar logo={logo} title="Vision Expert" menuItems={recoveryMenu} />
 
         <Layout>
           {/* Header */}
-          <TopHeader />
+          <TopHeader title="Recovery Dashboard" userName="John Doe"/>
 
           {/* Content */}
           <Content className="p-8">
