@@ -4,6 +4,7 @@ import RecoveryDashboard from './pages/recovery-officer/RecoveryDashboard';
 import CommonPageStructure from './pages/CommonPageStructure';
 import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
 import NewPresctiption from './pages/optimetrist/NewPrescription';
+import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
 
 function App() {
   return (
@@ -11,7 +12,7 @@ function App() {
       <Route path="/" element={<LoginPage />} />
       <Route path="/recovery-dashboard" element={
         <CommonPageStructure>
-          <RecoveryDashboard />
+          <WarrantyClaim />
         </CommonPageStructure>
       } />
       <Route path="/optimetrist-dashboard" element={
