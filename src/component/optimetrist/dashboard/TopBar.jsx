@@ -1,9 +1,9 @@
 import { Col, Row } from "antd";
 import StatCard from "./StatCard";
 
-import person from "../../assets/icons/optimetrist/person.png";
-import prescription from "../../assets/icons/optimetrist/prescriptions.png";
-import appointments from "../../assets/icons/optimetrist/appointment.png";
+import person from "../../../assets/icons/optimetrist/person.png";
+import prescription from "../../../assets/icons/optimetrist/prescriptions.png";
+import appointments from "../../../assets/icons/optimetrist/appointment.png";
 
 function TopBar() {
     return (

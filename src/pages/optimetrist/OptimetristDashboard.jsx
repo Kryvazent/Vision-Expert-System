@@ -1,9 +1,9 @@
 import { Card, Col, Row, Tag } from "antd";
-import CustomTable from "../../component/optimetrist/CustomTable";
-import TopBar from "../../component/optimetrist/TopBar";
+import TopBar from "../../component/optimetrist/dashboard/TopBar";
 import { Content } from "antd/es/layout/layout";
-import PrescriptionDetailsModel from "../../component/optimetrist/PrescriptionDetailsModel";
+import PrescriptionDetailsModel from "../../component/optimetrist/dashboard/PrescriptionDetailsModel";
 import { useState } from "react";
+import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 
 
 function OptimetristDashboard() {
