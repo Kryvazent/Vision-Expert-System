@@ -3,6 +3,7 @@ import LoginPage from './pages/Login.page';
 import RecoveryDashboard from './pages/recovery-officer/RecoveryDashboard';
 import CommonPageStructure from './pages/CommonPageStructure';
 import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
+import NewPresctiption from './pages/optimetrist/NewPrescription';
 import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
 
 function App() {
@@ -17,6 +18,12 @@ function App() {
       <Route path="/optimetrist-dashboard" element={
         <CommonPageStructure>
           <OptimetristDashboard />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/new-prescription" element={
+        <CommonPageStructure>
+          <NewPresctiption />
         </CommonPageStructure>
       } />
     </Routes> 
