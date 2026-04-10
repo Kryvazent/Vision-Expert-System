@@ -4,7 +4,7 @@ import Sidebar from "../../component/Sidebar";
 import { adminMenu } from '../../component/Admin/AdminDashMenu';
 
 
-export default function CustomerLokup() {
+export default function CustomerLookup() {
 
     
   return (
