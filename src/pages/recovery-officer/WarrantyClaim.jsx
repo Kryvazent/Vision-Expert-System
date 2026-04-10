@@ -311,7 +311,6 @@ export default function WarrantyClaim() {
             <Select>
               <Select.Option value="Lens Damage">Lens Damage</Select.Option>
               <Select.Option value="Frame Damage">Frame Damage</Select.Option>
-              <Select.Option value="Prescription Error">Prescription Error</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item label="Claim Date" name="claimDate" rules={[{ required: true, message: "Required" }]}>
