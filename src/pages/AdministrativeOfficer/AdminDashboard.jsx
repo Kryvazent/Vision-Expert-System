@@ -5,6 +5,8 @@ import { adminMenu } from '../../component/Admin/AdminDashMenu';
 import TopHeader from '../../component/TopHeader';
 import logo from "../../assets/images/logo.jpeg";
 import Card from 'antd/es/card/Card';
+import StatCard from '../../component/recoveryOfficer/StatCard';
+import { icons } from '../../assets/icons/AdminIcons';
 
 const {Content } = Layout;
 const { Title } = Typography;
@@ -131,6 +133,12 @@ const inventoryColumns = [
 
           {/* Content */}
           <Content className="p-8" style={{ padding: "20px" }}>
+              <div className="flex gap-15 align-items-left mb-5">
+                <StatCard iconType="customers" title="Total Customers" />
+                <StatCard iconType="inventory" title="Inventory Items" />
+                <StatCard iconType="stock" title="Low Stock Items" />
+              </div>
+
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }>
             
               {/* Customers */}
