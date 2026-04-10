@@ -2,7 +2,7 @@ import { Layout } from "antd";
 import Sidebar from "../component/Sidebar";
 import TopHeader from "../component/TopHeader";
 
-function CommonPageStructure({ children, user }) {
+function CommonPageStructure({ children }) {
 
     return (
         <>
@@ -10,7 +10,7 @@ function CommonPageStructure({ children, user }) {
                 <Sidebar />
 
                 <Layout>
-                    <TopHeader user={{...user}} />
+                    <TopHeader />
 
                     {children}
                 </Layout>

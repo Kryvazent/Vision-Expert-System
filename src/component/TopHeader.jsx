@@ -8,7 +8,7 @@ const headerStyle = {
   height: 64,
   padding:"0 32 px",
   lineHeight: '64px',
-  backgroundColor: '#F3F4F8',
+  backgroundColor: '#FFFFFF',
 };
 
 function TopHeader({ user }) {
@@ -19,7 +19,7 @@ function TopHeader({ user }) {
         <Header style={headerStyle} className='flex items-center justify-between border-b border-gray-200'>
           <Title level={3} className='mb-0' style={{fontWeight: '500'}}>{role}</Title>
           <Space size="{8}">
-            <Avatar style={{ backgroundColor: '#2563EB'}}>D</Avatar>
+            <Avatar style={{ backgroundColor: '#2563EB'}}>{name && name[0]}</Avatar>
             <Text strong className='p-2'>{name}</Text>
           </Space>
         </Header>
