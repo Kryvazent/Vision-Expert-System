@@ -11,6 +11,7 @@ const headerStyle = {
   backgroundColor: '#FFFFFF',
 };
 
+<<<<<<< HEAD
 function TopHeader({ user }) {
   
   const { name, role } = user || {};
@@ -21,6 +22,15 @@ function TopHeader({ user }) {
           <Space size="{8}">
             <Avatar style={{ backgroundColor: '#2563EB'}}>{name && name[0]}</Avatar>
             <Text strong className='p-2'>{name}</Text>
+=======
+function TopHeader(props) {
+  return (
+        <Header style={headerStyle} className='flex items-center justify-between border-b border-gray-200'>
+          <Title level={3} className='mb-0' style={{fontWeight: '500'}}>{props.title}</Title>
+          <Space size="{8}">
+            <Avatar style={{ backgroundColor: '#2563EB'}}>D</Avatar>
+            <Text strong className='p-2'>{props.userName}</Text>
+>>>>>>> dedunu
           </Space>
         </Header>
   )
