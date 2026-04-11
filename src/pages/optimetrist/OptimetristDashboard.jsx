@@ -1,4 +1,4 @@
-import { Card, Col, Row, Tag } from "antd";
+import { Button, Card, Col, Row, Tag } from "antd";
 import TopBar from "../../component/optimetrist/dashboard/TopBar";
 import { Content } from "antd/es/layout/layout";
 import PrescriptionDetailsModel from "../../component/optimetrist/dashboard/PrescriptionDetailsModel";
@@ -9,6 +9,7 @@ import person from "../../assets/icons/optimetrist/person.png";
 // import person from "../../../assets/icons/optimetrist/person.png";
 import prescription from "../../assets/icons/optimetrist/prescriptions.png";
 import appointments from "../../assets/icons/optimetrist/appointment.png";
+import { EyeOutlined } from "@ant-design/icons";
 
 function OptimetristDashboard() {
 
@@ -111,28 +112,37 @@ function OptimetristDashboard() {
         {
             title: 'Action',
             key: 'action',
-            render: () => (
-                <a href="#" onClick={() => setShowPrescriptionDetailModal(true)}>
+            render: (_, record) => (
+                <Button
+                    size="small"
+                    type="link"
+                    icon={<EyeOutlined />}
+                    onClick={() => {
+                        if (!record) return;
+                        setShowPrescriptionDetailModal(true);
+                    }
+                    }
+                >
                     View Details
-                </a>
-            ),
+                </Button>
+            )
         }
     ]
 
     const topBar = [
         {
-            title:"Today's Patients",
-            value:0,
+            title: "Today's Patients",
+            value: 0,
             icon: person
         },
         {
-            title:"New Prescriptions",
-            value:0,
+            title: "New Prescriptions",
+            value: 0,
             icon: prescription
         },
         {
-            title:"Appointments",
-            value:0,
+            title: "Appointments",
+            value: 0,
             icon: appointments
         },
     ]
@@ -141,7 +151,7 @@ function OptimetristDashboard() {
         <>
             <Col className="mx-5">
                 <Row>
-                    <TopBar data={topBar}/>
+                    <TopBar data={topBar} />
                 </Row>
 
                 <Content className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
@@ -153,15 +163,15 @@ function OptimetristDashboard() {
 
                     <Row className="mt-10 ">
                         <Card title="Recent Prescriptions" className="w-full">
-                            <CustomTable data={prescriptionData} columns={prescriptionColumns} pageSize={10}/>
+                            <CustomTable data={prescriptionData} columns={prescriptionColumns} pageSize={10} />
                         </Card>
                     </Row>
                 </Content>
             </Col>
 
-            <PrescriptionDetailsModel 
-                showPrescriptionDetailModal={showPrescriptionDetailModal} 
-                setShowPrescriptionDetailModal={setShowPrescriptionDetailModal} 
+            <PrescriptionDetailsModel
+                showPrescriptionDetailModal={showPrescriptionDetailModal}
+                setShowPrescriptionDetailModal={setShowPrescriptionDetailModal}
             />
         </>
     )
