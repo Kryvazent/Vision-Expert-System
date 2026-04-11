@@ -4,6 +4,7 @@ import RecoveryDashboard from './pages/recovery-officer/RecoveryDashboard';
 import CommonPageStructure from './pages/CommonPageStructure';
 import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
 import NewPresctiption from './pages/optimetrist/NewPrescription';
+import SalesExecutiveDashboard from './pages/sales-executive/SalesExecutiveDashboard';
 
 function App() {
   return (
@@ -25,7 +26,13 @@ function App() {
           <NewPresctiption />
         </CommonPageStructure>
       } />
-    </Routes> 
+
+      <Route path="/sales-executive-dashboard" element={
+        <CommonPageStructure>
+          <SalesExecutiveDashboard />
+        </CommonPageStructure>
+      } />
+    </Routes>
   );
 }
 

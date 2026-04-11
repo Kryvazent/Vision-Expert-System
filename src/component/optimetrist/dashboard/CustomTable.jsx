@@ -1,8 +1,8 @@
 import { Table } from "antd";
 
-function CustomTable({ data, columns }) {
+function CustomTable({ data, columns, pageSize }) {
     return(
-        <Table dataSource={data} columns={columns} className="w-full" pagination={{pageSize:10}}/>
+        <Table dataSource={data} columns={columns} className="w-full" pagination={{pageSize: pageSize || 10}}/>
     )
 }
 
