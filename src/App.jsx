@@ -7,6 +7,7 @@ import NewPresctiption from './pages/optimetrist/NewPrescription';
 import SalesExecutiveDashboard from './pages/sales-executive/SalesExecutiveDashboard';
 import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
 import NewOrder from './pages/sales-executive/NewOrder';
+import Orders from './pages/sales-executive/Orders';
 
 function App() {
   return (
@@ -17,6 +18,9 @@ function App() {
           <WarrantyClaim />
         </CommonPageStructure>
       } />
+
+      {/* optimetrist */}
+
       <Route path="/optimetrist-dashboard" element={
         <CommonPageStructure>
           <OptimetristDashboard />
@@ -29,6 +33,8 @@ function App() {
         </CommonPageStructure>
       } />
 
+      {/* sales executive */}
+
       <Route path="/sales-executive-dashboard" element={
         <CommonPageStructure>
           <SalesExecutiveDashboard />
@@ -38,6 +44,12 @@ function App() {
       <Route path="/new-order" element={
         <CommonPageStructure>
           <NewOrder />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/orders" element={
+        <CommonPageStructure>
+          <Orders />
         </CommonPageStructure>
       } />
     </Routes>
