@@ -4,7 +4,10 @@ import RecoveryDashboard from './pages/recovery-officer/RecoveryDashboard';
 import CommonPageStructure from './pages/CommonPageStructure';
 import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
 import NewPresctiption from './pages/optimetrist/NewPrescription';
+import SalesExecutiveDashboard from './pages/sales-executive/SalesExecutiveDashboard';
 import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
+import NewOrder from './pages/sales-executive/NewOrder';
+import Orders from './pages/sales-executive/Orders';
 
 function App() {
   return (
@@ -15,6 +18,9 @@ function App() {
           <WarrantyClaim />
         </CommonPageStructure>
       } />
+
+      {/* optimetrist */}
+
       <Route path="/optimetrist-dashboard" element={
         <CommonPageStructure>
           <OptimetristDashboard />
@@ -26,7 +32,27 @@ function App() {
           <NewPresctiption />
         </CommonPageStructure>
       } />
-    </Routes> 
+
+      {/* sales executive */}
+
+      <Route path="/sales-executive-dashboard" element={
+        <CommonPageStructure>
+          <SalesExecutiveDashboard />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/new-order" element={
+        <CommonPageStructure>
+          <NewOrder />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/orders" element={
+        <CommonPageStructure>
+          <Orders />
+        </CommonPageStructure>
+      } />
+    </Routes>
   );
 }
 
