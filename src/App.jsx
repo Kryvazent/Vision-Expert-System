@@ -6,6 +6,7 @@ import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
 import NewPresctiption from './pages/optimetrist/NewPrescription';
 import SalesExecutiveDashboard from './pages/sales-executive/SalesExecutiveDashboard';
 import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
+import NewOrder from './pages/sales-executive/NewOrder';
 
 function App() {
   return (
@@ -31,6 +32,12 @@ function App() {
       <Route path="/sales-executive-dashboard" element={
         <CommonPageStructure>
           <SalesExecutiveDashboard />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/new-order" element={
+        <CommonPageStructure>
+          <NewOrder />
         </CommonPageStructure>
       } />
     </Routes>
