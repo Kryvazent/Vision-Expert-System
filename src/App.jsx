@@ -8,6 +8,8 @@ import SalesExecutiveDashboard from './pages/sales-executive/SalesExecutiveDashb
 import WarrantyClaim from './pages/recovery-officer/WarrantyClaim';
 import NewOrder from './pages/sales-executive/NewOrder';
 import Orders from './pages/sales-executive/Orders';
+import Login from './pages/login/Login';
+import Track from './pages/track/Track';
 
 function App() {
   return (
@@ -52,6 +54,20 @@ function App() {
           <Orders />
         </CommonPageStructure>
       } />
+
+
+      {/* login */}
+      <Route path="/login" element={
+          <Login />
+      } />
+
+      {/* track order */}
+      <Route path="/track" element={
+        <CommonPageStructure>
+          <Track />
+        </CommonPageStructure>
+      } />
+
     </Routes>
   );
 }
