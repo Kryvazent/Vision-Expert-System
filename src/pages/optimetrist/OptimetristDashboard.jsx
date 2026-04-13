@@ -1,10 +1,15 @@
-import { Card, Col, Row, Tag } from "antd";
-import CustomTable from "../../component/optimetrist/CustomTable";
-import TopBar from "../../component/optimetrist/TopBar";
+import { Button, Card, Col, Row, Tag } from "antd";
+import TopBar from "../../component/optimetrist/dashboard/TopBar";
 import { Content } from "antd/es/layout/layout";
-import PrescriptionDetailsModel from "../../component/optimetrist/PrescriptionDetailsModel";
+import PrescriptionDetailsModel from "../../component/optimetrist/dashboard/PrescriptionDetailsModel";
 import { useState } from "react";
+import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 
+import person from "../../assets/icons/optimetrist/person.png";
+// import person from "../../../assets/icons/optimetrist/person.png";
+import prescription from "../../assets/icons/optimetrist/prescriptions.png";
+import appointments from "../../assets/icons/optimetrist/appointment.png";
+import { EyeOutlined } from "@ant-design/icons";
 
 function OptimetristDashboard() {
 
@@ -107,39 +112,66 @@ function OptimetristDashboard() {
         {
             title: 'Action',
             key: 'action',
-            render: () => (
-                <a href="#" onClick={() => setShowPrescriptionDetailModal(true)}>
+            render: (_, record) => (
+                <Button
+                    size="small"
+                    type="link"
+                    icon={<EyeOutlined />}
+                    onClick={() => {
+                        if (!record) return;
+                        setShowPrescriptionDetailModal(true);
+                    }
+                    }
+                >
                     View Details
-                </a>
-            ),
+                </Button>
+            )
         }
+    ]
+
+    const topBar = [
+        {
+            title: "Today's Patients",
+            value: 0,
+            icon: person
+        },
+        {
+            title: "New Prescriptions",
+            value: 0,
+            icon: prescription
+        },
+        {
+            title: "Appointments",
+            value: 0,
+            icon: appointments
+        },
     ]
 
     return (
         <>
             <Col className="mx-5">
                 <Row>
-                    <TopBar />
+                    <TopBar data={topBar} />
                 </Row>
 
                 <Content className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
                     <Row className="mt-10 ">
                         <Card title="Recent Patients" className="w-full">
-                            <CustomTable data={patientData} columns={patientColumns} />
+                            <CustomTable data={patientData} columns={patientColumns} pageSize={10} />
                         </Card>
                     </Row>
 
                     <Row className="mt-10 ">
                         <Card title="Recent Prescriptions" className="w-full">
-                            <CustomTable data={prescriptionData} columns={prescriptionColumns} />
+                            <CustomTable data={prescriptionData} columns={prescriptionColumns} pageSize={10} />
                         </Card>
                     </Row>
                 </Content>
             </Col>
 
-            <PrescriptionDetailsModel 
-                showPrescriptionDetailModal={showPrescriptionDetailModal} 
-                setShowPrescriptionDetailModal={setShowPrescriptionDetailModal} 
+            <PrescriptionDetailsModel
+                showPrescriptionDetailModal={showPrescriptionDetailModal}
+                setShowPrescriptionDetailModal={setShowPrescriptionDetailModal}
             />
         </>
     )
