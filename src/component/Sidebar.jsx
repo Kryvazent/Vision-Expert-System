@@ -10,11 +10,12 @@ const siderStyle = {
   textAlign: "center",
   lineHeight: "120px",
   color: "#fff",
-  backgroundColor: "#092258",
+  backgroundColor: "#2563EB",
   minHeight: "100vh",
 };
 
 function Sidebar() {
+
   return (
         <Sider width="280" style={siderStyle} className="flex flex-col">
           {/*Logo*/}
@@ -26,12 +27,12 @@ function Sidebar() {
                 className="w-16 h-16 rounded-full object-cover"
               />
             </div>
-            <h3 className="text-xl font-bold text-white">{props.title}</h3>
+            <h3 className="text-xl font-bold text-white">Vision Expert</h3>
           </div>
 
           {/* Side Menu */}
           <div className="flex-1 px-3">
-            <SideMenu menuItems={props.menuItems} />
+            <SideMenu />
           </div>
 
             {/* Logout */}
