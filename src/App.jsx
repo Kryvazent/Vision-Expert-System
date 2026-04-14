@@ -68,6 +68,17 @@ function App() {
         </CommonPageStructure>
       } />
 
+      <Route path="/accountant" element={
+        <CommonPageStructure>
+         <AccountantDashboard />
+        </CommonPageStructure>
+      } />
+
+
+
+
+
+
     </Routes>
   );
 }
