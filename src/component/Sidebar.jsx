@@ -21,7 +21,7 @@ function Sidebar() {
           <div className="flex items-center gap-3 px-6 py-5">
             <div className="w-20 h-20 rounded-full flex items-center justify-center">
               <img
-                src={props.logo}
+                src={logo}
                 alt="Vision Expert Logo"
                 className="w-16 h-16 rounded-full object-cover"
               />
