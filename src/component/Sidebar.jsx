@@ -31,7 +31,7 @@ function Sidebar() {
 
           {/* Side Menu */}
           <div className="flex-1 px-3">
-            <SideMenu menuItems={props.menuItems} />
+            <SideMenu /> 
           </div>
 
             {/* Logout */}
