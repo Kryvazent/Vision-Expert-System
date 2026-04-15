@@ -10,6 +10,7 @@ import NewOrder from './pages/sales-executive/NewOrder';
 import Orders from './pages/sales-executive/Orders';
 import Login from './pages/login/Login';
 import Track from './pages/track/Track';
+import AccountingDashboard from './pages/Accountant/AccountingDashboard';
 
 function App() {
   return (
@@ -67,6 +68,17 @@ function App() {
           <Track />
         </CommonPageStructure>
       } />
+
+      <Route path="/accountant" element={
+        <CommonPageStructure>
+       <AccountingDashboard />
+        </CommonPageStructure>
+      } />
+
+
+
+
+
 
     </Routes>
   );

@@ -5,6 +5,7 @@ import {
   ClockCircleOutlined,
   SafetyOutlined,
   BarChartOutlined,
+  
 } from '@ant-design/icons';
 import { Menu } from 'antd';
 
@@ -21,9 +22,10 @@ const items = [
   { key: '6', icon: <BarChartOutlined />, label: 'Patient Management' },
   { key: '7', icon: <BarChartOutlined />, label: 'New Prescription' },
   { key: '8', icon: <BarChartOutlined />, label: 'Reports' },
-];
 
-function SideMenu() {
+  ];
+
+function SideMenu(props) {
   const [collapsed, setCollapsed] = useState(false);
 
   const toggleCollapsed = () => {
@@ -37,7 +39,8 @@ function SideMenu() {
         mode="inline"
         theme="dark"
         inlineCollapsed={collapsed}
-        items={[,...items]}
+      
+        items={props.menuItems}
         style={{background:"transparent", border:"none", marginTop:8, textAlign:"left", fontSize:16}}
       />
     </div>
