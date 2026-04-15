@@ -5,7 +5,7 @@ import DigitalSignature from "../../component/sales-executive/new-order/DigitalS
 import Fingerprint from "../../component/sales-executive/new-order/Fingerprint";
 
 function NewOrder() {
-    const [current, setCurrent] = useState(4);
+    const [current, setCurrent] = useState(0);
     const [position, setPosition] = useState("start");
 
     const onChange = value => {

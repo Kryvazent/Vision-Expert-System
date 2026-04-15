@@ -10,23 +10,24 @@ const siderStyle = {
   textAlign: "center",
   lineHeight: "120px",
   color: "#fff",
-  backgroundColor: "#092258",
+  backgroundColor: "#2563EB",
   minHeight: "100vh",
 };
 
 function Sidebar() {
+
   return (
         <Sider width="280" style={siderStyle} className="flex flex-col">
           {/*Logo*/}
           <div className="flex items-center gap-3 px-6 py-5">
             <div className="w-20 h-20 rounded-full flex items-center justify-center">
               <img
-                src={props.logo}
+                src={logo}
                 alt="Vision Expert Logo"
                 className="w-16 h-16 rounded-full object-cover"
               />
             </div>
-            <h3 className="text-xl font-bold text-white">{props.title}</h3>
+            <h3 className="text-xl font-bold text-white">Vision Expert</h3>
           </div>
 
           {/* Side Menu */}
