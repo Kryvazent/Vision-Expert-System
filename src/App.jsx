@@ -131,7 +131,7 @@ function App() {
         </CommonPageStructure>
       } />
 
-      <Route path="/owner/payment-monitoring" element={
+      <Route path="/owner/payment-monitering" element={
         <CommonPageStructure>
         <PaymentMonitoring/>
         </CommonPageStructure>
