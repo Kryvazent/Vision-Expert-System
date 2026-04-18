@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router';
-import LoginPage from './pages/Login.page';
 import RecoveryDashboard from './pages/recovery-officer/RecoveryDashboard';
 import CommonPageStructure from './pages/CommonPageStructure';
 import OptimetristDashboard from './pages/optimetrist/OptimetristDashboard';
@@ -26,7 +25,7 @@ import Reports from './pages/owner/Reports';
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<LoginPage />} />
+      <Route path="/" element={<Login />} />
       <Route path="/recovery-dashboard" element={
         <CommonPageStructure>
           <WarrantyClaim />
@@ -65,12 +64,6 @@ function App() {
         <CommonPageStructure>
           <Orders />
         </CommonPageStructure>
-      } />
-
-
-      {/* login */}
-      <Route path="/login" element={
-          <Login />
       } />
 
       {/* track order */}
