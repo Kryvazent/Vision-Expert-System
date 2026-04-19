@@ -10,6 +10,17 @@ import Orders from './pages/sales-executive/Orders';
 import Login from './pages/login/Login';
 import Track from './pages/track/Track';
 import AccountingDashboard from './pages/Accountant/AccountingDashboard';
+import RecoveryFiltering from './pages/Accountant/RecoveryFiltering';
+import RecoveryDetails from './pages/Accountant/RecoveryDetails';
+import DailySales from './pages/Accountant/DailySales';
+import OrderFilter from './pages/Accountant/OrderFilter';
+import CashTransfer from './pages/Accountant/CashTransfer';
+import OwnerDashboard from './pages/owner/OwnerDashboard';
+import UserManagement from './pages/owner/UserManagment';
+import ProjectManagement from './pages/owner/ProjectManagment';
+import PaymentMonitoring from './pages/owner/PaymentMonitering';
+import SystemActivity from './pages/owner/SystemActivity';
+import Reports from './pages/owner/Reports';
 
 function App() {
   return (
@@ -67,6 +78,77 @@ function App() {
        <AccountingDashboard />
         </CommonPageStructure>
       } />
+
+      <Route path="/accountant/recovery" element={
+        <CommonPageStructure>
+        <RecoveryFiltering/>
+        </CommonPageStructure>
+      } />
+
+
+      <Route path="/accountant/recoverydetails" element={
+        <CommonPageStructure>
+        <RecoveryDetails/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/accountant/dailysales" element={
+        <CommonPageStructure>
+        <DailySales/>
+        </CommonPageStructure>
+      } />
+
+
+       <Route path="/accountant/orderfilter" element={
+        <CommonPageStructure>
+        <OrderFilter/>
+        </CommonPageStructure>
+      } />
+
+
+      <Route path="/accountant/cashtransfer" element={
+        <CommonPageStructure>
+        <CashTransfer/>
+        </CommonPageStructure>
+      } />
+
+
+      <Route path="/owner" element={
+        <CommonPageStructure>
+        <OwnerDashboard/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/owner/user-management" element={
+        <CommonPageStructure>
+        <UserManagement/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/owner/project-management" element={
+        <CommonPageStructure>
+        <ProjectManagement/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/owner/payment-monitering" element={
+        <CommonPageStructure>
+        <PaymentMonitoring/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/owner/system-activity" element={
+        <CommonPageStructure>
+        <SystemActivity/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/owner/reports" element={
+        <CommonPageStructure>
+        <Reports/>
+        </CommonPageStructure>
+      } />
+
 
 
 
