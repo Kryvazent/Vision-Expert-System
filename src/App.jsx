@@ -10,6 +10,9 @@ import Orders from './pages/sales-executive/Orders';
 import Login from './pages/login/Login';
 import Track from './pages/track/Track';
 import AccountingDashboard from './pages/Accountant/AccountingDashboard';
+import RecoverySheet from './pages/recovery-officer/RecoverySheet';
+import CashTransfer from './pages/recovery-officer/CashTransfer';
+import HandOverDetails from './component/recoveryOfficer/HandOverDetails';
 
 function App() {
   return (
@@ -17,7 +20,25 @@ function App() {
       <Route path="/" element={<Login />} />
       <Route path="/recovery-dashboard" element={
         <CommonPageStructure>
+          <RecoveryDashboard />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/warranty-claim" element={
+        <CommonPageStructure>
           <WarrantyClaim />
+        </CommonPageStructure>
+      } />
+
+      <Route path="/recovery-sheet" element={
+        <CommonPageStructure>
+          <RecoverySheet/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/cash-transfer" element={
+        <CommonPageStructure>
+          <CashTransfer/>
         </CommonPageStructure>
       } />
 
