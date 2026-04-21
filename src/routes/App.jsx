@@ -17,6 +17,7 @@ import ProtectedRoute from './protectedRoutes';
 import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
+import OwnerDashboard from '../pages/owner/OwnerDashboard';
 
 
 // Wrap page in both layout + role guard
@@ -120,6 +121,7 @@ function App() {
           <AccountingDashboard />
         </Page>
       } />
+
     </Routes>
   );
 }
