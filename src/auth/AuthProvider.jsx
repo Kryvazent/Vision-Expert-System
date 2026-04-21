@@ -20,20 +20,18 @@ export function AuthProvider({ children }) {
 
     const GET_STAFF_PROFILE = gql`
       query GetStaffProfile($authUserId: UUID!) {
-  # Try using the prefixed name: SchemaNameTableCollection
-  staffCollection(filter: {auth_user_id: {eq: $authUserId}}) {
-    edges {
-      node {
-        id
-        first_name
-        last_name
-        branch_id
+        # Try using the prefixed name: SchemaNameTableCollection
+        staffCollection(filter: {auth_user_id: {eq: $authUserId}}) {
+          edges {
+            node {
+              id
+              first_name
+              last_name
+              branch_id
+            }
+          }
+        }
       }
-    }
-  }
-}
-
-
     `;
 
     try {
@@ -61,13 +59,20 @@ export function AuthProvider({ children }) {
       loadStaffProfile(session?.user?.id);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        loadStaffProfile(session?.user?.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+
+      if (session) {
+        // Logged in or token refreshed
+        loadStaffProfile(session.user.id);
+      } else {
+        // SESSION IS OVER: Clear local state and Apollo cache
+        setStaff(null);
+        // This ensures the next user doesn't see old data in the browser
+        await apolloSupabaseGraphqlClient.clearStore(); 
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, []);
