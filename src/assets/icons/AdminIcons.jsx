@@ -1,6 +1,6 @@
 
 import React from 'react'
-import {FileDoneOutlined,TeamOutlined,StockOutlined, InboxOutlined, FileTextOutlined, ExperimentOutlined, BgColorsOutlined, ScanOutlined} from "@ant-design/icons";
+import {FileDoneOutlined,TeamOutlined,StockOutlined, InboxOutlined, FileTextOutlined, ExperimentOutlined, BgColorsOutlined, ScanOutlined, WarningOutlined, InfoCircleOutlined} from "@ant-design/icons";
 
 const iconStyle = { color: "#3B82F6", fontSize: 22 };
 
@@ -12,6 +12,8 @@ export const icons = {
   leaflets: <FileTextOutlined style={iconStyle} />,
   cleaningSolutions: <ExperimentOutlined style={iconStyle} />,
   cleaningClothes: <BgColorsOutlined style={iconStyle} />,
+  lowStock: <WarningOutlined  style={iconStyle} />,
+  outStock: <InfoCircleOutlined  style={iconStyle} />,
   frames: <ScanOutlined style={iconStyle} />}
 
 

@@ -1,6 +1,5 @@
 import React from 'react'
 import {  Layout ,Table,Typography} from "antd";
-import { adminMenu } from '../../component/Admin/AdminDashMenu';
 import logo from "../../assets/images/logo.jpeg";
 import Card from 'antd/es/card/Card';
 import { icons } from '../../assets/icons/AdminIcons';
@@ -130,6 +129,7 @@ const inventoryColumns = [
                 <StatCard title="Low Stock Items" value="23" iconType="stock" color="#F5222D" bgColor="#FFF1F0" />
               </div>
 
+            <Card className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }>
             
               {/* Customers */}
@@ -143,6 +143,7 @@ const inventoryColumns = [
               <Title level={5} style={{ marginTop: 20, fontWeight:600 }} className=".mb-0 ">Inventory Status</Title>
               <Table dataSource={inventoryData} columns={inventoryColumns} /> 
  
+            </Card>
             </Card>
            </Content>
           </Layout>
