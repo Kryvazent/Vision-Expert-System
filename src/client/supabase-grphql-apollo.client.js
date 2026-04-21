@@ -10,21 +10,28 @@ const httpLink = new HttpLink({
   uri: `${SUPABASE_URL}/graphql/v1`, // The GraphQL endpoint
 });
 
-const authLink = setContext(async (_, { headers }) => {
-  // runs before every request
+let accessToken = null;
 
-  const token = (await supabase.auth.getSession()).data.session?.access_token;
+supabase.auth.getSession().then(({ data: { session } }) => {
+  accessToken = session?.access_token ?? null;
+});
 
+supabase.auth.onAuthStateChange((_event, session) => {
+  accessToken = session?.access_token ?? null;
+});
+
+const authLink = setContext((_, { headers }) => {
+
+  console.log("ACCESS TOKEN USED:", accessToken);
+  
   return {
     headers: {
       ...headers,
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': token ? `Bearer ${token}` : '',
+      apikey: SUPABASE_ANON_KEY,
+      ...(accessToken && { Authorization: `Bearer ${accessToken}` }),
       'Content-Type': 'application/json',
-      // Postman works because it includes these by default or you added them
-      'Content-Profile': 'vision-expert',
-      'Accept-Profile': 'vision-expert',
-    }
+      Accept: 'application/json',
+    },
   };
 });
 
