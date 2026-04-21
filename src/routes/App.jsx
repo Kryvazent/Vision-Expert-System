@@ -17,6 +17,7 @@ import ProtectedRoute from './protectedRoutes';
 import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
+import OwnerDashboard from '../pages/owner/OwnerDashboard';
 
 import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
