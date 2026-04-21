@@ -1,12 +1,10 @@
 import React from 'react'
 import {  Layout ,Table,Typography} from "antd";
-import Sidebar from "../../component/Sidebar";
 import { adminMenu } from '../../component/Admin/AdminDashMenu';
-import TopHeader from '../../component/TopHeader';
 import logo from "../../assets/images/logo.jpeg";
 import Card from 'antd/es/card/Card';
-import StatCard from '../../component/recoveryOfficer/StatCard';
 import { icons } from '../../assets/icons/AdminIcons';
+import StatCard from '../../component/Admin/StatCard';  
 
 const {Content } = Layout;
 const { Title } = Typography;
@@ -118,25 +116,18 @@ const inventoryColumns = [
   },
 ];
 
-<Table dataSource={ inventoryData} columns={inventoryColumns} />;
+/*<Table dataSource={ inventoryData} columns={inventoryColumns} />;*/
 
   return (
     <>
     <Layout>
-        {/* Sidebar */}
-        <Sidebar logo={logo} title="Vision Expert" menuItems={adminMenu} />
-
-        <Layout>
-
-          {/* Header */}
-          <TopHeader title="Admin Dashboard" userName="David Kim" />
 
           {/* Content */}
           <Content className="p-8" style={{ padding: "20px" }}>
-              <div className="flex gap-15 align-items-left mb-5">
-                <StatCard iconType="customers" title="Total Customers" />
-                <StatCard iconType="inventory" title="Inventory Items" />
-                <StatCard iconType="stock" title="Low Stock Items" />
+              <div className="flex gap-6 mb-5">
+                <StatCard title="Total Customers" value="1,234" iconType="customers" color="#2F54EB" bgColor="#E6F7FF"  />
+                <StatCard title="Inventory Items" value="567" iconType="inventory" color="#00A854" bgColor="#E6F7F0" />
+                <StatCard title="Low Stock Items" value="23" iconType="stock" color="#F5222D" bgColor="#FFF1F0" />
               </div>
 
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }>
@@ -150,12 +141,14 @@ const inventoryColumns = [
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"}}>
               {/* Inventory */}
               <Title level={5} style={{ marginTop: 20, fontWeight:600 }} className=".mb-0 ">Inventory Status</Title>
-              <Table dataSource={inventoryData} columns={inventoryColumns} />
+              <Table dataSource={inventoryData} columns={inventoryColumns} /> 
  
             </Card>
            </Content>
-        </Layout>
-      </Layout>
+          </Layout>
+
+
+      
     </>
   )
 }

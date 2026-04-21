@@ -18,6 +18,10 @@ import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
 
+import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
+import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
+import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
+
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -108,11 +112,9 @@ function App() {
         <Page roles={["recovery-officer"]}>
           <WarrantyClaim />
         </Page>
+
+
       } />
-
-
-
-
 
       {/* Accountant */}
       <Route path="/accountant" element={
@@ -120,6 +122,31 @@ function App() {
           <AccountingDashboard />
         </Page>
       } />
+
+      {/* Admin */}
+      <Route path="/admin-dashboard" element={
+        <Page roles={["admin"]}>
+          <AdminDashboard />
+        </Page>
+      } />
+
+       {/* Admin */}
+      <Route path="/customer-lookup" element={
+        <Page roles={["admin"]}>
+          <CustomerLookup />
+        </Page>
+      } />
+
+      {/* Admin */}
+      <Route path="/inventory-management" element={
+        <Page roles={["admin"]}>
+          <InventoryManagement />
+        </Page>
+      } />
+
+
+
+
     </Routes>
   );
 }
