@@ -93,7 +93,7 @@ function RecoveryDashboard() {
 
       {/* Table Section */}
       <Card
-        className="rounded-2xl shadow-sm border border-gray-100" Style={{ padding: "28px" }}
+        className="rounded-2xl shadow-sm border border-gray-100" style={{ padding: "28px" }}
       >
         <div className="flex items-center justify-between mb-6">
           <Title level={5} className="mb-0!" style={{ fontWeight: 600 }}>

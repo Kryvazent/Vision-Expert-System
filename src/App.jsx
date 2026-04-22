@@ -18,6 +18,9 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+
+        {/* Recovery officer */}
+        
       <Route path="/recovery-dashboard" element={
         <CommonPageStructure>
           <RecoveryDashboard />
