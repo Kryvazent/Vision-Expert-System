@@ -18,6 +18,7 @@ import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
 import OwnerDashboard from '../pages/owner/OwnerDashboard';
+import PatientManagement from '../pages/optimetrist/PatientManagement';
 
 import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
@@ -59,7 +60,7 @@ function App() {
 
 
       {/* Optometrist */}
-      <Route path="/optimetrist-dashboard" element={
+      <Route path="/optometrist-dashboard" element={
         <Page roles={["optometrist"]}>
           <OptimetristDashboard />
         </Page>
@@ -68,6 +69,12 @@ function App() {
       <Route path="/new-prescription" element={
         <Page roles={["optometrist"]}>
           <NewPresctiption />
+        </Page>
+      } />
+
+      <Route path="/patient-management" element={
+        <Page roles={["optometrist"]}>
+          <PatientManagement />
         </Page>
       } />
 
