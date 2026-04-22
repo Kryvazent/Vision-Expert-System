@@ -27,7 +27,7 @@ export const MENU_BY_ROLE = {
     { key: '/admin-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
     { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
     { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
-    //{ key: '/project-clinics', icon: <ProjectOutlined />,   label: 'Project Clinics' },
+    { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
     //{ key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
   ],
 

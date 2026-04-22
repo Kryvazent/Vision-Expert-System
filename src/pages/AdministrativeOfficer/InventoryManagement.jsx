@@ -2,7 +2,7 @@ import React from 'react'
 import { Card, Row, Col, Button, Typography, Layout } from 'antd';
 import { BankOutlined } from '@ant-design/icons';
 import StatCard from '../../component/Admin/StatCard';
-import AdminIcons from '../../assets/icons/AdminIcons';
+import {icons} from '../../assets/icons/AdminIcons';
 import StockItemsTable from '../../component/Admin/inventory-management/StockItemsTable';
 import OutOfStockTable from '../../component/Admin/inventory-management/OutOfStockTable';
 import LowStockTable from '../../component/Admin/inventory-management/LowStockTable';
@@ -41,7 +41,7 @@ const inventory=[
         
         {/* LEFT SIDE */}
         <Col>
-          <Title level={2} style={{ fontWeight: "bold", marginBottom: "0" }}>
+          <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
             Inventory Management - Kadawatha
           </Title>
           <Text type="secondary">

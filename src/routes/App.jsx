@@ -22,6 +22,7 @@ import OwnerDashboard from '../pages/owner/OwnerDashboard';
 import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
 import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
+import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 
 
 // Wrap page in both layout + role guard
@@ -139,6 +140,13 @@ function App() {
       <Route path="/inventory-management" element={
         <Page roles={["admin"]}>
           <InventoryManagement />
+        </Page>
+      } />
+
+      {/* Admin */}
+      <Route path="/project-clinic" element={
+        <Page roles={["admin"]}>
+          <ProjectClinic />
         </Page>
       } />
 

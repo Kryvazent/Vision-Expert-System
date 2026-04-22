@@ -1,8 +1,8 @@
 
 import React from 'react'
-import {FileDoneOutlined,TeamOutlined,StockOutlined, InboxOutlined, FileTextOutlined, ExperimentOutlined, BgColorsOutlined, ScanOutlined, WarningOutlined, InfoCircleOutlined} from "@ant-design/icons";
+import {FileDoneOutlined,TeamOutlined,StockOutlined, InboxOutlined, FileTextOutlined, ExperimentOutlined, BgColorsOutlined, ScanOutlined, WarningOutlined, InfoCircleOutlined, PlusOutlined, ProjectOutlined, CalendarOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ShoppingCartOutlined } from "@ant-design/icons";
 
-const iconStyle = { color: "#3B82F6", fontSize: 22 };
+const iconStyle = { color: "#3B82F6", fontSize: 22 , fontWeight: "bold" };
 
 export const icons = {
   customers: < TeamOutlined style={iconStyle} />,
@@ -14,9 +14,17 @@ export const icons = {
   cleaningClothes: <BgColorsOutlined style={iconStyle} />,
   lowStock: <WarningOutlined  style={iconStyle} />,
   outStock: <InfoCircleOutlined  style={iconStyle} />,
-  frames: <ScanOutlined style={iconStyle} />}
+  frames: <ScanOutlined style={iconStyle} />,
+  addButton: <PlusOutlined  style={iconStyle} />,
+  projects: <ProjectOutlined style={iconStyle} />,
+  scheduledClinics: <CalendarOutlined style={iconStyle} />,
+  completedClinics: <TeamOutlined style={iconStyle} />,
+  viewDetails: <EyeOutlined style={iconStyle} />,
+  edit: <EditOutlined style={iconStyle} />,
+  delete: <DeleteOutlined style={iconStyle} />,
+  order: <ShoppingCartOutlined style={iconStyle} />
 
-
+};
 
 
 function AdminIcons() {
