@@ -61,7 +61,6 @@ const statusMap = {
 export default function WarrantyClaim() {
   const [claims, setClaims] = useState(initialClaims);
   const [modalOpen, setModalOpen] = useState(false);
-  const [detailRecord, setDetailRecord] = useState(null);
   const [form] = Form.useForm();
  
   const handleStart = (id) => {
@@ -162,13 +161,6 @@ export default function WarrantyClaim() {
       render: (_, record) => (
         <Space size={6}>
           <Tooltip title="View Details">
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => setDetailRecord(record)}
-            >
-              Details
-            </Button>
           </Tooltip>
           {record.status === "Pending" && (
             <Tooltip title="Start processing this claim">
@@ -271,29 +263,6 @@ export default function WarrantyClaim() {
               size="middle"
             />
           </Card>
- 
-          {/* Stats Row */}
-          <Row gutter={16}>
-            {[
-              { label: "Total Claims", value: claims.length, color: "#1d6df0", suffix: "" },
-              { label: "Pending", value: claims.filter(c => c.status === "Pending").length, color: "#fa8c16", suffix: "" },
-              { label: "In Progress", value: claims.filter(c => c.status === "In Progress").length, color: "#1890ff", suffix: "" },
-              { label: "Resolved", value: claims.filter(c => c.status === "Resolved").length, color: "#52c41a", suffix: "" },
-            ].map(s => (
-              <Col span={6} key={s.label}>
-                <Card
-                  className="stat-card"
-                  style={{ borderTop: `3px solid ${s.color}`, textAlign: "center" }}
-                >
-                  <Statistic
-                    title={<Text style={{ fontSize: 12, color: "#9ca3af", fontWeight: 600 }}>{s.label}</Text>}
-                    value={s.value}
-                    valueStyle={{ color: s.color, fontWeight: 800, fontSize: 28 }}
-                  />
-                </Card>
-              </Col>
-            ))}
-          </Row>
         </div>
       </div>
  
@@ -343,58 +312,7 @@ export default function WarrantyClaim() {
         </Form>
       </Modal>
  
-      {/* Detail Modal */}
-      <Modal
-        title={
-          <Space>
-            <EyeOutlined style={{ color: "#1d6df0" }} />
-            <span style={{ fontWeight: 700 }}>Claim Details — {detailRecord?.id}</span>
-          </Space>
-        }
-        open={!!detailRecord}
-        onCancel={() => setDetailRecord(null)}
-        footer={[
-          <Button key="close" onClick={() => setDetailRecord(null)} style={{ fontWeight: 600 }}>
-            Close
-          </Button>,
-        ]}
-        width={400}
-      >
-        {detailRecord && (
-          <>
-            <Divider style={{ margin: "12px 0" }} />
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-              {[
-                ["Order ID", detailRecord.orderId],
-                ["Customer", detailRecord.customer],
-                ["Phone", detailRecord.phone],
-                ["Claim Date", detailRecord.claimDate],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  <Text type="secondary" style={{ fontWeight: 600 }}>{k}</Text>
-                  <Text strong>{v}</Text>
-                </div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <Text type="secondary" style={{ fontWeight: 600 }}>Issue Type</Text>
-                <Tag color={issueTagColor[detailRecord.issueType]} style={{ borderRadius: 20, fontWeight: 600 }}>
-                  {detailRecord.issueType}
-                </Tag>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                <Text type="secondary" style={{ fontWeight: 600 }}>Status</Text>
-                <Tag
-                  icon={statusMap[detailRecord.status]?.icon}
-                  color={statusMap[detailRecord.status]?.color}
-                  style={{ borderRadius: 20, fontWeight: 600 }}
-                >
-                  {detailRecord.status}
-                </Tag>
-              </div>
-            </Space>
-          </>
-        )}
-      </Modal>
+      
  
       {/* Help Button */}
       <div style={{ position: "fixed", bottom: 28, right: 28 }}>

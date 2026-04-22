@@ -1,12 +1,12 @@
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, SafetyOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, SafetyOutlined, UnorderedListOutlined,ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
     { key: '/recovery-dashboard',  icon: <DashboardOutlined />,    label: 'Dashboard' },
     { key: '/recovery-sheet',      icon: <FileTextOutlined />,      label: 'Recovery Sheet' },
-    { key: '/recovery-followup',   icon: <ClockCircleOutlined />,   label: 'Recovery Follow-Up' },
-    { key: '/overdue-units',       icon: <ClockCircleOutlined />,   label: 'Overdue Units' },
-    // { key: '/recovery-dashboard',  icon: <SafetyOutlined />,        label: 'Warranty Claims' },
+    { key: '/cash-transfer',       icon: <TransactionOutlined />,   label: 'Cash Transfer' },
+    { key: '/recovery-followup',   icon: <SyncOutlined />,   label: 'Recovery Follow-Up' },
+    { key: '/warranty-claim',     icon: <ToolOutlined />,   label: 'Warranty Claims' },
   ],
 
   "optometrist": [
