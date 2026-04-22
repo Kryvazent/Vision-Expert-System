@@ -17,6 +17,9 @@ import ProtectedRoute from './protectedRoutes';
 import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
+import PatientManagement from './../pages/optimetrist/PatientManagement';
+import CashTransfer from '../pages/recovery-officer/CashTransfer';
+import RecoveryFollowUp from '../pages/recovery-officer/RecoveryFollowUp';
 
 
 // Wrap page in both layout + role guard
@@ -122,7 +125,11 @@ function App() {
         </Page>
       } />
 
-
+      <Route path="/recovery-followup" element={
+        <Page roles={["recovery-officer"]}>
+          <RecoveryFollowUp />
+        </Page>
+      } />
 
 
 

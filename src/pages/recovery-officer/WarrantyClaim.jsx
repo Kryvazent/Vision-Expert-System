@@ -61,7 +61,6 @@ const statusMap = {
 export default function WarrantyClaim() {
   const [claims, setClaims] = useState(initialClaims);
   const [modalOpen, setModalOpen] = useState(false);
-  const [detailRecord, setDetailRecord] = useState(null);
   const [form] = Form.useForm();
  
   const handleStart = (id) => {
@@ -162,13 +161,6 @@ export default function WarrantyClaim() {
       render: (_, record) => (
         <Space size={6}>
           <Tooltip title="View Details">
-            <Button
-              size="small"
-              icon={<EyeOutlined />}
-              onClick={() => setDetailRecord(record)}
-            >
-              Details
-            </Button>
           </Tooltip>
           {record.status === "Pending" && (
             <Tooltip title="Start processing this claim">
@@ -311,6 +303,7 @@ export default function WarrantyClaim() {
             <Select>
               <Select.Option value="Lens Damage">Lens Damage</Select.Option>
               <Select.Option value="Frame Damage">Frame Damage</Select.Option>
+              <Select.Option value="Prescription Error">Prescription Error</Select.Option>
             </Select>
           </Form.Item>
           <Form.Item label="Claim Date" name="claimDate" rules={[{ required: true, message: "Required" }]}>
@@ -319,58 +312,7 @@ export default function WarrantyClaim() {
         </Form>
       </Modal>
  
-      {/* Detail Modal */}
-      <Modal
-        title={
-          <Space>
-            <EyeOutlined style={{ color: "#1d6df0" }} />
-            <span style={{ fontWeight: 700 }}>Claim Details — {detailRecord?.id}</span>
-          </Space>
-        }
-        open={!!detailRecord}
-        onCancel={() => setDetailRecord(null)}
-        footer={[
-          <Button key="close" onClick={() => setDetailRecord(null)} style={{ fontWeight: 600 }}>
-            Close
-          </Button>,
-        ]}
-        width={400}
-      >
-        {detailRecord && (
-          <>
-            <Divider style={{ margin: "12px 0" }} />
-            <Space direction="vertical" style={{ width: "100%" }} size={12}>
-              {[
-                ["Order ID", detailRecord.orderId],
-                ["Customer", detailRecord.customer],
-                ["Phone", detailRecord.phone],
-                ["Claim Date", detailRecord.claimDate],
-              ].map(([k, v]) => (
-                <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                  <Text type="secondary" style={{ fontWeight: 600 }}>{k}</Text>
-                  <Text strong>{v}</Text>
-                </div>
-              ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f0f0f0" }}>
-                <Text type="secondary" style={{ fontWeight: 600 }}>Issue Type</Text>
-                <Tag color={issueTagColor[detailRecord.issueType]} style={{ borderRadius: 20, fontWeight: 600 }}>
-                  {detailRecord.issueType}
-                </Tag>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
-                <Text type="secondary" style={{ fontWeight: 600 }}>Status</Text>
-                <Tag
-                  icon={statusMap[detailRecord.status]?.icon}
-                  color={statusMap[detailRecord.status]?.color}
-                  style={{ borderRadius: 20, fontWeight: 600 }}
-                >
-                  {detailRecord.status}
-                </Tag>
-              </div>
-            </Space>
-          </>
-        )}
-      </Modal>
+      
  
       {/* Help Button */}
       <div style={{ position: "fixed", bottom: 28, right: 28 }}>
