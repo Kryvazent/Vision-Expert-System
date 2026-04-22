@@ -11,10 +11,9 @@ export const MENU_BY_ROLE = {
   ],
 
   "optometrist": [
-    { key: '/optimetrist-dashboard', icon: <DashboardOutlined />,  label: 'Dashboard' },
-    { key: '/patient-management',    icon: <BarChartOutlined />,    label: 'Patient Management' },
+    { key: '/optometrist-dashboard', icon: <DashboardOutlined />,  label: 'Dashboard' },
     { key: '/new-prescription',      icon: <PlusCircleOutlined />,  label: 'New Prescription' },
-    { key: '/reports',               icon: <BarChartOutlined />,    label: 'Reports' },
+    { key: '/patient-management',    icon: <BarChartOutlined />,    label: 'Patient Management' },
   ],
 
   "sales-executive": [

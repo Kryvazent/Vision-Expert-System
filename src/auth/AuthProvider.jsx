@@ -10,30 +10,31 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(undefined); // undefined = loading
   const [user, setUser] = useState(null);
   const [staff, setStaff] = useState(null);
-
-  // Role comes straight from the JWT — no extra DB round-trip needed
-  const role = session?.user?.role ?? null;
-
+  const [role, setRole] = useState(null);
 
   async function loadStaffProfile(authUserId) {
+
+    console.log("Loading staff profile for authUserId:", authUserId);
+
     if (!authUserId) { setStaff(null); return; }
 
     const GET_STAFF_PROFILE = gql`
       query GetStaffProfile($authUserId: UUID!) {
-  # Try using the prefixed name: SchemaNameTableCollection
-  staffCollection(filter: {auth_user_id: {eq: $authUserId}}) {
-    edges {
-      node {
-        id
-        first_name
-        last_name
-        branch_id
+        staffCollection(filter: { auth_user_id: { eq: $authUserId } }) {
+          edges {
+            node {
+              id
+              first_name
+              last_name
+              branch_id
+              role {
+                  id
+                  role_name
+              }
+            }
+          }
+        }
       }
-    }
-  }
-}
-
-
     `;
 
     try {
@@ -45,8 +46,13 @@ export function AuthProvider({ children }) {
       });
 
       const staffData = data?.staffCollection?.edges?.[0]?.node || null;
-
       setStaff(staffData);
+
+      console.log("Fetched staff profile:", staffData);
+
+      const fetchedRole = staffData?.role?.role_name || null;
+      setRole(fetchedRole);
+
     } catch (error) {
       console.error("Failed to fetch staff profile:", error.message);
       setStaff(null);
@@ -58,14 +64,23 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      loadStaffProfile(session?.user?.id);
+
+      if (session?.user?.id) {
+        loadStaffProfile(session.user.id); // ✅ only when ready
+      }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        loadStaffProfile(session?.user?.id);
+
+        if (session?.user?.id) {
+          loadStaffProfile(session.user.id); // ✅ safe
+        } else {
+          setStaff(null);
+          await apolloSupabaseGraphqlClient.clearStore();
+        }
       }
     );
 
@@ -74,7 +89,7 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => await supabase.auth.signOut();
 
-  console.log("ROLE:", MENU_BY_ROLE[role]?.[0]?.key);
+  // console.log("ROLE:", MENU_BY_ROLE[role]?.[0]?.key);
   // console.log("ROLE:", MENU_BY_ROLE[role][0]);
   // console.log("ROLE:", MENU_BY_ROLE[role][0].key);
 

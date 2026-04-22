@@ -17,7 +17,6 @@ import ProtectedRoute from './protectedRoutes';
 import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
-import CashTransfer from '../pages/recovery-officer/CashTransfer';
 
 
 // Wrap page in both layout + role guard
@@ -54,7 +53,7 @@ function App() {
 
 
       {/* Optometrist */}
-      <Route path="/optimetrist-dashboard" element={
+      <Route path="/optometrist-dashboard" element={
         <Page roles={["optometrist"]}>
           <OptimetristDashboard />
         </Page>
@@ -63,6 +62,12 @@ function App() {
       <Route path="/new-prescription" element={
         <Page roles={["optometrist"]}>
           <NewPresctiption />
+        </Page>
+      } />
+
+      <Route path="/patient-management" element={
+        <Page roles={["optometrist"]}>
+          <PatientManagement />
         </Page>
       } />
 
@@ -127,6 +132,7 @@ function App() {
           <AccountingDashboard />
         </Page>
       } />
+
     </Routes>
   );
 }
