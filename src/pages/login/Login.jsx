@@ -29,8 +29,8 @@ function Login() {
     console.log("otp:", otp);
     setLoading(true);
     if (step === 1) {
+      
       await sendOtp();
-      setStep(2);
     } else {
       await login();
     }
@@ -49,6 +49,7 @@ function Login() {
     } else {
       setMsgType('info');
       setMsg('OTP sent to your email address');
+      setStep(2);
     }
   };
 
