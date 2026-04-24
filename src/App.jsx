@@ -13,6 +13,10 @@ import AccountingDashboard from './pages/Accountant/AccountingDashboard';
 import RecoverySheet from './pages/recovery-officer/RecoverySheet';
 import CashTransfer from './pages/recovery-officer/CashTransfer';
 import HandOverDetails from './component/recoveryOfficer/HandOverDetails';
+import DailySales from './pages/Accountant/DailySales';
+import OrderFilter from './pages/Accountant/OrderFilter';
+import RecoveryFiltering from './pages/Accountant/RecoveryFiltering';
+import RecoveryDetails from './pages/Accountant/RecoveryDetails';
 
 function App() {
   return (
@@ -92,6 +96,35 @@ function App() {
         </CommonPageStructure>
       } />
 
+        <Route path="/accCashTransfer" element={
+        <CommonPageStructure>
+       <CashTransfer/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/accDailySales" element={
+        <CommonPageStructure>
+       <DailySales/>
+        </CommonPageStructure>
+      } />
+
+       <Route path="/accOrderfilter" element={
+        <CommonPageStructure>
+       <OrderFilter/>
+        </CommonPageStructure>
+      } />
+
+       <Route path="/accRecovery-Filtering" element={
+        <CommonPageStructure>
+       <RecoveryFiltering/>
+        </CommonPageStructure>
+      } />
+
+      <Route path="/accRecovery-Details" element={
+        <CommonPageStructure>
+       <RecoveryDetails/>
+        </CommonPageStructure>
+      } />
 
 
 

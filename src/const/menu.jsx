@@ -24,8 +24,14 @@ export const MENU_BY_ROLE = {
 
   "accountant": [
     { key: '/accountant',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/payments',        icon: <AccountBookOutlined />,  label: 'Payments' },
-    { key: '/invoices',        icon: <FileTextOutlined />,     label: 'Invoices' },
-    { key: '/financial-reports', icon: <BarChartOutlined />,   label: 'Reports' },
+    { key: '/accRecovery-Details',        icon: <AccountBookOutlined />,  label: 'Recovery Details' },
+    { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
+    { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
+     { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
+      { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+
+
+    
+    
   ],
 };
