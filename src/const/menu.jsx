@@ -44,4 +44,18 @@ export const MENU_BY_ROLE = {
     
     
   ],
+
+  "owner": [
+    { key: '/owner',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/project-management',        icon: <ProjectOutlined />,  label: 'Project Management' },
+    { key: '/payment-monitoring',        icon: <TransactionOutlined />,     label: 'Payment Monitoring' },
+    { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
+     { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
+      { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
+
+    
+    
+  ],
 };
+
+      

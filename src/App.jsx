@@ -90,41 +90,7 @@ function App() {
         </CommonPageStructure>
       } />
 
-      <Route path="/accountant" element={
-        <CommonPageStructure>
-       <AccountingDashboard />
-        </CommonPageStructure>
-      } />
-
-        <Route path="/accCashTransfer" element={
-        <CommonPageStructure>
-       <CashTransfer/>
-        </CommonPageStructure>
-      } />
-
-      <Route path="/accDailySales" element={
-        <CommonPageStructure>
-       <DailySales/>
-        </CommonPageStructure>
-      } />
-
-       <Route path="/accOrderfilter" element={
-        <CommonPageStructure>
-       <OrderFilter/>
-        </CommonPageStructure>
-      } />
-
-       <Route path="/accRecovery-Filtering" element={
-        <CommonPageStructure>
-       <RecoveryFiltering/>
-        </CommonPageStructure>
-      } />
-
-      <Route path="/accRecovery-Details" element={
-        <CommonPageStructure>
-       <RecoveryDetails/>
-        </CommonPageStructure>
-      } />
+     
 
 
 
