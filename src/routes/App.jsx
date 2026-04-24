@@ -21,6 +21,11 @@ import PatientManagement from './../pages/optimetrist/PatientManagement';
 import CashTransfer from '../pages/recovery-officer/CashTransfer';
 import RecoveryFollowUp from '../pages/recovery-officer/RecoveryFollowUp';
 
+import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
+import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
+import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
+import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
+
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -97,9 +102,6 @@ function App() {
       } />
 
 
-
-
-
       {/* Recovery Officer */}
       <Route path="/recovery-dashboard" element={
         <Page roles={["recovery-officer"]}>
@@ -117,6 +119,8 @@ function App() {
         <Page roles={["recovery-officer"]}>
           <WarrantyClaim />
         </Page>
+
+
       } />
 
       <Route path="/cash-transfer" element={
@@ -139,6 +143,37 @@ function App() {
           <AccountingDashboard />
         </Page>
       } />
+
+      {/* Admin */}
+      <Route path="/admin-dashboard" element={
+        <Page roles={["admin"]}>
+          <AdminDashboard />
+        </Page>
+      } />
+
+       {/* Admin */}
+      <Route path="/customer-lookup" element={
+        <Page roles={["admin"]}>
+          <CustomerLookup />
+        </Page>
+      } />
+
+      {/* Admin */}
+      <Route path="/inventory-management" element={
+        <Page roles={["admin"]}>
+          <InventoryManagement />
+        </Page>
+      } />
+
+      {/* Admin */}
+      <Route path="/project-clinic" element={
+        <Page roles={["admin"]}>
+          <ProjectClinic />
+        </Page>
+      } />
+
+
+
 
     </Routes>
   );
