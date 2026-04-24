@@ -26,7 +26,10 @@ export function AuthProvider({ children }) {
               id
               first_name
               last_name
-              branch_id
+              branch{
+                id
+                branch_name
+              }
               role {
                   id
                   role_name

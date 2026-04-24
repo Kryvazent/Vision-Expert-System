@@ -1,4 +1,4 @@
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, SafetyOutlined, UnorderedListOutlined,ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
+import { UserOutlined,ProjectOutlined,ShoppingOutlined, AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, SafetyOutlined, UnorderedListOutlined,ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
@@ -21,6 +21,16 @@ export const MENU_BY_ROLE = {
     { key: '/orders',                    icon: <UnorderedListOutlined />,    label: 'Orders' },
     { key: '/sales-reports',             icon: <BarChartOutlined />,         label: 'Reports' },
   ],
+
+  "admin": [
+    { key: '/admin-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
+    { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
+    { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
+    //{ key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
+  ],
+
+  
 
   "accountant": [
     { key: '/accountant',      icon: <DashboardOutlined />,    label: 'Dashboard' },
