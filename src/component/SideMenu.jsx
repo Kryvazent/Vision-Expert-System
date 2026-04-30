@@ -1,39 +1,45 @@
-import React, { useState } from 'react';
 import {
   DashboardOutlined,
-  FileTextOutlined ,
+  FileTextOutlined,
   ClockCircleOutlined,
   SafetyOutlined,
   BarChartOutlined,
+  ShoppingCartOutlined,
+  UnorderedListOutlined,
+  AccountBookOutlined,
+  PlusCircleOutlined,
 } from '@ant-design/icons';
 import { Menu } from 'antd';
-const items = [
-  { key: '1', icon: <DashboardOutlined />, label: 'Dashboard' },
-  { key: '2', icon: <FileTextOutlined  />, label: 'Recovery Sheet' },
-  { key: '3', icon: <ClockCircleOutlined />, label: 'Recovery Follow-Up' },
-  { key: '4', icon: <ClockCircleOutlined />, label: 'Overdue Units' },
-  { key: '5', icon: <SafetyOutlined />, label: 'Warranty Claims' },
-  { key: '6', icon: <BarChartOutlined />, label: 'Reports' },
-];
+import { useNavigate, useLocation } from 'react-router';
+import { useAuth } from '../const/functions';
+import { MENU_BY_ROLE } from '../const/menu';
 
 function SideMenu() {
-  const [collapsed, setCollapsed] = useState(false);
 
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
-  };
+  const { role } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const items = MENU_BY_ROLE[role] ?? [];
+
   return (
     <div style={{ width: 256 }}>
-     <Menu
-        defaultSelectedKeys={['1']}
+      <Menu
+        selectedKeys={[location.pathname]}
         mode="inline"
         theme="dark"
-        inlineCollapsed={collapsed}
         items={items}
-        style={{background:"transparent", border:"none", marginTop:8, textAlign:"left", fontSize:16}}
+        onClick={({ key }) => navigate(key)}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          marginTop: 8,
+          textAlign: 'left',
+          fontSize: 16,
+        }}
       />
     </div>
-  )
+  );
 }
 
-export default SideMenu
+export default SideMenu;

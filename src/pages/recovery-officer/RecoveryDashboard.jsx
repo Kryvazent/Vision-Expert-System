@@ -8,7 +8,7 @@ const { Text, Title } = Typography;
 const tableData = [
   {
     key: 1,
-    month: "February 2024",
+    date: "10/02/2026",
     centerName: "Kadawath",
     time: "10:00 AM - 1.00 PM",
     totalUnits: 45,
@@ -16,7 +16,7 @@ const tableData = [
   },
   {
     key: 2,
-    month: "January 2024",
+    date: "25/03/2026",
     centerName: "Gampaha",
     time: "2:00 PM - 5.00 PM",
     totalUnits: 38,
@@ -26,9 +26,9 @@ const tableData = [
 
 const columns = [
   {
-    title: "Month",
-    dataIndex: "month",
-    key: "month",
+    title: "Date",
+    dataIndex: "date",
+    key: "date",
     onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
   },
   {
@@ -93,11 +93,11 @@ function RecoveryDashboard() {
 
       {/* Table Section */}
       <Card
-        className="rounded-2xl shadow-sm border border-gray-100" Style={{ padding: "28px" }}
+        className="rounded-2xl shadow-sm border border-gray-100" style={{ padding: "28px" }}
       >
         <div className="flex items-center justify-between mb-6">
           <Title level={5} className="mb-0!" style={{ fontWeight: 600 }}>
-            Delivery Schedule by Branch
+            Pending Deliveries
           </Title>
           <Button
             type="primary"

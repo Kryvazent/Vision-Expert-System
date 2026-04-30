@@ -15,6 +15,7 @@ const siderStyle = {
 };
 
 function Sidebar() {
+
   return (
         <Sider width="280" style={siderStyle} className="flex flex-col">
           {/*Logo*/}
@@ -31,7 +32,7 @@ function Sidebar() {
 
           {/* Side Menu */}
           <div className="flex-1 px-3">
-            <SideMenu />
+            <SideMenu /> 
           </div>
 
             {/* Logout */}
