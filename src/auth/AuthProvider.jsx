@@ -14,7 +14,7 @@ export function AuthProvider({ children }) {
 
   async function loadStaffProfile(authUserId) {
 
-    console.log("Loading staff profile for authUserId:", authUserId);
+    // console.log("Loading staff profile for authUserId:", authUserId);
 
     if (!authUserId) { setStaff(null); return; }
 
@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
       const staffData = data?.staffCollection?.edges?.[0]?.node || null;
       setStaff(staffData);
 
-      console.log("Fetched staff profile:", staffData);
+      // console.log("Fetched staff profile:", staffData);
 
       const fetchedRole = staffData?.role?.role_name || null;
       setRole(fetchedRole);
