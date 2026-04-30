@@ -24,6 +24,8 @@ import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
 import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
+import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
+
 
 
 // Wrap page in both layout + role guard
@@ -129,6 +131,9 @@ function App() {
         </Page>
       } />
 
+
+
+
       {/* Admin */}
       <Route path="/admin-dashboard" element={
         <Page roles={["admin"]}>
@@ -154,6 +159,14 @@ function App() {
       <Route path="/project-clinic" element={
         <Page roles={["admin"]}>
           <ProjectClinic />
+        </Page>
+      } />
+
+
+      {/* Admin */}
+      <Route path="/batch-tracking" element={
+        <Page roles={["admin"]}>
+          <BatchTracking />
         </Page>
       } />
 

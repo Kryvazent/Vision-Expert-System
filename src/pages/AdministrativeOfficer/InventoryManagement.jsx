@@ -82,7 +82,7 @@ const inventory=[
 
       <Card className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
-            {/* Out of Stock Table */}
+            {/* Low of Stock Table */}
           <LowStockTable />
         </Card>
 
