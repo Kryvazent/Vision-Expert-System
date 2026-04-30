@@ -2,12 +2,15 @@ import { Button, Card, Col, Input, Modal, Popconfirm, Row, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 import { DeleteOutlined, EditOutlined } from "@ant-design/icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TextArea from "antd/es/input/TextArea";
+import { gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client/react";
 
 function PatientManagement() {
 
     const [openModal, setOpenModal] = useState(false);
+    const [selectedpatient, setSelectedPatient] = useState(null);
 
     const patientData = [
         {
@@ -59,7 +62,7 @@ function PatientManagement() {
                         type="primary"
                         style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
                         icon={<EditOutlined />}
-                        onClick={() => setOpenModal(true)}
+                        onClick={(record) => { setOpenModal(true); setSelectedPatient(record); }}
                     >
                     </Button>
 
@@ -77,6 +80,47 @@ function PatientManagement() {
             ),
         },
     ];
+
+    const LOAD_PRESCRIPTION_DATA = gql`
+    
+        query LoadPrescriptionData($patientId: ID!) {
+
+            prescription(filter: { session_attend_customer_id: { eq: $patientId } }) {
+                edges {
+                    node{
+                        id
+                        remarks
+                        created_at
+                        session_attend_customer_id
+                        right_eye_sph
+                        right_eye_cyl
+                        right_eye_axis
+                        right_eye_add
+                        left_eye_sph
+                        left_eye_cyl
+                        left_eye_axis
+                        left_eye_add
+                        pupillary_distance
+                    }
+                }
+            }
+        }
+    `;
+    const [loadPrescriptionData, { data, loading, error }] = useLazyQuery(LOAD_PRESCRIPTION_DATA);
+
+
+
+    useEffect(() => {
+        if (openModal && selectedpatient) {
+            loadPrescriptionData({
+                variables: { patientId: selectedpatient.id }
+            });
+        }
+    }, [openModal, selectedpatient, loadPrescriptionData]);
+
+    useEffect(() => {
+        console.log("Prescription data loaded:", data);
+    }, [data]);
 
     return (
         <>

@@ -1,5 +1,5 @@
 import { gql } from "@apollo/client";
-import { useMutation } from "@apollo/client/react";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
 import { Select } from "antd";
 
 function ExistingPatientSearch({ onPatientSelect }) {
@@ -7,14 +7,14 @@ function ExistingPatientSearch({ onPatientSelect }) {
     const SEARCH_PATIENTS = gql`
     
         query SearchExistingUser($nic: String!) {
-            customerCollection(filter: { nic: { eq: $nic } }) {
+            customerCollection(filter: { nic: { like: $nic } }) {
                 edges {
                     node{
                         id
                         first_name
                         last_name
                         nic
-                        contact_number
+                        contact_no
                         address
                         dob
                     }
@@ -23,7 +23,9 @@ function ExistingPatientSearch({ onPatientSelect }) {
         }
     `;
 
-    const [searchPatients, { data, loading, error }] = useMutation(SEARCH_PATIENTS);
+    const [searchPatients, { data, loading, error }] = useLazyQuery(SEARCH_PATIENTS);
+
+    console.log("Search patients data:", data);
 
     return (
         <>
@@ -37,6 +39,7 @@ function ExistingPatientSearch({ onPatientSelect }) {
                 placeholder="Search by NIC"
                 onSearch={(value) => {
                     searchPatients({ variables: { nic: value } });
+                    console.log("Searching for patients with NIC:", value);
                 }}
                 options={data?.customerCollection?.edges?.map(({ node }) => ({
                     value: node.id,
