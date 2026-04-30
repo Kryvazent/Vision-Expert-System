@@ -17,8 +17,9 @@ import ProtectedRoute from './protectedRoutes';
 import { useAuth } from '../const/functions';
 import RecoveryDashboard from '../pages/recovery-officer/RecoveryDashboard';
 import RecoverySheet from '../pages/recovery-officer/RecoverySheet';
-import OwnerDashboard from '../pages/owner/OwnerDashboard';
-import PatientManagement from '../pages/optimetrist/PatientManagement';
+import PatientManagement from './../pages/optimetrist/PatientManagement';
+import CashTransfer from '../pages/recovery-officer/CashTransfer';
+import RecoveryFollowUp from '../pages/recovery-officer/RecoveryFollowUp';
 
 import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
@@ -123,6 +124,20 @@ function App() {
 
 
       } />
+
+      <Route path="/cash-transfer" element={
+        <Page roles={["recovery-officer"]}>
+          <CashTransfer />
+        </Page>
+      } />
+
+      <Route path="/recovery-followup" element={
+        <Page roles={["recovery-officer"]}>
+          <RecoveryFollowUp />
+        </Page>
+      } />
+
+
 
       {/* Accountant */}
       <Route path="/accountant" element={
