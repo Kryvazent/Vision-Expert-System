@@ -1,5 +1,5 @@
 import { gql } from "@apollo/client";
-import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { useLazyQuery } from "@apollo/client/react";
 import { Select } from "antd";
 
 function ExistingPatientSearch({ onPatientSelect }) {
@@ -43,7 +43,7 @@ function ExistingPatientSearch({ onPatientSelect }) {
                 }}
                 options={data?.customerCollection?.edges?.map(({ node }) => ({
                     value: node.id,
-                    label: `${node.first_name} ${node.last_name} - ${node.nic}`,
+                    label: `${node.first_name} ${node.last_name || ''} - ${node.nic}`,
                 })) || []}
                 onSelect={(value) => {
                     const patient = data?.customerCollection?.edges?.find(({ node }) => node.id === value)?.node;
@@ -51,6 +51,8 @@ function ExistingPatientSearch({ onPatientSelect }) {
                         onPatientSelect(patient);
                     }
                 }}
+                loading={loading}
+                error={error}
             />
         </>
     );

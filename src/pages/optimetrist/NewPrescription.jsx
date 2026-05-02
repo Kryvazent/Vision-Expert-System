@@ -17,6 +17,7 @@ function NewPrescription() {
     const [sessionId, setSessionId] = useState(null);
     const [selectedClinic, setSelectedClinic] = useState(null);
 
+
     // ========================= MUTATIONS =========================
 
     const ADD_NEW_PRESCRIPTION = gql`
@@ -109,12 +110,12 @@ function NewPrescription() {
 
     const GET_CLINIC = gql`
         query GetClinic($branchId: ID!, $today: Date!) {
-            clinicCollection(filter: { branch_id: { eq: $branchId } }) {
+            clinicCollection(filter: { branch_id: { eq: $branchId }, date: { eq: $today } }) {
                 edges {
                     node{
                         id
                         venue
-                        sessionCollection(filter: { date: { eq: $today } }) {
+                        sessionCollection {
                             edges{
                                 node{
                                     id
@@ -156,6 +157,7 @@ function NewPrescription() {
 
     // ========================= LOAD CLINIC =========================
 
+
     useEffect(() => {
         if (staff?.branch.id) {
             const today = new Date().toISOString().split("T")[0];
@@ -173,6 +175,8 @@ function NewPrescription() {
     const selectedClinicData = clinicData?.clinicCollection?.edges?.find(
         (edge) => edge.node.id === selectedClinic
     );
+
+    console.log("Selected Clinic Data:", selectedClinicData);
 
     // ========================= SUBMIT =========================
 
@@ -193,7 +197,7 @@ function NewPrescription() {
             return;
         }
 
-        // try {
+        try {
             // 1. check customer branch
             const customerBranchRes = await checkCustomerBranch({
                 variables: {
@@ -249,7 +253,7 @@ function NewPrescription() {
             }
 
             console.log("SessionAttendCustomerId:", sessionAttendCustomerId);
-            
+
             // 3. add prescription
             await addPrescription({
                 variables: {
@@ -261,10 +265,10 @@ function NewPrescription() {
             alert("Prescription added successfully!");
             clearFields();
 
-        // } catch (err) {
-            // console.error(err);
-            // alert("Error adding prescription");
-        // }
+        } catch (err) {
+            console.error(err);
+            alert("Error adding prescription");
+        }
     };
 
     const clearFields = () => {
@@ -281,21 +285,45 @@ function NewPrescription() {
             pupillaryDistance: null
         });
         setSelectedPatient(null);
-        setSessionId(null);
-        setSelectedClinic(null);
     };
 
     const clinicCount = clinicData?.clinicCollection?.edges?.length || 0;
-    const sessionCount = selectedClinicData?.node?.sessionCollection?.edges?.length || 0;
+    let sessionCount;
+    if (clinicCount > 1) {
+        sessionCount = selectedClinicData?.node?.sessionCollection?.edges?.length || 0;
+    } else {
+        sessionCount = clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.length || 0;
+    }
 
     const needsClinicSelection = clinicCount > 1 && !selectedClinic;
     const needsSessionSelection = selectedClinic && sessionCount > 1 && !sessionId;
+
+    const isDisabled = !selectedClinic || sessionCount === 0;
+
+    const [collapseKey, setCollapseKey] = useState(['1']);
+    useEffect(() => {
+
+        let clinicCount = clinicData?.clinicCollection?.edges?.length || 0;
+        let sessionCount = clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.length || 0;
+
+        if (clinicCount === 1) {
+            setSelectedClinic(clinicData?.clinicCollection?.edges?.[0]?.node?.id);
+        }
+
+
+        if (clinicCount === 1 && sessionCount === 1) {
+            setSessionId(clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.[0]?.node?.id);
+        }
+
+        setCollapseKey(clinicCount == 1 && sessionCount == 1 ? [] : ['1'])
+    }, [clinicData]);
+
 
     return (
         <div className="m-5 gap-3.5 flex flex-col max-h-[87.25vh] overflow-y-auto">
 
             <Collapse
-                defaultActiveKey={['1']}
+                defaultActiveKey={collapseKey}
                 items={[
                     {
                         key: '1',
@@ -307,9 +335,9 @@ function NewPrescription() {
 
                                 <span className="text-sm text-gray-500">
                                     {clinicCount > 1 && !selectedClinic && "⚠ Select Clinic"}
-                                    {clinicCount === 1 && "✔ Clinic Auto Selected"}
+                                    {clinicCount === 1 && sessionCount === 1 && "✔ Clinic & Session Auto Selected"}
                                     {selectedClinic && sessionCount > 1 && !sessionId && " | ⚠ Select Session"}
-                                    {selectedClinic && sessionCount === 1 && " | ✔ Single Session"}
+                                    {selectedClinic && sessionCount === 0 && " | ❌ No Sessions Available"}
                                 </span>
                             </div>
                         ),
@@ -375,7 +403,7 @@ function NewPrescription() {
                 ]}
             />
 
-            <Card title="New Prescription">
+            <Card title="New Prescription" aria-disabled={!selectedClinic || sessionCount === 0}>
 
                 <Row gutter={16}>
 
@@ -441,7 +469,7 @@ function NewPrescription() {
 
                         <Row>
                             <Col span={24}>
-                                <Button type="primary" className="mt-5 w-full" onClick={handleAddPrescription} disabled={!selectedPatient}>
+                                <Button type="primary" className="mt-5 w-full" onClick={handleAddPrescription} disabled={!selectedPatient || !selectedClinic || sessionCount === 0}>
                                     Add Prescription
                                 </Button>
                             </Col>
@@ -475,6 +503,20 @@ function NewPrescription() {
                     </Col>
 
                 </Row>
+
+                {isDisabled && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: "rgba(255,255,255,0.6)",
+                            cursor: "not-allowed",
+                        }}
+                    />
+                )}
             </Card>
         </div>
     );
