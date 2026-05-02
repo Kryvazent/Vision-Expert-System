@@ -148,18 +148,18 @@ export default function ProjectManagement() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      {/* 🔹 Header */}
+      
       <div className="flex justify-between items-center">
-        <div>
+        {/* <div>
           <h1 className="text-2xl font-semibold">Project Management</h1>
           <p className="text-gray-500 text-sm">
             Manage company projects and clinic schedules
           </p>
-        </div>
+        </div> */}
 
-        <Button type="primary" onClick={() => setOpen(true)}>
+        <Button type="primary" onClick={() => setOpen(true)} className="top-3">
           + New Project
         </Button>
       </div>

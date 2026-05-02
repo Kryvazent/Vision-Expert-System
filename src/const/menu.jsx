@@ -37,8 +37,8 @@ export const MENU_BY_ROLE = {
     { key: '/accRecovery-Details',        icon: <AccountBookOutlined />,  label: 'Recovery Details' },
     { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
     { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
-     { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
-      { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+    { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
+    { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
 
 
     
@@ -50,8 +50,8 @@ export const MENU_BY_ROLE = {
     { key: '/project-management',        icon: <ProjectOutlined />,  label: 'Project Management' },
     { key: '/payment-monitoring',        icon: <TransactionOutlined />,     label: 'Payment Monitoring' },
     { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
-     { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
-      { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
+    { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
+    { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
 
     
     
