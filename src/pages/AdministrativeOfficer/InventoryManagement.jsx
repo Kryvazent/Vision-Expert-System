@@ -12,19 +12,28 @@ const { Content } = Layout;
 export default function InventoryManagement() {
 
 const inventory=[
-    {category:"frames"},
+    {category:"plasticFrames"},
+    {category:"metalFrames"},
+    {category:"nightVision"},
+    {category:"doubleBride"},
+    {category:"sunGlasses"},
     {category:"hardBoxes"},
     {category:"plasticBoxes"},
     {category:"cleaningClothes"},
-    {category:"cleaningSolutions"},
+   // {category:"cleaningSolutions"},
     {category:"leaflets"},
+    {category:"poster"},
   ];
 
-  const frames = inventory.filter(item => item.category === 'frames');
+  const plasticFrames = inventory.filter(item => item.category === 'plasticFrames');
+  const metalFrames = inventory.filter(item => item.category === 'metalFrames');
+  const  nightVision= inventory.filter(item => item.category === 'nightVision');
+  const doubleBride = inventory.filter(item => item.category === 'doubleBride');
+  const sunGlasses = inventory.filter(item => item.category === 'sunGlasses');
   const hardBoxes = inventory.filter(item => item.category === 'hardBoxes');
   const plasticBoxes = inventory.filter(item => item.category === 'plasticBoxes');
   const cleaningClothes = inventory.filter(item => item.category === 'cleaningClothes');
-  const cleaningSolutions = inventory.filter(item => item.category === 'cleaningSolutions');
+  const poster = inventory.filter(item => item.category === 'poster');
   const leaflets = inventory.filter(item => item.category === 'leaflets');
 
   return (
@@ -70,17 +79,23 @@ const inventory=[
 
 
    <div className="flex gap-6 mb-5">
-          <StatCard title="Frames" value={frames.length} iconType="frames" color="#00A854" bgColor="#E6F7F0" />
+          <StatCard title="Plastic Frames" value={plasticFrames.length} iconType="frames" color="#00A854" bgColor="#E6F7F0" />
           <StatCard title="Plastic Boxes" value={plasticBoxes.length} iconType="box" color="#F5222D" bgColor="#FFF1F0" />
           <StatCard title="Hard Boxes" value={hardBoxes.length} iconType="box" color="#FAAD14" bgColor="#FFF7E6" />
    </div>
    <div className="flex gap-6 mb-5">       
           <StatCard title="Leaflets" value={leaflets.length} iconType="leaflets" color="#1890FF" bgColor="#E6F7FF" />
            <StatCard title="Cleaning Clothes" value={cleaningClothes.length} iconType="cleaningClothes" color="#722ED1" bgColor="#F9F0FF" />
-           <StatCard title="Cleaning Solutions" value={cleaningSolutions.length} iconType="cleaningSolutions" color="#8C8C8C" bgColor="#F5F5F5" />
+           {/* <StatCard title="Cleaning Solutions" value={cleaningSolutions.length} iconType="cleaningSolutions" color="#8C8C8C" bgColor="#F5F5F5" /> */}
      </div>
 
-      <Card className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
+      <div className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
+         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}}>
+            {/* Inventory Table */}
+          <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}> Inventory</Title>
+
+            <StockItemsTable />
+        </Card>
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Low of Stock Table */}
           <LowStockTable />
@@ -91,13 +106,7 @@ const inventory=[
           <OutOfStockTable />
         </Card>
 
-        <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}}>
-            {/* Inventory Table */}
-          <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}>Kadawatha Inventory</Title>
-
-            <StockItemsTable />
-        </Card>
-      </Card>
+      </div>
     </Content>
   </Layout>  
     

@@ -1,14 +1,18 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {  Card, Layout ,Table,Typography, Row, Button, Input, Space, Col} from "antd";
 import Sidebar from "../../component/Sidebar";
 import { icons } from '../../assets/icons/AdminIcons';
 import { Header } from 'antd/es/layout/layout';
 import StatCard from '../../component/Admin/StatCard';
+import CustomerInformation from '../../component/Admin/Customer-Lookup/CustomerInformation';
 
 const {Content } = Layout;
 const { Title, Text } = Typography;
 
 export default function CustomerLookup() {
+
+  const [searchValue, setSearchValue] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   const onSearch = (value) =>  {
     console.log('Search: ',value);
@@ -47,12 +51,12 @@ export default function CustomerLookup() {
                 <div style={{marginTop: '10px'}}>
                   <Text type="secondary">
                     Try: {' '}
-                    <Text>OD1234</Text> .{' '}
-                    <Text style={{ color: '#1677ff', cursor: 'pointer' }}>OD1230</Text>{' '}
+                    <a>OD1234</a> .{' '}
+                    <a>OD1230</a>{' '}
                     . {' '}
-                    <Text>OD1232 </Text>
+                    <a>OD1232 </a>
                     .  {' '}
-                    <Text>OD1233</Text>
+                    <a>OD1233</a>
                   </Text>
                 </div>
               </Col>
@@ -65,6 +69,7 @@ export default function CustomerLookup() {
                   <StatCard title="Delivery Date" value='2026-02-20' />
 
            </div>
+           <CustomerInformation/>
       </Content>
     </Layout>
   );
