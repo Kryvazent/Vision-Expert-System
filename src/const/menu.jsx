@@ -1,4 +1,4 @@
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined } from "@ant-design/icons";
 import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
@@ -28,6 +28,7 @@ export const MENU_BY_ROLE = {
     { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
     { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
     { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
+    {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
   ],
 

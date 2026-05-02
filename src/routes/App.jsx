@@ -26,6 +26,7 @@ import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
 import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
+import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
 
 
 
@@ -182,6 +183,12 @@ function App() {
       <Route path="/batch-tracking" element={
         <Page roles={["admin"]}>
           <BatchTracking />
+        </Page>
+      } />
+
+      <Route path="/reminder-calls" element={
+        <Page roles={["admin"]}>
+          <ReminderCalls />
         </Page>
       } />
 

@@ -20,7 +20,6 @@ export default function BatchTracking() {
           marginBottom: "20px",
       }}>
          <Row align="middle" justify="space-between">
-          {/* LEFT SIDE */}
              <Col>
                <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
                   Batch Tracking
