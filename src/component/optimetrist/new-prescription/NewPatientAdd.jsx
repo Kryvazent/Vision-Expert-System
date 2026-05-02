@@ -1,5 +1,5 @@
 import { gql } from "@apollo/client";
-import { useMutation } from "@apollo/client/react";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
 import { Button, Col, Input, Row } from "antd";
 import { useState } from "react";
 
@@ -15,7 +15,7 @@ function NewPatientAdd({ onPatientAdd }) {
             $contactNumber: String!,
             $address: String
         ){
-            insertIntoCustomerCollection(
+            insertIntocustomerCollection(
                 objects:{
                     first_name: $firstName,
                     last_name: $lastName,
@@ -30,7 +30,7 @@ function NewPatientAdd({ onPatientAdd }) {
                     first_name
                     last_name
                     nic
-                    contact_number
+                    contact_no
                     address
                     dob
                 }
@@ -41,7 +41,7 @@ function NewPatientAdd({ onPatientAdd }) {
     const CHECK_IF_PATIENT_EXISTS = gql`
     
         query CheckIfPatientExists($nic: String!) {
-            customerCollection(filter: { nic: { eq: $nic } }) {
+            customerCollection(filter: { nic: { like: $nic } }) {
                 edges {
                     node{
                         id
@@ -52,7 +52,7 @@ function NewPatientAdd({ onPatientAdd }) {
     `;
 
     const [addPatient, { data, loading, error }] = useMutation(ADD_NEW_PATIENT);
-    const [checkPatientExists, { data: existingPatientData, loading: existingPatientLoading, error: existingPatientError }] = useMutation(CHECK_IF_PATIENT_EXISTS);
+    const [checkPatientExists, { data: existingPatientData, loading: existingPatientLoading, error: existingPatientError }] = useLazyQuery(CHECK_IF_PATIENT_EXISTS);
 
     const [patientDetails, setPatientDetails] = useState({
         firstName: "",
@@ -62,19 +62,29 @@ function NewPatientAdd({ onPatientAdd }) {
         contactNumber: "",
     });
 
-    const handlePatientAdding = async () => {
-        await checkPatientExists({ variables: { nic: patientDetails.nic } }); 
-        const existingPatient = existingPatientData?.customerCollection?.edges?.[0]?.node;
+const handlePatientAdding = async () => {
 
-        if (existingPatient) {
-            alert("A patient with this NIC already exists.");
-            onPatientAdd(existingPatient);
-            return;
+    const res = await checkPatientExists({
+        variables: { nic: patientDetails.nic.trim() }
+    });
+
+    const existingPatient = res?.data?.customerCollection?.edges?.[0]?.node;
+    if (existingPatient) {
+        alert("A patient with this NIC already exists.");
+        onPatientAdd(existingPatient);
+        return;
+    }
+
+    const addRes = await addPatient({
+        variables: {
+            ...patientDetails,
+            lastName: patientDetails.lastName || null
         }
+    });
 
-        await addPatient({ variables: { ...patientDetails, lastName: patientDetails.lastName || null } });
-        onPatientAdd(data?.insertIntoCustomerCollection?.records?.[0] || null);
-    };
+    const newPatient = addRes?.data?.insertIntocustomerCollection?.records?.[0];
+    onPatientAdd(newPatient);
+};
 
     return (
         <>
