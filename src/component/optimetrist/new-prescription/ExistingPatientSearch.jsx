@@ -2,7 +2,7 @@ import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { Select } from "antd";
 
-function ExistingPatientSearch({ onPatientSelect }) {
+function ExistingPatientSearch({ onPatientSelect, getSelectedPatient }) {
 
     const SEARCH_PATIENTS = gql`
     
@@ -25,7 +25,7 @@ function ExistingPatientSearch({ onPatientSelect }) {
 
     const [searchPatients, { data, loading, error }] = useLazyQuery(SEARCH_PATIENTS);
 
-    console.log("Search patients data:", data);
+    // console.log("Search patients data:", data);
 
     return (
         <>
@@ -52,7 +52,8 @@ function ExistingPatientSearch({ onPatientSelect }) {
                     }
                 }}
                 loading={loading}
-                error={error}
+                value={getSelectedPatient?.id}
+                
             />
         </>
     );

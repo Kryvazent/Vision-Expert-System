@@ -176,7 +176,7 @@ function NewPrescription() {
         (edge) => edge.node.id === selectedClinic
     );
 
-    console.log("Selected Clinic Data:", selectedClinicData);
+    // console.log("Selected Clinic Data:", selectedClinicData);
 
     // ========================= SUBMIT =========================
 
@@ -206,7 +206,7 @@ function NewPrescription() {
                 }
             });
 
-            console.log("Customer Branch Check Result:", customerBranchRes);
+            // console.log("Customer Branch Check Result:", customerBranchRes);
 
             let customerHasBranchId =
                 customerBranchRes?.data?.customer_has_branchCollection?.edges?.[0]?.node?.id;
@@ -224,7 +224,7 @@ function NewPrescription() {
                     addBranchRes?.data?.customer_has_branchCollection?.records?.[0]?.id;
             }
 
-            console.log("CustomerHasBranchId:", customerHasBranchId);
+            // console.log("CustomerHasBranchId:", customerHasBranchId);
 
             // 2. check session attend
             const sessionAttendRes = await checkSessionAttendCustomer({
@@ -234,7 +234,7 @@ function NewPrescription() {
                 }
             });
 
-            console.log("Session Attend Customer Check Result:", sessionAttendRes);
+            // console.log("Session Attend Customer Check Result:", sessionAttendRes);
 
             let sessionAttendCustomerId =
                 sessionAttendRes?.data?.session_attend_customerCollection?.edges?.[0]?.node?.id;
@@ -252,12 +252,33 @@ function NewPrescription() {
                     addSessionRes?.data?.session_attend_customerCollection?.edges?.[0]?.node?.id;
             }
 
-            console.log("SessionAttendCustomerId:", sessionAttendCustomerId);
+            // console.log("SessionAttendCustomerId:", sessionAttendCustomerId);
 
             // 3. add prescription
+
+            const remarks = prescriptionDetails.remarks || "";
+            const rightSph = parseFloat(prescriptionDetails.rightEyeSph);
+            const rightCyl = parseFloat(prescriptionDetails.rightEyeCyl);
+            const rightAxis = parseFloat(prescriptionDetails.rightEyeAxis);
+            const rightAdd = parseFloat(prescriptionDetails.rightEyeAdd);
+            const leftSph = parseFloat(prescriptionDetails.leftEyeSph);
+            const leftCyl = parseFloat(prescriptionDetails.leftEyeCyl);
+            const leftAxis = parseFloat(prescriptionDetails.leftEyeAxis);
+            const leftAdd = parseFloat(prescriptionDetails.leftEyeAdd);
+            const pupillaryDistance = parseFloat(prescriptionDetails.pupillaryDistance);
+
             await addPrescription({
                 variables: {
-                    ...prescriptionDetails,
+                    remarks,
+                    rightEyeSph: rightSph,
+                    rightEyeCyl: rightCyl,
+                    rightEyeAxis: rightAxis,
+                    rightEyeAdd: rightAdd,
+                    leftEyeSph: leftSph,
+                    leftEyeCyl: leftCyl,
+                    leftEyeAxis: leftAxis,
+                    leftEyeAdd: leftAdd,
+                    pupillaryDistance: pupillaryDistance,
                     sessionAttendCustomerId
                 }
             });
@@ -414,19 +435,19 @@ function NewPrescription() {
                         <Row className="gap-3 ms-5 mt-5">
                             <Col span={5}>
                                 <p className="font-semibold">Sphere (SPH)</p>
-                                <Input placeholder="Sphere (SPH)" onChange={(e) => setValue("rightEyeSph", parseFloat(e.target.value))} />
+                                <Input placeholder="Sphere (SPH)" value={prescriptionDetails.rightEyeSph} onChange={(e) => setValue("rightEyeSph", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Cylinder (CYL)</p>
-                                <Input placeholder="Cylinder (CYL)" onChange={(e) => setValue("rightEyeCyl", parseFloat(e.target.value))} />
+                                <Input placeholder="Cylinder (CYL)" value={prescriptionDetails.rightEyeCyl} onChange={(e) => setValue("rightEyeCyl", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Axis</p>
-                                <Input placeholder="Axis" onChange={(e) => setValue("rightEyeAxis", parseFloat(e.target.value))} />
+                                <Input placeholder="Axis" value={prescriptionDetails.rightEyeAxis} onChange={(e) => setValue("rightEyeAxis", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Add</p>
-                                <Input placeholder="Add" onChange={(e) => setValue("rightEyeAdd", parseFloat(e.target.value))} />
+                                <Input placeholder="Add" value={prescriptionDetails.rightEyeAdd} onChange={(e) => setValue("rightEyeAdd", e.target.value)} />
                             </Col>
                         </Row>
 
@@ -435,19 +456,19 @@ function NewPrescription() {
                         <Row className="gap-3 ms-5 mt-5">
                             <Col span={5}>
                                 <p className="font-semibold">Sphere (SPH)</p>
-                                <Input placeholder="Sphere (SPH)" onChange={(e) => setValue("leftEyeSph", parseFloat(e.target.value))} />
+                                <Input placeholder="Sphere (SPH)" value={prescriptionDetails.leftEyeSph} onChange={(e) => setValue("leftEyeSph", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Cylinder (CYL)</p>
-                                <Input placeholder="Cylinder (CYL)" onChange={(e) => setValue("leftEyeCyl", parseFloat(e.target.value))} />
+                                <Input placeholder="Cylinder (CYL)" value={prescriptionDetails.leftEyeCyl} onChange={(e) => setValue("leftEyeCyl", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Axis</p>
-                                <Input placeholder="Axis" onChange={(e) => setValue("leftEyeAxis", parseFloat(e.target.value))} />
+                                <Input placeholder="Axis" value={prescriptionDetails.leftEyeAxis} onChange={(e) => setValue("leftEyeAxis", e.target.value)} />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Add</p>
-                                <Input placeholder="Add" onChange={(e) => setValue("leftEyeAdd", parseFloat(e.target.value))} />
+                                <Input placeholder="Add" value={prescriptionDetails.leftEyeAdd} onChange={(e) => setValue("leftEyeAdd", e.target.value)} />
                             </Col>
                         </Row>
 
@@ -456,14 +477,14 @@ function NewPrescription() {
                                 <p className="fs-5 font-semibold mt-10 mb-2">
                                     Pupillary Distance (PD)
                                 </p>
-                                <Input placeholder="Pupillary Distance (PD)" onChange={(e) => setValue("pupillaryDistance", parseFloat(e.target.value))} />
+                                <Input placeholder="Pupillary Distance (PD)" value={prescriptionDetails.pupillaryDistance} onChange={(e) => setValue("pupillaryDistance", e.target.value)} />
                             </Col>
                         </Row>
 
                         <Row>
                             <Col span={24}>
                                 <p className="fs-5 font-semibold mt-10 mb-2">Notes</p>
-                                <TextArea rows={4} onChange={(e) => setValue("remarks", e.target.value)} />
+                                <TextArea rows={4} value={prescriptionDetails.remarks} onChange={(e) => setValue("remarks", e.target.value)} />
                             </Col>
                         </Row>
 
@@ -498,7 +519,7 @@ function NewPrescription() {
 
                         <Divider />
 
-                        {position === "start" && <ExistingPatientSearch onPatientSelect={setSelectedPatient} />}
+                        {position === "start" && <ExistingPatientSearch onPatientSelect={setSelectedPatient} getSelectedPatient={selectedPatient} />}
                         {position === "end" && <NewPatientAdd onPatientAdd={setSelectedPatient} />}
                     </Col>
 
