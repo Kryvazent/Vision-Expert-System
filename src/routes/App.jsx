@@ -26,6 +26,14 @@ import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
 import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 
+import ManagerDashboard from './../pages/Manager/ManagerDashboard';
+import ClinicDetails from './../pages/Manager/ClinicDetails';
+import ManagerStockManagement from './../pages/Manager/ManagerStockManagement';
+import CashHandling from './../pages/Manager/CashHandling';
+import PettyCash from './../pages/Manager/PettyCash';
+import PendingLabOrders from './../pages/Manager/PendingLabOrders';
+import PendingPayment from './../pages/Manager/PendingPayment';
+
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -171,6 +179,52 @@ function App() {
           <ProjectClinic />
         </Page>
       } />
+
+
+
+
+      {/* Manager */}
+      <Route path="/manager-dashboard" element={
+        <Page roles={["manager"]}>
+          <ManagerDashboard />
+        </Page>
+      } />
+
+      <Route path="/clinics" element={
+        <Page roles={["manager"]}>
+          <ClinicDetails />
+        </Page>
+      } />
+
+      <Route path="/stock-management" element={
+        <Page roles={["manager"]}>
+          <ManagerStockManagement />
+        </Page>
+      } />
+
+      <Route path="/cash-handling" element={
+        <Page roles={["manager"]}>
+          <CashHandling />
+        </Page>
+      } />
+
+      <Route path="/petty-cash" element={
+        <Page roles={["manager"]}>
+          <PettyCash />
+        </Page>
+      } />
+
+      <Route path="/pending-laborders" element={
+        <Page roles={["manager"]}>
+          <PendingLabOrders />
+        </Page>
+      } />
+
+      <Route path="/pending-payments" element={
+        <Page roles={["manager"]}>
+          <PendingPayment/>
+        </Page>
+      }/>
 
 
 
