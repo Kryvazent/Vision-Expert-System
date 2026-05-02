@@ -33,6 +33,8 @@ import CashHandling from './../pages/Manager/CashHandling';
 import PettyCash from './../pages/Manager/PettyCash';
 import PendingLabOrders from './../pages/Manager/PendingLabOrders';
 import PendingPayment from './../pages/Manager/PendingPayment';
+import Report from '../pages/Manager/Report';
+import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
 
 // Wrap page in both layout + role guard
@@ -226,6 +228,17 @@ function App() {
         </Page>
       }/>
 
+      <Route path="/complaint-handling" element={
+        <Page roles={["manager"]}>
+          <ComplaintHandling />
+        </Page>
+      }/>
+
+      <Route path="/reports" element={
+        <Page roles={["manager"]}>
+          <Report/>
+        </Page>
+      }/>
 
 
 

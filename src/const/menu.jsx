@@ -47,7 +47,7 @@ export const MENU_BY_ROLE = {
     { key: '/stock-management',        icon: <ShoppingOutlined />,     label: 'Stock Management' },
     { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
     { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
-    { key: '/pending-laborders', icon: <ClockCircleOutlined />,   label: 'Pending Laborers' },
+    { key: '/pending-laborders', icon: <ClockCircleOutlined />,   label: 'Pending Lab Orders' },
     { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
     { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
     { key: '/reports',        icon: <BarChartOutlined />,     label: 'Reports' },
