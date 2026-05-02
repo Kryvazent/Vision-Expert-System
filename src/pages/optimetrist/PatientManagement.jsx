@@ -34,24 +34,7 @@ function PatientManagement() {
         }));
     };
 
-    // const patientData = [
-    //     {
-    //         key: '1',
-    //         orderId: '001',
-    //         customer: 'Mike',
-    //         phone: '123-456-7890',
-    //         date: '2023-01-01',
-    //         status: 'Active',
-    //     },
-    //     {
-    //         key: '2',
-    //         orderId: '002',
-    //         customer: 'John',
-    //         phone: '098-765-4321',
-    //         date: '2023-01-02',
-    //         status: 'Hold',
-    //     },
-    // ];
+
 
     const patientColumns = [
         {
