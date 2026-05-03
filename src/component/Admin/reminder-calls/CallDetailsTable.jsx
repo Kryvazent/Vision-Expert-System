@@ -2,10 +2,13 @@ import React, {useState} from 'react'
 import { Select, Typography, Table, Modal, Input } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
+
 const {Option} = Select
 const {Title} = Typography;
 
+
 export default function CallDetailsTable() {
+
 
 const [isModalOpen, setIsModalOpen] = useState(false);
 const [customerReason, setCustomerReason] =  useState("");    
@@ -30,17 +33,21 @@ const columns = [
     {
         title: "Order ID",
         dataIndex: "orderID",
+        width: 120 
     },
     {
         title: "Customer Name",
         dataIndex: "customer",
+        width: 180 
     },
     {
         title: "Clinic Center",
         dataIndex: "clinic",
+        width: 200
     },
     {
         title: "Status - Before Lab",
+        width: 180,
         render: () => (
             <Select placeholder="Select" style={{width: 140}} optionLabelProp='label'>
                 <Option 
@@ -71,6 +78,7 @@ const columns = [
     },
     {
         title: "Reason - Before Lab",
+        width: 260,
         render: () => (
             <Select 
                 placeholder="select Reason" 
@@ -96,6 +104,7 @@ const columns = [
     },
     {
         title: "Status - Before Delivery",
+        width: 180,
         render: () => (
             <Select placeholder="Select" style={{width: 140}} optionLabelProp='label'>
                 <Option 
@@ -126,6 +135,7 @@ const columns = [
     },
     {
         title: "Reason - Before Delivery",
+        width:260,
         render: () => (
             <Select 
                 placeholder="select Reason" 
@@ -153,7 +163,9 @@ const columns = [
   return (
     <div>
       <Title level={5} className="mb-0 " style={{fontWeight:'bold'}} >Reminder Call Details</Title>
-        <Table dataSource={dataSource} columns={columns} pagination={false} />
+      <div style={{ overflowX: "auto" }}>
+        <Table  dataSource={dataSource} columns={columns} pagination={false}  scroll={{ x: 1400 }}   />
+      </div>
         <Modal
             title="Enter Custom reason"
             open={isModalOpen}

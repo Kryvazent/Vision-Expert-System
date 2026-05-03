@@ -38,10 +38,10 @@ const inventory=[
 
   return (
   <Layout>
-     <Content className="p-8" style={{ padding: "20px" }}>
+     <Content className="p-8" style={{ paddingTop: "10px" }}>
       <div style={{
           background: "#f5f7fa",
-          padding: "20px 30px",
+          padding: "10px 30px",
           borderRadius: "10px",
           marginBottom: "20px",
       }}
@@ -49,17 +49,17 @@ const inventory=[
       <Row align="middle" justify="space-between">
         
         {/* LEFT SIDE */}
-        <Col>
+        {/* <Col>
           <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
             Inventory Management - Kadawatha
           </Title>
           <Text type="secondary">
             Manage stock allocated to your branch, transfer items, and track inventory movements
           </Text>
-        </Col>
+        </Col> */}
 
         {/* RIGHT SIDE */}
-        <Col>
+        {/* <Col>
           <Button
             icon={<BankOutlined />}
             style={{
@@ -73,7 +73,7 @@ const inventory=[
           >
             Kadawatha Branch
           </Button>
-        </Col>
+        </Col> */}
       </Row>
      </div> 
 
@@ -81,9 +81,7 @@ const inventory=[
    <div className="flex gap-6 mb-5">
           <StatCard title="Plastic Frames" value={plasticFrames.length} iconType="frames" color="#00A854" bgColor="#E6F7F0" />
           <StatCard title="Plastic Boxes" value={plasticBoxes.length} iconType="box" color="#F5222D" bgColor="#FFF1F0" />
-          <StatCard title="Hard Boxes" value={hardBoxes.length} iconType="box" color="#FAAD14" bgColor="#FFF7E6" />
-   </div>
-   <div className="flex gap-6 mb-5">       
+          <StatCard title="Hard Boxes" value={hardBoxes.length} iconType="box" color="#FAAD14" bgColor="#FFF7E6" />     
           <StatCard title="Leaflets" value={leaflets.length} iconType="leaflets" color="#1890FF" bgColor="#E6F7FF" />
            <StatCard title="Cleaning Clothes" value={cleaningClothes.length} iconType="cleaningClothes" color="#722ED1" bgColor="#F9F0FF" />
            {/* <StatCard title="Cleaning Solutions" value={cleaningSolutions.length} iconType="cleaningSolutions" color="#8C8C8C" bgColor="#F5F5F5" /> */}

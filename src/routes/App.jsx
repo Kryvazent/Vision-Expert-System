@@ -27,6 +27,7 @@ import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagem
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
 import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
+import ComplaintHandling from '../pages/AdministrativeOfficer/ComplaintHandling';
 
 
 
@@ -191,6 +192,13 @@ function App() {
           <ReminderCalls />
         </Page>
       } />
+
+      <Route path="/complaint-handling" element={
+        <Page roles={["admin"]}>
+          <ComplaintHandling />
+        </Page>
+      } />
+
 
 
 
