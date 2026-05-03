@@ -7,10 +7,10 @@ const { RangePicker } = DatePicker;
 function RecoveryFiltering() {
   return (
     
-    <div className="p-6 space-y-4">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
       
-      <h1 className="text-2xl font-semibold">Recovery Filtering</h1>
+      {/* <h1 className="text-2xl font-semibold">Recovery Filtering</h1> */}
 
       
       <Card className="rounded-xl">

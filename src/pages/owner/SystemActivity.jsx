@@ -57,10 +57,10 @@ export default function SystemActivity() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      {/* 🔹 Title */}
-      <h1 className="text-2xl font-semibold">System Activity</h1>
+      {/* 🔹 Title
+      <h1 className="text-2xl font-semibold">System Activity</h1> */}
 
       {/* 🔹 Card */}
       <Card>

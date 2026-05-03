@@ -2,10 +2,10 @@ import { Card, DatePicker, Select } from "antd";
 
 export default function DailySales() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold">Daily Sales Details</h1>
+      {/* Title
+      <h1 className="text-2xl font-semibold">Daily Sales Details</h1> */}
 
       {/* Filter Card */}
       <Card className="rounded-xl">
