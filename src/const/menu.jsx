@@ -61,7 +61,7 @@ export const MENU_BY_ROLE = {
 
 "manager": [
     { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinics' },
+    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
     { key: '/stock-management',        icon: <ShoppingOutlined />,     label: 'Stock Management' },
     { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
     { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },

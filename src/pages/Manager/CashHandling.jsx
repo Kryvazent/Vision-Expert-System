@@ -164,11 +164,6 @@ function CashHandling() {
 
   return (
     <div className=" bg-gray-100 p-10">
-      <div className="flex items-center justify-between mb-6">
-        <Title level={2} className="!mb-0 !text-gray-900">
-          Cash Handling
-        </Title>
-      </div>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-6">
         <Table

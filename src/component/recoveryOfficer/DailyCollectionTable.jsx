@@ -53,16 +53,8 @@ function DailyCollectionTable({
                         color: "#1a237e",
                         textTransform: 'uppercase'
                     }}>
-                        Vision Expert
-                    </Title>
-
-                    <Text style={{ fontWeight: 700, fontSize: 15 }}>
                         DAILY COLLECTION SHEET
-                    </Text>
-
-                    <Text style={{ display: 'block', marginTop: 6 }}>
-                        <b>{centerLabel.toUpperCase()}</b> - {formattedDate}
-                    </Text>
+                    </Title>
                 </div>
 
                 {/* Divider */}

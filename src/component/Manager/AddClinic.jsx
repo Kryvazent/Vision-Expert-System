@@ -1,10 +1,32 @@
-import React, {useState} from 'react'
+import React, {useEffect, useState} from 'react'
 import { Form, Input, DatePicker, Modal, Button} from 'antd';
 import { EnvironmentOutlined, ClockCircleOutlined, UserOutlined, PhoneOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 
-function AddClinic({open, onClose, onAdd}) {
+
+function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  const isEditMode = mode === 'edit';
+
+  useEffect(() => {
+    if (isEditMode && clinicData && open) {
+      form.setFieldsValue({
+        clinicCenter: clinicData.clinicCenter,
+        date: clinicData.date ? dayjs(clinicData.date) : null,
+        duration: clinicData.duration,
+        responsiblePerson: clinicData.responsiblePerson01,
+        contactNumber: clinicData.contactNumber1,
+        responsiblePerson: clinicData.responsiblePerson02,
+        contactNumber: clinicData.contactNumber2,
+      });
+    }else {
+      form.resetFields();
+    }
+      }, [isEditMode, clinicData, form, open]);
+    
+  
 
   const handleAdd = async () => {
     try {
@@ -39,7 +61,7 @@ function AddClinic({open, onClose, onAdd}) {
       className="add-clinic-modal"
       title={
         <span style={{ fontSize: 18, fontWeight: 600, color: '#111827' }}>
-          Add Clinic
+          {isEditMode ? 'Update Clinic' : 'Add Clinic'}
         </span>
       }
     >
@@ -225,8 +247,9 @@ function AddClinic({open, onClose, onAdd}) {
               backgroundColor: '#2563eb',
               borderColor: '#2563eb',
             }}
+            
           >
-            Add
+              {isEditMode ? 'Update' : 'Add'}
           </Button>
         </div>
       </Form>
