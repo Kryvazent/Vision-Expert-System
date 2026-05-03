@@ -27,7 +27,7 @@ import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagem
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
 import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
-import ComplaintHandling from '../pages/AdministrativeOfficer/ComplaintHandling';
+import ComplaintManagement from '../pages/AdministrativeOfficer/ComplaintManagement';
 
 
 import ManagerDashboard from './../pages/Manager/ManagerDashboard';
@@ -40,33 +40,10 @@ import PendingPayment from './../pages/Manager/PendingPayment';
 import Report from '../pages/Manager/Report';
 import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
-import { Routes, Route, Navigate } from "react-router";
 
-import CommonPageStructure from "../pages/CommonPageStructure";
-import Login from "../pages/login/Login";
-import Track from "../pages/track/Track";
 
-import OptimetristDashboard from "../pages/optimetrist/OptimetristDashboard";
-import NewPresctiption from "../pages/optimetrist/NewPrescription";
 
-import SalesExecutiveDashboard from "../pages/sales-executive/SalesExecutiveDashboard";
-import NewOrder from "../pages/sales-executive/NewOrder";
-import Orders from "../pages/sales-executive/Orders";
 
-import WarrantyClaim from "../pages/recovery-officer/WarrantyClaim";
-import AccountingDashboard from "../pages/Accountant/AccountingDashboard";
-import ProtectedRoute from "./protectedRoutes";
-import { useAuth } from "../const/functions";
-import RecoveryDashboard from "../pages/recovery-officer/RecoveryDashboard";
-import RecoverySheet from "../pages/recovery-officer/RecoverySheet";
-import PatientManagement from "./../pages/optimetrist/PatientManagement";
-import CashTransfer from "../pages/recovery-officer/CashTransfer";
-import RecoveryFollowUp from "../pages/recovery-officer/RecoveryFollowUp";
-
-import AdminDashboard from "../pages/AdministrativeOfficer/AdminDashboard";
-import CustomerLookup from "../pages/AdministrativeOfficer/CustomerLookup";
-import InventoryManagement from "../pages/AdministrativeOfficer/InventoryManagement";
-import ProjectClinic from "../pages/AdministrativeOfficer/ProjectClinic";
 import ACCashTransfer from "../pages/Accountant/ACCashTransfer";
 import DailySales from "../pages/Accountant/DailySales";
 import OrderFilter from "../pages/Accountant/OrderFilter";
@@ -448,9 +425,9 @@ function App() {
         </Page>
       } />
 
-      <Route path="/complaint-handling" element={
+      <Route path="/complaint-management" element={
         <Page roles={["admin"]}>
-          <ComplaintHandling />
+          <ComplaintManagement />
         </Page>
       } />
 
