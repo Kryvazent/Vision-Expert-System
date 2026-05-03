@@ -1,4 +1,5 @@
-import { UserOutlined,ProjectOutlined,ShoppingOutlined, AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, SafetyOutlined, UnorderedListOutlined,ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined } from "@ant-design/icons";
+import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
@@ -27,7 +28,9 @@ export const MENU_BY_ROLE = {
     { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
     { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
     { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
-    //{ key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
+    {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
+    { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
+    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
   ],
 
   

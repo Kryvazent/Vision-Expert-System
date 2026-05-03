@@ -83,7 +83,7 @@ const columns = [
 ];
   return (
     <div>
-        <Title level={5} className="mb-0 " style={{fontWeight:600}} >Low Stock Items</Title>
+        <Title level={5} className="mb-0 " style={{fontWeight:'bold'}} >Low Stock Items</Title>
         <Table dataSource={dataSource} columns={columns} pagination={false} />
       
     </div>
