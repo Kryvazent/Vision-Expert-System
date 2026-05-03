@@ -12,6 +12,8 @@ function TopBar({ data }) {
                             title={obj.title} 
                             value={obj.value} 
                             icon={obj.icon} 
+                            iconSVG={obj.iconSVG}
+                            bg={obj.bg}
                         />
                     </Col>
                 ))
