@@ -2,7 +2,7 @@ import { Card, Select, DatePicker, Table } from "antd";
 
 const { RangePicker } = DatePicker;
 
-export default function CashTransfer() {
+export default function ACCashTransfer() {
 
   // 🔹 Dummy data
   const data = [
@@ -63,10 +63,10 @@ export default function CashTransfer() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold">Cash Transfer Roadmap</h1>
+      {/* Title
+      <h1 className="text-2xl font-semibold">Cash Transfer Roadmap</h1> */}
 
       {/* 🔹 Summary Cards */}
       <div className="flex flex-wrap gap-4">

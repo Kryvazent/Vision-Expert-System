@@ -5,11 +5,11 @@ const { RangePicker } = DatePicker;
 
 function AccountantDashboard() {
   return (
-    <div className="space-y-10">
-      {/* Title */}
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
+      {/* Title
       <h1 className="text-2xl font-semibold text-gray-800">
         Financial Dashboard
-      </h1>
+      </h1> */}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-4 justify-center" >

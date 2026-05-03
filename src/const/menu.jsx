@@ -37,8 +37,44 @@ export const MENU_BY_ROLE = {
 
   "accountant": [
     { key: '/accountant',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/payments',        icon: <AccountBookOutlined />,  label: 'Payments' },
-    { key: '/invoices',        icon: <FileTextOutlined />,     label: 'Invoices' },
-    { key: '/financial-reports', icon: <BarChartOutlined />,   label: 'Reports' },
+    { key: '/accRecovery-Details',        icon: <AccountBookOutlined />,  label: 'Recovery Details' },
+    { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
+    { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
+    { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
+    { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+
+
+    
+    
   ],
+
+  "owner": [
+    { key: '/owner',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/project-management',        icon: <ProjectOutlined />,  label: 'Project Management' },
+    { key: '/payment-monitoring',        icon: <TransactionOutlined />,     label: 'Payment Monitoring' },
+    { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
+    { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
+    { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
+
+    
+    
+  ],
+
+
+
+"manager": [
+    { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinics' },
+    { key: '/stock-management',        icon: <ShoppingOutlined />,     label: 'Stock Management' },
+    { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
+    { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
+    { key: '/pending-laborders', icon: <ClockCircleOutlined />,   label: 'Pending Lab Orders' },
+    { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
+    { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
+    { key: '/reports',        icon: <BarChartOutlined />,     label: 'Reports' },
+  ],
+
+
 };
+
+      

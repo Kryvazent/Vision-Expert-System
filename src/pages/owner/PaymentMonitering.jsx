@@ -86,7 +86,7 @@ const columns = [
 
 export default function PaymentMonitoring() {
   return (
-    <div className="p-6 space-y-6">
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
       {/* 🔹 Header */}
       <div className="flex justify-between items-center">
