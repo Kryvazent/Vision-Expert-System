@@ -16,10 +16,9 @@ import {
 
 export default function OwnerDashboard() {
   return (
-    <div className="p-6 space-y-6">
+  <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      {/* 🔹 Title */}
-      <h1 className="text-2xl font-semibold">Owner Dashboard</h1>
+     
 
       {/* 🔹 Top Cards */}
       <div className="flex flex-wrap gap-4">
