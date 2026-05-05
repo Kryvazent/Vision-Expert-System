@@ -31,6 +31,7 @@ export const MENU_BY_ROLE = {
     {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
     { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
+    { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
   ],
 
   

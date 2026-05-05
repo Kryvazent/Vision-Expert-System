@@ -55,6 +55,7 @@ import PaymentMonitoring from "../pages/owner/PaymentMonitering";
 import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
+import PettyCashHandling from '../pages/AdministrativeOfficer/PettyCashHandling';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -285,6 +286,16 @@ function App() {
         element={
           <Page roles={["admin"]}>
             <ProjectClinic />
+          </Page>
+        }
+      />
+
+      {/* Admin */}
+      <Route
+        path="/petty-cash-handling"
+        element={
+          <Page roles={["admin"]}>
+            <PettyCashHandling />
           </Page>
         }
       />
