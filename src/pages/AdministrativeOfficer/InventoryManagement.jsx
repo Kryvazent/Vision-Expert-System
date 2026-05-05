@@ -1,3 +1,4 @@
+import { gql } from '@apollo/client';
 import React from 'react'
 import { Card, Row, Col, Button, Typography, Layout } from 'antd';
 import { BankOutlined } from '@ant-design/icons';
@@ -6,10 +7,32 @@ import {icons} from '../../assets/icons/AdminIcons';
 import StockItemsTable from '../../component/Admin/inventory-management/StockItemsTable';
 import OutOfStockTable from '../../component/Admin/inventory-management/OutOfStockTable';
 import LowStockTable from '../../component/Admin/inventory-management/LowStockTable';
+import { useLazyQuery } from '@apollo/client/react/compiled';
 
-const { Title, Text } = Typography;
-const { Content } = Layout;
+
 export default function InventoryManagement() {
+  const { Title, Text } = Typography;
+const { Content } = Layout;
+
+  const LOAD_STOCK = gql`
+    query LoadStock {
+      stockCollection {
+        edges {
+          node {
+            created_at
+            available_quantity
+            product {
+            id
+          }
+          id 
+          }
+        }
+      }
+}    
+`;
+
+const [loadStockData, {data: stockData ,loading: stockLoading}] = useLazyQuery(LOAD_STOCK);
+console.log(stockData);
 
 const inventory=[
     {category:"plasticFrames"},

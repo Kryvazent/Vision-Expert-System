@@ -15,19 +15,15 @@ const dataSource = [
     productCode: 'FRM-001',
     productName: 'Ray-Ban Classic Aviator',
     category: 'frames',
-    KadawathaStock: 0,
-    reorderLevel: 10,
-    unitPrice: 25000,
+    quantity: 10,
   },
     {
     key: '2',
     productCode: 'LNS-001',
     productName: 'Single Vision CR-39 Lenses',
     category: 'hardBoxes',
-    KadawathaStock: 0,  
-    reorderLevel: 50,
-    unitPrice: 50000,
-  },
+    quantity: 50,
+    },
 ];
 
 const columns = [
@@ -50,21 +46,9 @@ const columns = [
     onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
     },
     {
-    title: 'Kadawatha Stock',
-    dataIndex: 'KadawathaStock',
-    key: 'KadawathaStock',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Reorder Level',
-    dataIndex: 'reorderLevel',
-    key: 'reorderLevel',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Unit Price',
-    dataIndex: 'unitPrice',
-    key: 'unitPrice',
+    title: 'Quantity',
+    dataIndex: 'quantity',
+    key: 'quantity',
     onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
     },
     {
