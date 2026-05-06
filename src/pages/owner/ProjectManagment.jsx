@@ -7,7 +7,7 @@ import {
   Input,
   DatePicker,
 } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EyeOutlined,
   EditOutlined,
@@ -20,72 +20,41 @@ import {
   TeamOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import { gql } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
 
 const { RangePicker } = DatePicker;
 
 export default function ProjectManagement() {
-  const [open, setOpen] = useState(false);
 
-  // 🔹 Dummy data
- const data = [
-  {
-    key: "1",
-    id: "PRJ001",
-    name: "Corporate Eye Care Campaign",
-    year: "2026",
-    location: "Dialog Axiata Head Office, Colombo",
-    duration: "Mar 01 - Mar 15",
-    branch: "Kadawatha",
-    status: "Active",
-    clinics: 5,
-    customers: 120,
-  },
-  {
-    key: "2",
-    id: "PRJ002",
-    name: "School Vision Screening Program",
-    year: "2026",
-    location: "Royal College, Colombo 07",
-    duration: "Apr 05 - Apr 12",
-    branch: "Kadawatha",
-    status: "Planning",
-    clinics: 3,
-    customers: 80,  
-  },
-];
+  const [open, setOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    projectName: null,
+    branchId: null,
+    desription: null
+  });
+
+  const updateValue = (field, value) => {
+    setNewProjectData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
 
   // 🔹 Table columns
   const columns = [
-    { title: "Project ID", dataIndex: "id", width: 120 },
-
     {
-  title: "Project Name",
-  dataIndex: "name",
-  width: 280,
-  render: (_, record) => (
-    <div className="flex flex-col">
-
-      {/* Project title */}
-      <span className="font-semibold">
-        {record.name}
-      </span>
-
-      {/* Year */}
-      <span className="text-sm text-gray-500">
-        {record.year}
-      </span>
-
-      {/* Location */}
-      <span className="text-xs text-gray-400 flex items-center gap-1">
-        📍 {record.location}
-      </span>
-
-    </div>
-  ),
-},
-
-    { title: "Duration", dataIndex: "duration", width: 180 },
-
+      title: "Project ID",
+      dataIndex: "id",
+    },
+    {
+      title: "Project Name",
+      dataIndex: "project_name",
+    },
+    {
+      title: "Description",
+      dataIndex: "description",
+    },
     {
       title: "Branch",
       dataIndex: "branch",
@@ -97,30 +66,17 @@ export default function ProjectManagement() {
       ),
     },
 
-    { title: "Clinics", dataIndex: "clinics", width: 120 },
-
     {
-      title: "Customers",
-      dataIndex: "customers",
-      width: 120,
-      render: (val) => (
-        <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs">
-          {val}
-        </span>
-      ),
+      title: "Clinics Count",
+      dataIndex: "clinics",
+      width: 120
     },
-
     {
       title: "Status",
       dataIndex: "status",
       width: 140,
       render: (val) => {
         let style = "bg-green-100 text-green-600";
-
-        if (val === "Planning") style = "bg-blue-100 text-blue-600";
-        if (val === "Completed") style = "bg-gray-200 text-gray-700";
-        if(val === "Active") style = "bg-green-100 text-green-600";
-
         return (
           <span className={`${style} px-2 py-1 rounded text-sm`}>
             {val}
@@ -128,29 +84,129 @@ export default function ProjectManagement() {
         );
       },
     },
-
-    {
-      title: "Actions",
-      fixed: "right" ,
-      width: 120,
-      render: () => (
-        <div className="flex gap-3">
-
-          <EyeOutlined className="cursor-pointer hover:text-blue-500 transition" />
-
-          <EditOutlined className="cursor-pointer hover:text-green-500 transition" />
-
-          <DeleteOutlined className="cursor-pointer hover:text-red-500 transition" />
-
-        </div>
-      ),
-    },
   ];
+
+  // add new projects
+  const LOAD_BRANCHES = gql`
+  
+    query GetBranches {
+      branchCollection(filter: {is_active: {eq: true}}) {
+        edges {
+          node {
+            id
+            branch_name
+          }
+        }
+      }
+    }
+  `;
+  const [loadBranches, { data: branchesData }] = useLazyQuery(LOAD_BRANCHES);
+
+  useEffect(() => {
+    loadBranches();
+  }, [loadBranches]);
+
+  const branchesOptions = branchesData?.branchCollection?.edges?.map((edge) => {
+    return { value: edge.node.id, label: edge.node.branch_name };
+  }) || [];
+
+  const ADD_NEW_PROJECT = gql`
+  
+    mutation CreateProject($projectName: String!, $venue: String!, $description: String, $branchId: ID!) {
+      insertIntoprojectCollection(
+        objects:{
+          branch_id: $branchId,
+          project_name: $projectName,
+          description: $description
+        }
+      ){
+        records{
+          id
+        }
+      }
+    }
+  `;
+  const [createProject] = useMutation(ADD_NEW_PROJECT);
+
+  const handleCreateProject = async () => {
+
+    if (!newProjectData.projectName || !newProjectData.branchId) {
+      console.log("Missing fields:", newProjectData);
+      alert("Please fill all required fields");
+
+      return;
+    }
+
+    console.log("Missing fields:", newProjectData);
+
+    await createProject({
+      variables: {
+        projectName: newProjectData.projectName,
+        venue: newProjectData.venue,
+        description: newProjectData.description,
+        branchId: newProjectData.branchId
+      }
+    })
+  }
+
+
+
+
+  // // load projects
+  const LOAD_PROJECTS = gql`
+  
+    query GetProjects {
+      projectCollection {
+        edges {
+          node {
+            id
+            project_name
+            branch {
+              id
+              branch_name
+            }
+            is_active
+            clinicCollection{
+              edges{
+                node{
+                  id
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  const [loadProjects, { data: projectsData }] = useLazyQuery(LOAD_PROJECTS);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  // console.log("Projects:", projectsData);
+  const projectCount = projectsData?.projectCollection?.edges?.length || 0;
+  const allProjects = projectsData?.projectCollection?.edges?.map(edge => {
+
+    if (edge.node.is_active) {
+      return {
+        id: edge.node.id,
+        project_name: edge.node.project_name,
+        description: edge.node.description,
+        branch: edge.node.branch?.branch_name,
+        clinics: edge.node.clinicCollection?.edges?.length || 0, 
+        status: edge.node.is_active ? "Active" : "Inactive",
+      };
+    }
+    return;
+  }) || [];
+  console.log("All Projects:", allProjects);
+
 
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
-      
+
       <div className="flex justify-between items-center">
         {/* <div>
           <h1 className="text-2xl font-semibold">Project Management</h1>
@@ -167,55 +223,29 @@ export default function ProjectManagement() {
       {/* 🔹 Stat Cards */}
       <div className="flex flex-wrap gap-4">
 
-        <Card className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2">
+        <Card className="min-w-50">
+          <div className="flex items-center gap-2">
             <div>
-                <FileTextOutlined style={{ fontSize: 40, color: "#2563eb" }} />
+              <FileTextOutlined style={{ fontSize: 40, color: "#2563eb" }} />
             </div>
-        <div>
-          <p className="text-gray-500">Total Projects</p>
-          <h2 className="text-xl font-bold">4</h2>
+            <div>
+              <p className="text-gray-500">Total Projects</p>
+              <h2 className="text-xl font-bold">{projectCount}</h2>
+            </div>
+
           </div>
-          
-        </div>
         </Card>
 
-        <Card className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2">
+        <Card className="min-w-50">
+          <div className="flex items-center gap-2">
             <div>
-                <CalendarOutlined style={{ fontSize: 40, color: "#10b981" }} />
+              <CalendarOutlined style={{ fontSize: 40, color: "#10b981" }} />
             </div>
-        <div>
-         
-          <p className="text-gray-500">Active Projects</p>
-          <h2 className="text-xl font-bold text-green-600">2</h2>
-        </div>
-        </div>
-        </Card>
+            <div>
 
-        <Card className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2">
-            <div>
-                <TeamOutlined style={{ fontSize: 40, color: "#f59e0b" }} />
+              <p className="text-gray-500">Active Projects</p>
+              <h2 className="text-xl font-bold text-green-600">{allProjects.filter(p => p.status === "Active").length}</h2>
             </div>
-        <div>
-          
-          <p className="text-gray-500">Total Clinics</p>
-          <h2 className="text-xl font-bold">12</h2>
-        </div>
-        </div>
-        </Card>
-
-        <Card className="flex-1 min-w-[200px]">
-            <div className="flex items-center gap-2">
-            <div>
-                <UserOutlined style={{ fontSize: 40, color: "#ef4444" }} />
-            </div>
-        <div>
-         
-          <p className="text-gray-500">Total Customers</p>
-          <h2 className="text-xl font-bold">313</h2>
-          </div>
           </div>
         </Card>
 
@@ -251,65 +281,44 @@ export default function ProjectManagement() {
       <Card title="Projects">
         <Table
           columns={columns}
-          dataSource={data}
+          dataSource={allProjects}
           pagination={false}
           scroll={{ x: 1000 }} // ⭐ important
         />
       </Card>
 
-      {/* 🔹 Modal */}
+      {/* 🔹 new project Modal */}
       <Modal
         title="New Project"
         open={open}
         onCancel={() => setOpen(false)}
         footer={null}
       >
-        <div className="space-y-4">
+        <div className="space-y-4 mt-5">
 
           <div>
             <label>Project Name</label>
-            <Input placeholder="Enter project name" />
-          </div>
-
-          <div>
-            <label>Venue</label>
-            <Input placeholder="Enter venue" />
+            <Input placeholder="Enter project name" value={newProjectData.projectName} onChange={(e) => updateValue('projectName', e.target.value)} />
           </div>
 
           <div>
             <label>Description</label>
-            <Input.TextArea rows={3} />
+            <Input.TextArea rows={3} value={newProjectData.description} onChange={(e) => updateValue('description', e.target.value)} />
           </div>
 
-          <div>
-            <label>Project Duration</label>
-            <RangePicker className="w-full" />
-          </div>
-
-          <div className="flex gap-4">
+          <div className="flex flex-col">
+            <label>Branch</label>
             <Select
               className="w-full"
               placeholder="Branch"
-              options={[
-                { value: "kadawatha", label: "Kadawatha" },
-                { value: "kandy", label: "Kandy" },
-              ]}
-            />
-
-            <Select
-              className="w-full"
-              placeholder="Status"
-              options={[
-                { value: "planning", label: "Planning" },
-                { value: "active", label: "Active" },
-                { value: "completed", label: "Completed" },
-              ]}
+              options={branchesOptions}
+              onChange={(value) => updateValue('branchId', value)}
             />
           </div>
 
           <div className="flex justify-end gap-2">
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="primary">Create</Button>
+            <Button type="primary" onClick={handleCreateProject}>Create</Button>
           </div>
 
         </div>
