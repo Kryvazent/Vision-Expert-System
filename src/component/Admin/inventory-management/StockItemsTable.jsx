@@ -1,17 +1,41 @@
 import React ,{useState} from 'react'
-import { Table, Tag, Tabs, Button, Card, Dropdown, Modal, InputNumber, Input} from 'antd';
+import { Table, Tag, Tabs, Button, Card, Dropdown, Modal, InputNumber, Input, message} from 'antd';
 import { icons } from '../../../assets/icons/AdminIcons';
 import { EditOutlined, MoreOutlined, WarningOutlined } from '@ant-design/icons';
 
 // const { TabPane} = Tabs;
 const {TextArea} =  Input;
 
-export default function StockItemsTable({data = [] }) {
+export default function StockItemsTable({data = [] , updateStock, onRefetch}) {
   
- const [activeTab, setActiveTab] = useState('plasticFrames');
+  const [activeTab, setActiveTab] = useState('plasticFrames');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDamagedOpen, setIsDamagedOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [updateQty, setUpdateQty] = useState(0);
+
+  //HandleEditPopUp
+  const handleEditPopup = async () => {
+    try{
+      const newQty = selectedItem.stockQuantity + updateQty;
+      if (newQty < 0){
+        message.error("Quantity cannot be negative!");
+        return;
+      }
+      await updateStock({
+        variables: {
+          id: selectedItem.id,
+          quantity: newQty,
+        }
+      });
+      message.success("Stock Updated!");
+      setIsEditOpen(false);
+      setUpdateQty(0);
+      onRefetch && onRefetch();
+    }catch(err){
+      message.error('Update failed!');
+    }
+  };
 
   //Drop down menu
   const getMenu = (record) => ({
@@ -137,9 +161,8 @@ const stockItemsColumns = [
     <Modal 
         title='Edit Quantity'
         open={isEditOpen}
-        onCancel={() => setIsEditOpen(false)}
-        onOk={() => { setIsEditOpen(false);
-        }}
+        onCancel={() =>  { setIsEditOpen(false);  setUpdateQty(0); }}
+        onOk={handleEditPopup}  //set with popup
         okText='Update Quantity'      
     >
       <p>Product Name</p>
@@ -148,8 +171,18 @@ const stockItemsColumns = [
       <p style={{ marginTop: 10 }}>Current Quantity</p>
       <Input value={`${selectedItem?.stockQuantity} units`} disabled/>
 
-      <p  style={{ marginTop: 10 }}>Add/Remove Stock</p>
-      <InputNumber  style={{width: '100%' }} placeholder='+10 or -5' />
+      <p  style={{ marginTop: 10 }}>Add Stock</p>
+      <InputNumber  
+          style={{width: '100%' }} 
+          placeholder='+10 ' 
+          value={updateQty}
+          onChange={(val) => setUpdateQty(val || 0)}
+          />
+          {updateQty !== 0 && (
+            <p style={{ marginTop: 8, color: '#1890ff' }}>
+              New quantity: <b>{(selectedItem?.stockQuantity || 0) + updateQty} units</b>
+            </p>
+          )}
     </Modal>
 
     <Modal

@@ -7,7 +7,7 @@ import {icons} from '../../assets/icons/AdminIcons';
 import StockItemsTable from '../../component/Admin/inventory-management/StockItemsTable';
 import OutOfStockTable from '../../component/Admin/inventory-management/OutOfStockTable';
 import LowStockTable from '../../component/Admin/inventory-management/LowStockTable';
-import { useLazyQuery } from '@apollo/client/react/compiled';
+import { useLazyQuery, useMutation } from '@apollo/client/react/compiled';
 
 
 export default function InventoryManagement() {
@@ -19,6 +19,7 @@ const LOAD_STOCK = gql `
     stockCollection{
       edges{
         node{
+           id
            created_at
             available_quantity
             product{
@@ -83,13 +84,43 @@ const OUT_STOCK = gql `
   }
 `;
 
+const UPDATE_STOCK_QUANTITY = gql `
+  mutation UpdateStock($id: BigInt! , $quantity: BigInt!){
+    updatestockCollection(
+      set: {available_quantity: $quantity}
+      filter: {id : {eq: $id }}
+    ){
+      records{
+        id
+        available_quantity
+      }
+    }
+  }
+`;
+
+const DAMAGED_STOCK = gql`
+  mutation DamagedStock($id: BigInt!, $quantity: BigInt!){
+    updatestockCollection(
+      set: { available_quantity: $quantity}
+      filter: {id: {eq: $id}}
+    ){
+        records{
+          id
+          available_quantity
+        }
+      }
+  }
+`;
+
 
 //Fetch data
-const [loadStock, {data: stockData ,loading: stockLoading, error}] = useLazyQuery(LOAD_STOCK);
+const [loadStock, {data: stockData ,loading: stockLoading, error, refetch}] = useLazyQuery(LOAD_STOCK);
 const [fetchLowStock, {data: lowStockData ,loading: lowStockLoading }] = useLazyQuery(LOW_STOCK);
 const [fetchOutStock, {data: outStockData ,loading: outStockLoading}] = useLazyQuery(OUT_STOCK);
-
 console.log(loadStock);
+
+const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY);
+
 
 useEffect(() =>{
   loadStock();
@@ -125,6 +156,7 @@ if(error) return <p>Error loading  data</p>
 const stockList = 
   stockData?.stockCollection?.edges.map((item, index) =>  ({
     key: index,
+    id: item.node.id,
     productName: item.node.product.name,
     category: mapCategory(
         item.node.product.product_type?.type,
@@ -204,9 +236,9 @@ const outOfStockList =
          <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}}>
             {/* Inventory Table */}
           <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}> Inventory</Title>
-
-            <StockItemsTable  data={stockList}/>
+            <StockItemsTable  data={stockList} updateStock={updateStock} onRefetch={refetch}/>
         </Card>
+
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Low of Stock Table */}
           <LowStockTable data={lowStockList}/>
