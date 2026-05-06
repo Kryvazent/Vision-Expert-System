@@ -41,9 +41,6 @@ import Report from '../pages/Manager/Report';
 import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
 
-
-
-
 import ACCashTransfer from "../pages/Accountant/ACCashTransfer";
 import DailySales from "../pages/Accountant/DailySales";
 import OrderFilter from "../pages/Accountant/OrderFilter";
@@ -358,16 +355,6 @@ function App() {
         }
       />
 
-
-
-
-
-
-
-
-
-
-
       {/* Manager */}
       <Route path="/manager-dashboard" element={
         <Page roles={["manager"]}>
@@ -441,11 +428,6 @@ function App() {
           <ComplaintManagement />
         </Page>
       } />
-
-
-
-
-
     </Routes>
   );
 }

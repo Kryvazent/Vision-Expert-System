@@ -1,5 +1,5 @@
 import { gql } from '@apollo/client';
-import React from 'react'
+import React, {useEffect} from 'react'
 import { Card, Row, Col, Button, Typography, Layout } from 'antd';
 import { BankOutlined } from '@ant-design/icons';
 import StatCard from '../../component/Admin/StatCard';
@@ -11,53 +11,170 @@ import { useLazyQuery } from '@apollo/client/react/compiled';
 
 
 export default function InventoryManagement() {
-  const { Title, Text } = Typography;
+const { Title, Text } = Typography;
 const { Content } = Layout;
 
-  const LOAD_STOCK = gql`
-    query LoadStock {
-      stockCollection {
+const LOAD_STOCK = gql `
+  query LoadStock{
+    stockCollection{
+      edges{
+        node{
+           created_at
+            available_quantity
+            product{
+              id
+              name
+              product_type{
+                type
+              }
+            }
+        }
+      }
+    }
+  }
+`;
+
+
+  const LOW_STOCK = gql`
+    query LowStock {
+      stockCollection(
+        filter: {available_quantity : { 
+          lte: 10,
+          gt: 0 
+          }
+        }
+      ) {
         edges {
           node {
-            created_at
+            id
             available_quantity
             product {
-            id
-          }
-          id 
+              id
+              name
+              product_type{
+                type
+              }
+            }
           }
         }
       }
-}    
+    }    
 `;
 
-const [loadStockData, {data: stockData ,loading: stockLoading}] = useLazyQuery(LOAD_STOCK);
-console.log(stockData);
+const OUT_STOCK = gql `
+  query OutStock {
+    stockCollection(
+      filter: { available_quantity: {eq: 0} }
+    ){
+        edges{
+          node{
+            id
+            available_quantity
+            product {
+              id
+              name
+              product_type {
+                type
+              }
+            }
+          }
+        }
+      }
+  }
+`;
 
-const inventory=[
-    {category:"plasticFrames"},
-    {category:"metalFrames"},
-    {category:"nightVision"},
-    {category:"doubleBride"},
-    {category:"sunGlasses"},
-    {category:"hardBoxes"},
-    {category:"plasticBoxes"},
-    {category:"cleaningClothes"},
-   // {category:"cleaningSolutions"},
-    {category:"leaflets"},
-    {category:"poster"},
-  ];
 
-  const plasticFrames = inventory.filter(item => item.category === 'plasticFrames');
-  const metalFrames = inventory.filter(item => item.category === 'metalFrames');
-  const  nightVision= inventory.filter(item => item.category === 'nightVision');
-  const doubleBride = inventory.filter(item => item.category === 'doubleBride');
-  const sunGlasses = inventory.filter(item => item.category === 'sunGlasses');
-  const hardBoxes = inventory.filter(item => item.category === 'hardBoxes');
-  const plasticBoxes = inventory.filter(item => item.category === 'plasticBoxes');
-  const cleaningClothes = inventory.filter(item => item.category === 'cleaningClothes');
-  const poster = inventory.filter(item => item.category === 'poster');
-  const leaflets = inventory.filter(item => item.category === 'leaflets');
+//Fetch data
+const [loadStock, {data: stockData ,loading: stockLoading, error}] = useLazyQuery(LOAD_STOCK);
+const [fetchLowStock, {data: lowStockData ,loading: lowStockLoading }] = useLazyQuery(LOW_STOCK);
+const [fetchOutStock, {data: outStockData ,loading: outStockLoading}] = useLazyQuery(OUT_STOCK);
+
+console.log(loadStock);
+
+useEffect(() =>{
+  loadStock();
+  fetchLowStock();
+  fetchOutStock();
+}, []);
+
+
+//Category mapping
+const mapCategory = (type) => {
+  switch (type) {
+    case 'MetalFrame':       return 'metalFrames';
+    case 'PlasticFrame':     return 'plasticFrames';
+    case 'DoubleBrideFrame': return 'doubleBride';
+    case 'Night Vision':     return 'nightVision';
+    case 'SunGlasses':       return 'sunGlasses';
+    case 'HardBoxes':        return 'hardBoxes';
+    case 'PlasticBoxes':     return 'plasticBoxes';
+    case 'CleaningClothes':  return 'cleaningClothes';
+    case 'CleaningBottles':  return 'cleaningBottles';
+    case 'Leaflets':         return 'leaflets';
+    case 'Poster':           return 'poster';
+    default:                 return 'unknown';
+  }
+};
+
+if(stockLoading || lowStockLoading || outStockLoading) return <p>Loading......</p>
+if(error) return <p>Error loading  data</p>
+
+
+
+//Transform GraphQL to table format - ALL STOCK
+const stockList = 
+  stockData?.stockCollection?.edges.map((item, index) =>  ({
+    key: index,
+    productName: item.node.product.name,
+    category: mapCategory(
+        item.node.product.product_type?.type,
+       
+    ),
+    date: item.node.created_at?.split('T')[0],
+    stockQuantity: Number(item.node.available_quantity),
+  }))  || [];
+
+console.log('stockList:', stockList);
+console.log('stockData edges:', stockData?.stockCollection?.edges);
+
+
+
+ //Transform GraphQL to table format - LOW STOCK 
+const lowStockList = 
+  lowStockData?.stockCollection?.edges.map((item, index) => ({
+    key: index,
+    productName: item.node.product.name,
+    category: mapCategory(
+      item.node.product.product_type?.type
+    ),
+    quantity: Number(item.node.available_quantity),
+  })) || [];
+
+console.log('lowStockList:', lowStockList);
+console.log('stockData edges:', stockData?.stockCollection?.edges);
+
+
+const outOfStockList = 
+  outStockData?.stockCollection?.edges.map((item, index) => ({
+    key: index,
+    productName: item.node.product.name,
+    category: mapCategory(
+      item.node.product.product_type?.type
+    ),
+    quantity: Number(item.node.available_quantity),
+  })) || [];
+
+
+  const plasticFrames = stockList.filter(item => item.category === 'plasticFrames');
+  const metalFrames = stockList.filter(item => item.category === 'metalFrames');
+  const  nightVision= stockList.filter(item => item.category === 'nightVision');
+  const doubleBride = stockList.filter(item => item.category === 'doubleBride');
+  const sunGlasses = stockList.filter(item => item.category === 'sunGlasses');
+  const hardBoxes = stockList.filter(item => item.category === 'hardBoxes');
+  const plasticBoxes = stockList.filter(item => item.category === 'plasticBoxes');
+  const cleaningClothes = stockList.filter(item => item.category === 'cleaningClothes');
+  const poster = stockList.filter(item => item.category === 'poster');
+  const leaflets = stockList.filter(item => item.category === 'leaflets');
 
   return (
   <Layout>
@@ -69,35 +186,8 @@ const inventory=[
           marginBottom: "20px",
       }}
     >
-      <Row align="middle" justify="space-between">
-        
-        {/* LEFT SIDE */}
-        {/* <Col>
-          <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
-            Inventory Management - Kadawatha
-          </Title>
-          <Text type="secondary">
-            Manage stock allocated to your branch, transfer items, and track inventory movements
-          </Text>
-        </Col> */}
-
-        {/* RIGHT SIDE */}
-        {/* <Col>
-          <Button
-            icon={<BankOutlined />}
-            style={{
-              background: "#e6f0ff",
-              borderColor: "#b3d1ff",
-              color: "#1a73e8",
-              fontWeight: "500",
-              borderRadius: "8px",
-              padding: "5px 15px",
-            }}
-          >
-            Kadawatha Branch
-          </Button>
-        </Col> */}
-      </Row>
+      {/* <Row align="middle" justify="space-between">
+      </Row> */}
      </div> 
 
 
@@ -115,16 +205,16 @@ const inventory=[
             {/* Inventory Table */}
           <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}> Inventory</Title>
 
-            <StockItemsTable />
+            <StockItemsTable  data={stockList}/>
         </Card>
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Low of Stock Table */}
-          <LowStockTable />
+          <LowStockTable data={lowStockList}/>
         </Card>
 
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Out of Stock Table */}
-          <OutOfStockTable />
+          <OutOfStockTable data={outOfStockList}/>
         </Card>
 
       </div>

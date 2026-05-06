@@ -7,32 +7,10 @@ import {icons}  from '../../../assets/icons/AdminIcons';
  
 
 
-export default function LowStockTable( iconType, title, value, color, bgColor,) {
+export default function LowStockTable({data = []} ) {
 
-const dataSource = [
-  {
-    key: '1',   
-    productCode: 'FRM-001',
-    productName: 'Ray-Ban Classic Aviator',
-    category: 'frames',
-    quantity: 10,
-  },
-    {
-    key: '2',
-    productCode: 'LNS-001',
-    productName: 'Single Vision CR-39 Lenses',
-    category: 'hardBoxes',
-    quantity: 50,
-    },
-];
 
 const columns = [
-    {
-    title: 'Product Code',
-    dataIndex: 'productCode',
-    key: 'productCode',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
     {
     title: 'Product Name',
     dataIndex: 'productName',
@@ -68,7 +46,7 @@ const columns = [
   return (
     <div>
         <Title level={5} className="mb-0 " style={{fontWeight:'bold'}} >Low Stock Items</Title>
-        <Table dataSource={dataSource} columns={columns} pagination={false} />
+        <Table dataSource={data} columns={columns} pagination={false} />
       
     </div>
   )

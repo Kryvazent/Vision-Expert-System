@@ -3,40 +3,17 @@ import { Table, Tag, Tabs, Button, Card, Dropdown, Modal, InputNumber, Input} fr
 import { icons } from '../../../assets/icons/AdminIcons';
 import { EditOutlined, MoreOutlined, WarningOutlined } from '@ant-design/icons';
 
-const { TabPane} = Tabs;
+// const { TabPane} = Tabs;
 const {TextArea} =  Input;
 
-export default function StockItemsTable() {
+export default function StockItemsTable({data = [] }) {
   
  const [activeTab, setActiveTab] = useState('plasticFrames');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDamagedOpen, setIsDamagedOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const stockItemsData = [
-    {
-      key: '1', 
-      productName: 'Ray-Ban Classic Aviator',
-      category: 'plasticFrames',
-      date: '2026-04-29',
-      stockQuantity: 10, 
-    },
-    {
-     key: '2', 
-      productName: 'Oakley Sport Frame',
-      category: 'metalFrame',
-      date: '2026-04-29',
-      stockQuantity: 2,
-    },  
-    {
-      key: '3', 
-      productName: 'Dolce & Gabbana Frame',
-      date: '2026-04-30',
-      category: 'metalFrame',
-      stockQuantity: 0,
-      
-    },
-  ];
+  //Drop down menu
   const getMenu = (record) => ({
     items: [
       {
@@ -82,6 +59,12 @@ const stockItemsColumns = [
     ),
   },
    {
+    title: 'Category',
+    dataIndex: 'category',
+    key: 'category',
+    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
+   },
+   {
     title: 'Date',
     dataIndex: 'date',
     key: 'Date',
@@ -115,7 +98,7 @@ const stockItemsColumns = [
 ];
 
 //Filter stock items based on  tab
-  const filterData = stockItemsData.filter(
+  const filterData = data.filter(
     item => item.category === activeTab
   );
 
@@ -125,19 +108,28 @@ const stockItemsColumns = [
     <div title="Inventory Items" style={{borderRadius:"12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)",}}>
       {/*<Tabs ">*/}
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card" size="large" style={{ marginBottom: 16 }}>
-        <TabPane tab="Plastic Frames" key="plasticFrames" />
-        <TabPane tab="Metal Frame" key="metalFrame" />
-        <TabPane tab="Night Vision" key="nightVision" />
-        <TabPane tab="Double Bride" key="doubleBride" />
-        <TabPane tab="Sun Glasses" key="sunGlasses" />
-        <TabPane tab="Hard Boxes" key="hardBoxes" />
-        <TabPane tab="Plastic Boxes" key="plasticBoxes" />
-        <TabPane tab="Cleaning Clothes" key="cleaningClothes" />
-       <TabPane tab="Cleaning Solutions" key="cleaningSolutions" />
-        <TabPane tab="Leaflets" key="leaflets" />
-        <TabPane tab="Poster" key="poster"/>
-      </Tabs>
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab} 
+        type="card" 
+        size="large" 
+        style={{ marginBottom: 16 }}
+        items = {[
+          {label: 'Plastic Frames', key: 'plasticFrames'},
+          {label: 'Metal Frames', key: 'metalFrames'},
+          {label: 'Night Vision', key: 'nightVision'},
+          {label: 'Double Bride', key: 'doubleBride'},
+          {label: 'Sun Glasses', key: 'sunGlasses'},
+          {label: 'Hard Boxes', key: 'hardBoxes'},
+          {label: 'Plastic Boxes', key: 'plasticBoxes'},
+          {label: 'Cleaning Clothes', key: 'cleaningClothes'},
+          {label: 'Leaflets', key: 'leaflets'},
+          {label: 'Poster', key: 'poster'},
+     
+        ]}
+
+      />
+       
 
     <Table columns={stockItemsColumns} dataSource={filterData} pagination={false} />
 
