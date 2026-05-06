@@ -25,6 +25,10 @@ import AdminDashboard from '../pages/AdministrativeOfficer/AdminDashboard';
 import CustomerLookup from '../pages/AdministrativeOfficer/CustomerLookup';
 import InventoryManagement from '../pages/AdministrativeOfficer/InventoryManagement';
 import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
+import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
+import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
+import ComplaintManagement from '../pages/AdministrativeOfficer/ComplaintManagement';
+
 
 import ManagerDashboard from './../pages/Manager/ManagerDashboard';
 import ClinicDetails from './../pages/Manager/ClinicDetails';
@@ -36,7 +40,6 @@ import PendingPayment from './../pages/Manager/PendingPayment';
 import Report from '../pages/Manager/Report';
 import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
-import ACCashTransfer from "../pages/Accountant/ACCashTransfer";
 import DailySales from "../pages/Accountant/DailySales";
 import OrderFilter from "../pages/Accountant/OrderFilter";
 import RecoveryFiltering from "../pages/Accountant/RecoveryFiltering";
@@ -47,6 +50,7 @@ import PaymentMonitoring from "../pages/owner/PaymentMonitering";
 import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
+import ACCashTransfer from './../pages/Accountant/ACCashTransfer';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -238,6 +242,9 @@ function App() {
         }
       />
 
+
+
+
       {/* Admin */}
       <Route
         path="/admin-dashboard"
@@ -400,6 +407,27 @@ function App() {
           <Report/>
         </Page>
       }/>
+
+      {/* Admin */}
+      <Route path="/batch-tracking" element={
+        <Page roles={["admin"]}>
+          <BatchTracking />
+        </Page>
+      } />
+
+      <Route path="/reminder-calls" element={
+        <Page roles={["admin"]}>
+          <ReminderCalls />
+        </Page>
+      } />
+
+      <Route path="/complaint-management" element={
+        <Page roles={["admin"]}>
+          <ComplaintManagement />
+        </Page>
+      } />
+
+
 
 
 
