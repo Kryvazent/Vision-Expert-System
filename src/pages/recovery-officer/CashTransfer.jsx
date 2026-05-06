@@ -115,7 +115,7 @@ function CashTransfer() {
     );
   }
   return (
-     <Layout style={{ minHeight: "100vh", background: "#f0f4ff" }}>
+     <Layout style={{ background: "#f0f4ff" }}>
       <Card        title={<Typography.Title level={3}>Cash Transfer</Typography.Title>}
         bordered={false}
         style={{ margin: "20px" }}
@@ -125,7 +125,7 @@ function CashTransfer() {
         </Typography.Paragraph>
       </Card>
       
-      <Table columns={columns} dataSource={data} />
+      <Table columns={columns} dataSource={data} style={{ padding: 20 }}/>
       
     </Layout>
   )

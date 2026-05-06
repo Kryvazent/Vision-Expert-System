@@ -1,29 +1,28 @@
-import { Typography, Select, DatePicker, Table } from 'antd';
+import { Typography, Select, DatePicker, Table ,Card, Button} from 'antd';
+import { use, useEffect } from 'react';
+import { gql } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
+
+
 const { Title, Text } = Typography;
 
-const centers = [
-    { value: 'kadawatha', label: 'Kadawatha' },
-    { value: 'Kandy', label: 'Kandy' },
-    { value: 'Nuwara Eliya', label: 'Nuwara Eliya' },
-    { value: 'Mahiyanganaya', label: 'Mahiyanganaya' },
-    { value: 'Dambulla', label: 'Dambulla' },
-];
 
 const basecolumns = [
     { title: 'Order ID', dataIndex: 'orderId', key: 'orderId', width: 150 },
+    { title: 'Delivery Date', dataIndex: 'deliveryDate', key: 'deliveryDate', width: 150 },
+    { title: 'Delivery Time', dataIndex: 'deliveryTime', key: 'deliveryTime', width: 150 },
     { title: 'Customer Name', dataIndex: 'customerName', key: 'customerName', width: 180 },
     { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 150 },
     { title: 'Customer Address', dataIndex: 'customerAddress', key: 'customerAddress', width: 200 },
     { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', width: 150 },
     { title: 'Paid Amount', dataIndex: 'paidAmount', key: 'paidAmount', width: 150 },
+    { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 150 },
     { title: 'Remaining Amount', dataIndex: 'remainingAmount', key: 'remainingAmount', width: 180 },
-    { title: 'Due Date', dataIndex: 'dueDate', key: 'dueDate', width: 150 },
-    { title: 'Delivery Date', dataIndex: 'deliveryDate', key: 'deliveryDate', width: 150 },
-    { title: 'Delivery Time', dataIndex: 'deliveryTime', key: 'deliveryTime', width: 150 },
     { title: 'Payment Received', dataIndex: 'paymentReceived', key: 'paymentReceived', width: 170 },
     { title: 'Delivered', dataIndex: 'delivered', key: 'delivered', width: 120 },
-    { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 150 },
+    
 ];
+
 
 function DailyCollectionTable({
     selectedCenter,
@@ -34,13 +33,37 @@ function DailyCollectionTable({
     extraColumns = []
 }) {
 
-    const centerLabel =
-        centers.find((c) => c.value === selectedCenter)?.label || "Kadawatha";
 
     const formattedDate =
         selectedDate?.format("D MMM YYYY");
 
         const columns = [...basecolumns, ...extraColumns];
+
+    const GET_CENTERS = gql`
+      query getCenters {
+        clinicCollection {
+          edges {
+            node {
+              venue
+            }
+          }
+        }
+      }
+    `;
+
+    const [loadCenterData, { data: centerData, loading: centerLoading }] = useLazyQuery(GET_CENTERS);
+
+    useEffect(() => {
+        loadCenterData();
+    }, []);
+
+    const centers =
+    centerData?.clinicCollection?.edges?.map((item) => ({
+    value: item.node.venue,
+    label: item.node.venue,
+  })) || [];
+    
+
 
     return (
         <div className='min-h-screen bg-gray-100 flex items-start justify-center py-10 px-4'>
@@ -75,6 +98,7 @@ function DailyCollectionTable({
                                 value={selectedCenter}
                                 onChange={setSelectedCenter}
                                 options={centers}
+                                loading={centerLoading}
                                 style={{ width: "100%", height: 44 }}
                             />
                         </div>
@@ -88,6 +112,21 @@ function DailyCollectionTable({
                                 style={{ width: "100%", height: 44 }}
                             />
                         </div>
+                        <Button
+                            type="primary"
+                            disabled={!selectedCenter || !selectedDate}
+                            style={{ width: "20%", height: 44, alignSelf: 'flex-end' }}
+                            onClick={() =>
+    loadOrderData({
+      variables: {
+        center: selectedCenter,
+        date: selectedDate.format("YYYY-MM-DD"),
+      },
+    })
+  }
+                            >
+  Load Orders
+</Button>
 
                     </div>
                 </div>

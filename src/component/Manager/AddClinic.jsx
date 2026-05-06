@@ -1,10 +1,11 @@
-import React, {useEffect, useState} from 'react'
-import { Form, Input, DatePicker, Modal, Button} from 'antd';
-import { EnvironmentOutlined, ClockCircleOutlined, UserOutlined, PhoneOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react'
+import { Form, Input, DatePicker, Modal, Button, TimePicker } from 'antd';
+import { EnvironmentOutlined, UserOutlined, PhoneOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
+const { RangePicker } = TimePicker;
 
-function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
+function AddClinic({ open, onClose, onAdd, mode = 'add', clinicData = null }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
@@ -13,26 +14,23 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
   useEffect(() => {
     if (isEditMode && clinicData && open) {
       form.setFieldsValue({
-        clinicCenter: clinicData.clinicCenter,
-        date: clinicData.date ? dayjs(clinicData.date) : null,
-        duration: clinicData.duration,
-        responsiblePerson: clinicData.responsiblePerson01,
-        contactNumber: clinicData.contactNumber1,
-        responsiblePerson: clinicData.responsiblePerson02,
-        contactNumber: clinicData.contactNumber2,
+        clinicCenter:       clinicData.clinicCenter,
+        date:               clinicData.date ? dayjs(clinicData.date) : null,
+        time:               clinicData.time,           // FIX 1: was missing entirely
+        responsiblePerson:  clinicData.responsiblePerson01,  // FIX 2: no duplicate key
+        contactNumber:      clinicData.contactNumber1,        // FIX 3: no duplicate key
+        responsiblePerson2: clinicData.responsiblePerson02,  // FIX 4: was `responsiblePerson` (duplicate)
+        contactNumber2:     clinicData.contactNumber2,
       });
-    }else {
+    } else {
       form.resetFields();
     }
-      }, [isEditMode, clinicData, form, open]);
-    
-  
+  }, [isEditMode, clinicData, form, open]);
 
   const handleAdd = async () => {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      // Simulate async save
       setTimeout(() => {
         onAdd?.(values);
         form.resetFields();
@@ -77,9 +75,7 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
           label={
             <span>
               <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                Clinic Center
-              </span>
+              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Clinic Center</span>
             </span>
           }
           rules={[{ required: true, message: 'Please enter the clinic center location' }]}
@@ -91,17 +87,15 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
             style={{ borderRadius: 8, fontSize: 14 }}
           />
         </Form.Item>
- 
-        {/* Date + Duration side by side */}
+
+        {/* Date + Time side by side */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <Form.Item
             name="date"
             label={
               <span>
                 <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-                <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                  Date
-                </span>
+                <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Date</span>
               </span>
             }
             rules={[{ required: true, message: 'Please select a date' }]}
@@ -113,37 +107,32 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
               format="MMMM DD, YYYY"
             />
           </Form.Item>
- 
+
           <Form.Item
-            name="duration"
+            name="time"
             label={
               <span>
                 <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-                <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                  Duration
-                </span>
+                <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Time</span>
               </span>
             }
-            rules={[{ required: true, message: 'Please enter the duration' }]}
+            rules={[{ required: true, message: 'Please enter the time' }]}
           >
-            <Input
-              prefix={<ClockCircleOutlined style={{ color: '#9ca3af', fontSize: 14 }} />}
-              placeholder="e.g., 09:00 AM - 05:00 PM"
+            <RangePicker
+              format="HH:mm"
               size="large"
-              style={{ borderRadius: 8, fontSize: 14 }}
+              style={{ width: '100%', borderRadius: 8, fontSize: 14 }}
             />
           </Form.Item>
         </div>
- 
-        {/* Responsible Person */}
+
+        {/* Responsible Person 01 */}
         <Form.Item
           name="responsiblePerson"
           label={
             <span>
               <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                Responsible Person 01
-              </span>
+              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Responsible Person 01</span>
             </span>
           }
           rules={[{ required: true, message: 'Please enter the responsible person name' }]}
@@ -155,16 +144,14 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
             style={{ borderRadius: 8, fontSize: 14 }}
           />
         </Form.Item>
- 
-        {/* Contact Number */}
+
+        {/* Contact Number 01 */}
         <Form.Item
           name="contactNumber"
           label={
             <span>
               <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                Contact Number
-              </span>
+              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Contact Number</span>
             </span>
           }
           rules={[
@@ -181,14 +168,13 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
           />
         </Form.Item>
 
+        {/* Responsible Person 02 */}
         <Form.Item
-          name="responsiblePerson"
+          name="responsiblePerson2"
           label={
             <span>
               <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                Responsible Person 02
-              </span>
+              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Responsible Person 02</span>
             </span>
           }
           rules={[{ required: true, message: 'Please enter the responsible person name' }]}
@@ -200,16 +186,14 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
             style={{ borderRadius: 8, fontSize: 14 }}
           />
         </Form.Item>
- 
-        {/* Contact Number */}
+
+        {/* Contact Number 02 */}
         <Form.Item
-          name="contactNumber"
+          name="contactNumber2"
           label={
             <span>
               <span style={{ color: '#ef4444', marginRight: 4 }}>*</span>
-              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>
-                Contact Number
-              </span>
+              <span style={{ fontWeight: 500, color: '#111827', fontSize: 14 }}>Contact Number</span>
             </span>
           }
           rules={[
@@ -225,7 +209,7 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
             style={{ borderRadius: 8, fontSize: 14 }}
           />
         </Form.Item>
- 
+
         {/* Footer buttons */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
           <Button
@@ -247,9 +231,8 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
               backgroundColor: '#2563eb',
               borderColor: '#2563eb',
             }}
-            
           >
-              {isEditMode ? 'Update' : 'Add'}
+            {isEditMode ? 'Update' : 'Add'}
           </Button>
         </div>
       </Form>
@@ -260,73 +243,60 @@ function AddClinic({open, onClose, onAdd, mode = 'add', clinicData = null}) {
           padding        : 28px 32px;
           box-shadow     : 0 20px 60px rgba(0, 0, 0, 0.15);
         }
- 
         .add-clinic-modal .ant-modal-header {
           border-bottom  : none;
           padding        : 0 0 4px 0;
           margin-bottom  : 0;
         }
- 
         .add-clinic-modal .ant-modal-close {
           top            : 22px;
           right          : 24px;
           color          : #6b7280;
         }
- 
         .add-clinic-modal .ant-modal-close:hover {
           color          : #111827;
           background     : #f3f4f6;
           border-radius  : 6px;
         }
- 
         .add-clinic-modal .ant-form-item {
           margin-bottom  : 20px;
         }
- 
         .add-clinic-modal .ant-form-item-label {
           padding-bottom : 6px;
         }
- 
         .add-clinic-modal .ant-form-item-label > label {
           height         : auto;
         }
- 
         .add-clinic-modal .ant-input-affix-wrapper {
           border-radius  : 8px;
           border-color   : #d1d5db;
           padding        : 0 12px;
         }
- 
         .add-clinic-modal .ant-input-affix-wrapper:hover,
         .add-clinic-modal .ant-input-affix-wrapper-focused {
           border-color   : #2563eb;
           box-shadow     : 0 0 0 2px rgba(37, 99, 235, 0.1);
         }
- 
         .add-clinic-modal .ant-picker {
           border-radius  : 8px;
           border-color   : #d1d5db;
           width          : 100%;
         }
- 
         .add-clinic-modal .ant-picker:hover,
         .add-clinic-modal .ant-picker-focused {
           border-color   : #2563eb;
           box-shadow     : 0 0 0 2px rgba(37, 99, 235, 0.1);
         }
- 
         .add-clinic-modal .ant-input {
           font-size      : 14px;
           color          : #374151;
         }
- 
         .add-clinic-modal .ant-input::placeholder {
           color          : #9ca3af;
         }
       `}</style>
     </Modal>
-    
-  )
+  );
 }
 
-export default AddClinic
+export default AddClinic;
