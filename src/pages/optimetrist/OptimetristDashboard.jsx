@@ -2,18 +2,93 @@ import { Badge, Button, Calendar, Card, Col, Row, Tag } from "antd";
 import TopBar from "../../component/optimetrist/dashboard/TopBar";
 import { Content } from "antd/es/layout/layout";
 import PrescriptionDetailsModel from "../../component/optimetrist/dashboard/PrescriptionDetailsModel";
-import { useState } from "react";
+import { use, useState } from "react";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 
 import { EyeOutlined } from "@ant-design/icons";
 import DateClinicSessionModal from "../../component/optimetrist/dashboard/DateClinicSessionModal";
 import MonthClinicSessionModal from "../../component/optimetrist/dashboard/MonthClinicSessionModal";
+import { gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client/react";
+import { useAuth } from "../../const/functions";
 
 function OptimetristDashboard() {
+
+    const { staff } = useAuth();
+    const branchId = staff?.branch_id;
 
     const [showPrescriptionDetailModal, setShowPrescriptionDetailModal] = useState(false);
     const [modelType, setModelType] = useState("date");
     const [showModal, setShowModal] = useState(false);
+
+
+    // load clinics and sessions based on the selected date
+    const GET_CLINICS_AND_SESSIONS_BY_DATE = gql`
+    
+        query GetClinicsAndSessionsByDate($date: Date!, $branchId: ID!) {
+
+            clinicCollection(filter: {date: {eq: $date}, branch_id: {eq: $branchId}}) {
+                edges {
+                node {
+                    id
+                    date
+                    venue
+                    branch {
+                        id
+                    }
+                    sessionCollection {
+                        edges {
+                            node {
+                                id
+                                name
+                                from
+                                to
+                            }
+                        }
+                    }
+                }
+                }
+            }
+        }
+
+    `;
+    const [getClinicsAndSessionsByDate, { loading, error, data }] = useLazyQuery(GET_CLINICS_AND_SESSIONS_BY_DATE);
+
+    const daySelected = (date) => {
+
+        const formattedDate = date.format("YYYY-MM-DD");
+        console.log("Formatted date:", formattedDate);
+
+        getClinicsAndSessionsByDate({
+            variables: {
+                date: formattedDate,
+                branchId 
+            }
+        });
+        setShowModal(true);
+    }
+
+    console.log("Clinics and sessions data:", data);
+    const clinicCount = data?.clinicCollection?.edges.length || 0;
+    const sessionCount = data?.clinicCollection?.edges.reduce((total, clinic) => total + clinic.node.sessionCollection.edges.length, 0) || 0;
+
+
+    const dateClinicSessionModalData = {
+        date: data?.clinicCollection?.edges[0]?.node?.date || '',
+        clinicCount,
+        sessionCount,
+        clinicAndSessionList: data?.clinicCollection?.edges.map(clinic => ({
+            clinicName: `Clinic: ${clinic.node.id}`,
+            clinicVenue: clinic.node.venue,
+            sessions: clinic.node.sessionCollection.edges.map(session => ({
+                id: session.node.id,
+                patient: session.node.name,
+                from: session.node.from,
+                to: session.node.to,
+                name: session.node.name
+            }))
+        })) || []
+    }
 
     const topBar = [
         {
@@ -232,11 +307,6 @@ function OptimetristDashboard() {
         return info.originNode;
     };
 
-    const daySelected = (date) => {
-        console.log("Selected date:", date);
-        setShowModal(true);
-    }
-
 
     return (
         <>
@@ -265,7 +335,7 @@ function OptimetristDashboard() {
                 setShowPrescriptionDetailModal={setShowPrescriptionDetailModal}
             />
 
-            {modelType === "date" && showModal && <DateClinicSessionModal show={showModal} setShow={setShowModal}/>}
+            {modelType === "date" && showModal && <DateClinicSessionModal show={showModal} setShow={setShowModal} dateClinicSessionModalData={dateClinicSessionModalData} />}
             {modelType === "month" && showModal && <MonthClinicSessionModal show={showModal} setShow={setShowModal}/>}
         </>
     )
