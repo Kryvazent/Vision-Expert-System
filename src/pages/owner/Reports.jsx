@@ -72,7 +72,7 @@ export default function Reports() {
   return (
     <div style={{ padding: 20 }}>
 
-      <h2 style={{ marginBottom: 20 ,  fontSize: 20 }}>Reports</h2>
+      {/* <h2 style={{ marginBottom: 20 ,  fontSize: 20 }}>Reports</h2> */}
 
       {/* FLEX CONTAINER */}
       <div

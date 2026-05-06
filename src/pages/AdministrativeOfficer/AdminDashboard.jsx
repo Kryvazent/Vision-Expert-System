@@ -124,27 +124,27 @@ const inventoryColumns = [
           {/* Content */}
           <Content className="p-8" style={{ padding: "20px" }}>
               <div className="flex gap-6 mb-5">
-                <StatCard title="Total Customers" value="1,234" iconType="customers" color="#2F54EB" bgColor="#E6F7FF"  />
+                <StatCard title="Damaged Stock" value="14" iconType="customers" color="#2F54EB" bgColor="#E6F7FF"  />
                 <StatCard title="Inventory Items" value="567" iconType="inventory" color="#00A854" bgColor="#E6F7F0" />
                 <StatCard title="Low Stock Items" value="23" iconType="stock" color="#F5222D" bgColor="#FFF1F0" />
               </div>
 
-            <Card className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
-            <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }>
+            <div className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
+            {/* <div className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"} }> */}
             
               {/* Customers */}
-              <Title level={5} className=".mb-0 " style={{fontWeight:600}}>Recent Customers</Title>
+              {/* <Title level={5} className=".mb-0 " style={{fontWeight:600}}>Recent Customers</Title>
               <Table dataSource={recentCustomers} columns={columns} />
 
-            </Card>
+            </div> */}
 
-            <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"}}>
+            {/* <Card className="rounded-2xl shadow-sm border border-gray-100" style={{padding:"28px",marginBottom:"20px"}}> */}
               {/* Inventory */}
-              <Title level={5} style={{ marginTop: 20, fontWeight:600 }} className=".mb-0 ">Inventory Status</Title>
-              <Table dataSource={inventoryData} columns={inventoryColumns} /> 
+              {/* <Title level={5} style={{ marginTop: 20, fontWeight:600 }} className=".mb-0 ">Inventory Status</Title>
+              <Table dataSource={inventoryData} columns={inventoryColumns} />  */}
  
-            </Card>
-            </Card>
+            {/* </Card> */}
+            </div>
            </Content>
           </Layout>
 
