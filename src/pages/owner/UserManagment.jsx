@@ -24,6 +24,7 @@ export default function UserManagement() {
     nic: "",
     roleId: null,
     branchId: null,
+    email: "",
   });
 
   const handleInputChange = (field, value) => {
@@ -34,9 +35,7 @@ export default function UserManagement() {
     setEditStaffData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Open edit modal and pre-fill with selected staff data
   const handleEditClick = (record) => {
-    // Find the original node from staffData to get IDs
     const staffNode = staffData?.staffCollection?.edges.find(
       ({ node }) => node.id === record.key
     )?.node;
@@ -48,19 +47,64 @@ export default function UserManagement() {
       nic: staffNode?.nic || "",
       roleId: staffNode?.role?.id || null,
       branchId: staffNode?.branch?.id || null,
+      email: staffNode?.email || "",
     });
     setIsEditOpen(true);
   };
 
+  // ─── Toggle Active Status Handler ─────────────────────────────────────────
+  const handleToggleStatus = async (record) => {
+    const staffNode = staffData?.staffCollection?.edges.find(
+      ({ node }) => node.id === record.key
+    )?.node;
+
+    if (!staffNode) {
+      alert("Staff member not found.");
+      return;
+    }
+
+    const isCurrentlyActive = staffNode.is_active;
+    const action = isCurrentlyActive ? "deactivate" : "reactivate";
+
+    const confirmed = window.confirm(
+      `Are you sure you want to ${action} ${record.name}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      await toggleStaffStatus({
+        variables: {
+          id: staffNode.id,
+          isActive: !isCurrentlyActive,
+        },
+      });
+
+      alert(`${record.name} has been ${action}d successfully.`);
+      loadStaff(); // Refresh table
+
+    } catch (err) {
+      console.error("Toggle status error:", err);
+      alert(`Failed to ${action} staff. Please try again.`);
+    }
+  };
+  // ─────────────────────────────────────────────────────────────────────────
+
   const columns = [
     { title: "Name", dataIndex: "name" },
+    { title: "Email", dataIndex: "email" },
     { title: "Role", dataIndex: "role" },
     { title: "Branch", dataIndex: "branch" },
     {
       title: "Status",
       dataIndex: "status",
       render: (val) => (
-        <span className="bg-green-100 text-green-600 px-2 py-1 rounded text-sm">
+        <span
+          className={`px-2 py-1 rounded text-sm ${
+            val === "Active"
+              ? "bg-green-100 text-green-600"
+              : "bg-red-100 text-red-500"
+          }`}
+        >
           {val}
         </span>
       ),
@@ -75,8 +119,15 @@ export default function UserManagement() {
           >
             Edit
           </button>
-          <button className="text-red-500 text-sm hover:bg-red-50 px-2 py-1 rounded transition">
-            Deactivate
+          <button
+            className={`text-sm px-2 py-1 rounded transition ${
+              record.status === "Active"
+                ? "text-red-500 hover:bg-red-50"
+                : "text-green-500 hover:bg-green-50"
+            }`}
+            onClick={() => handleToggleStatus(record)}
+          >
+            {record.status === "Active" ? "Deactivate" : "Reactivate"}
           </button>
         </div>
       ),
@@ -110,6 +161,7 @@ export default function UserManagement() {
             first_name
             last_name
             nic
+            email
             role {
               id
               role_name
@@ -137,6 +189,7 @@ export default function UserManagement() {
     .map(({ node }) => ({
       key: node.id,
       name: `${node.first_name} ${node.last_name}`,
+      email: node.email || "N/A",
       role: node.role?.role_name || "N/A",
       branch: node.branch?.branch_name || "N/A",
       status: node.is_active ? "Active" : "Inactive",
@@ -161,7 +214,7 @@ export default function UserManagement() {
   }, [loadRoles]);
 
   const ADD_STAFF = gql`
-    mutation addStaff($firstName: String!, $lastName: String!, $nic: String!, $roleId: ID!, $branchId: ID!, $authUserId: ID!) {
+    mutation addStaff($firstName: String!, $lastName: String!, $nic: String!, $roleId: ID!, $branchId: ID!, $authUserId: ID!, $email: String!) {
       insertIntostaffCollection(
         objects: {
           first_name: $firstName,
@@ -169,7 +222,8 @@ export default function UserManagement() {
           nic: $nic,
           role_id: $roleId,
           branch_id: $branchId,
-          auth_user_id: $authUserId
+          auth_user_id: $authUserId,
+          email: $email
         }
       ) {
         records {
@@ -180,9 +234,8 @@ export default function UserManagement() {
   `;
   const [addStaff] = useMutation(ADD_STAFF);
 
-  // Update staff mutation
   const UPDATE_STAFF = gql`
-    mutation updateStaff($id: ID!, $firstName: String!, $lastName: String!, $nic: String!, $roleId: ID!, $branchId: ID!) {
+    mutation updateStaff($id: ID!, $firstName: String!, $lastName: String!, $nic: String!, $roleId: ID!, $branchId: ID!, $email: String!) {
       updatestaffCollection(
         filter: { id: { eq: $id } }
         set: {
@@ -190,7 +243,8 @@ export default function UserManagement() {
           last_name: $lastName,
           nic: $nic,
           role_id: $roleId,
-          branch_id: $branchId
+          branch_id: $branchId,
+          email: $email
         }
       ) {
         records {
@@ -201,9 +255,29 @@ export default function UserManagement() {
   `;
   const [updateStaff] = useMutation(UPDATE_STAFF);
 
+  // ─── Toggle Staff Status Mutation ─────────────────────────────────────────
+  const TOGGLE_STAFF_STATUS = gql`
+    mutation toggleStaffStatus($id: ID!, $isActive: Boolean!) {
+      updatestaffCollection(
+        filter: { id: { eq: $id } }
+        set: { is_active: $isActive }
+      ) {
+        records {
+          id
+          is_active
+        }
+      }
+    }
+  `;
+  const [toggleStaffStatus] = useMutation(TOGGLE_STAFF_STATUS);
+  // ─────────────────────────────────────────────────────────────────────────
+
   const CHECK_DUPLICATE = gql`
     query checkDuplicate($nic: String!, $email: String!) {
       nicCheck: staffCollection(filter: { nic: { eq: $nic } }) {
+        edges { node { id } }
+      }
+      emailCheck: staffCollection(filter: { email: { eq: $email } }) {
         edges { node { id } }
       }
     }
@@ -222,13 +296,22 @@ export default function UserManagement() {
 
     try {
       const { data: dupData } = await checkDuplicate({
-        variables: { nic: newStaffData.nic },
+        variables: { 
+          nic: newStaffData.nic,
+          email: newStaffData.email 
+        },
       });
 
       const nicExists = dupData?.nicCheck?.edges?.length > 0;
-
+      const emailExists = dupData?.emailCheck?.edges?.length > 0;
+      
       if (nicExists) {
         alert("A staff member with this NIC already exists.");
+        return;
+      }
+      
+      if (emailExists) {
+        alert("A staff member with this email already exists.");
         return;
       }
 
@@ -256,6 +339,7 @@ export default function UserManagement() {
           roleId: newStaffData.roleId,
           branchId: newStaffData.branchId,
           authUserId,
+          email: newStaffData.email,
         },
       });
 
@@ -271,14 +355,14 @@ export default function UserManagement() {
   };
 
   const handleUpdateStaff = async () => {
-    // Validate fields
     if (
       !editStaffData.id ||
       editStaffData.firstName.trim() === "" ||
       editStaffData.lastName.trim() === "" ||
       editStaffData.nic.trim() === "" ||
       editStaffData.roleId === null ||
-      editStaffData.branchId === null
+      editStaffData.branchId === null ||
+      editStaffData.email.trim() === ""
     ) {
       alert("Please fill in all fields");
       return;
@@ -293,13 +377,14 @@ export default function UserManagement() {
           nic: editStaffData.nic,
           roleId: editStaffData.roleId,
           branchId: editStaffData.branchId,
+          email: editStaffData.email,
         },
       });
 
       alert("Staff updated successfully");
       setIsEditOpen(false);
-      setEditStaffData({ id: null, firstName: "", lastName: "", nic: "", roleId: null, branchId: null });
-      loadStaff(); // Refresh table
+      setEditStaffData({ id: null, firstName: "", lastName: "", nic: "", roleId: null, branchId: null, email: "" });
+      loadStaff();
 
     } catch (err) {
       console.error("Update error:", err);
@@ -444,6 +529,15 @@ export default function UserManagement() {
               placeholder="Enter NIC number"
               value={editStaffData.nic}
               onChange={(e) => handleEditInputChange("nic", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="font-medium">Email</label>
+            <Input
+              placeholder="Enter email"
+              type="email"
+              value={editStaffData.email}
+              onChange={(e) => handleEditInputChange("email", e.target.value)}
             />
           </div>
           <div>
