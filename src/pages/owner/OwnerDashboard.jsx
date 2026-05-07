@@ -13,72 +13,37 @@ import {
   RiseOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
-// import { useMutation} from "@apollo/client";
-// import { gql} from "@apollo/client";
-
-
-
-
-// const ADD_STAFF = gql`
-//   mutation AddStaff($objects: [staffInsertInput!]!) {
-//     insertIntoStaffCollection(objects: $objects) {
-//       records {
-//         id
-//         first_name
-//       }
-//     }
-//   }
-// `;
 
 export default function OwnerDashboard() {
 
-//  const [formData, setFormData] = useState({ 
-//     first_name: "",
-//     last_name: "",
-//     email: "",
-//     role_id: "",
-//     branch_id: "",
-//   });
-
-
-//   const [addStaff] = useMutation(ADD_STAFF);
-
-
-
   return (
-
-   
-
-
-  <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
-
-     
+    <div className="h-[calc(100vh-90px)] overflow-y-auto space-y-10 pr-2 mx-5 mt-5">
 
       {/* 🔹 Top Cards */}
       <div className="flex flex-wrap gap-4">
 
-        <Card className="flex-1 min-w-[200px] relative">
-          <DollarOutlined className="absolute right-4 top-4" style={{ color: "#22c55e", fontSize: 22 }}/>
+        <Card className="flex-1 min-w-50 relative">
+          <DollarOutlined className="absolute right-4 top-4" style={{ color: "#22c55e", fontSize: 22 }} />
           <p className="text-gray-500">Total Revenue</p>
           <h2 className="text-xl font-bold">Rs. 873K</h2>
           <p className="text-green-500">+12.5%</p>
         </Card>
 
-        <Card className="flex-1 min-w-[200px] relative">
+        <Card className="flex-1 min-w-50 relative">
           <ShoppingOutlined className="absolute right-4 top-4" style={{ color: "#3b82f6", fontSize: 22 }} />
           <p className="text-gray-500">Total Orders</p>
           <h2 className="text-xl font-bold">24</h2>
           <p className="text-green-500">+8.3%</p>
         </Card>
 
-        <Card className="flex-1 min-w-[200px] relative">
+        <Card className="flex-1 min-w-50 relative">
           <UserOutlined className="absolute right-4 top-4" style={{ color: "#f59e0b", fontSize: 22 }} />
           <p className="text-gray-500">Total Customers</p>
           <h2 className="text-xl font-bold">8</h2>
           <p className="text-green-500">+23%</p>
         </Card>
 
-        <Card className="flex-1 min-w-[200px] relative">
+        <Card className="flex-1 min-w-50 relative">
           <CreditCardOutlined className="absolute right-4 top-4" style={{ color: "#ef4444", fontSize: 22 }} />
           <p className="text-gray-500">Pending Payments</p>
           <h2 className="text-xl font-bold">Rs. 181K</h2>

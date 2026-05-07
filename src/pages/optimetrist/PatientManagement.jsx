@@ -267,6 +267,8 @@ function PatientManagement() {
         loadPatientData({
             variables: { startDate, endDate }
         });
+
+
     }, [loadPatientData, startDate, endDate]);
 
     useEffect(() => {
