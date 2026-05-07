@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import TextArea from "antd/es/input/TextArea";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
-import { parse } from "graphql";
 
 function PatientManagement() {
 
@@ -34,8 +33,6 @@ function PatientManagement() {
         }));
     };
 
-
-
     const patientColumns = [
         {
             title: 'Patient ID',
@@ -45,16 +42,14 @@ function PatientManagement() {
         {
             title: 'Patient',
             render: (_, record) => {
-                const customer = record?.session_attend_customer?.customer_has_branch?.customer;
-                // console.log("Customer Data for Record:", record, "Extracted Customer:", customer);
+                const customer = record?.clinic_attend_customer?.customer_has_branch?.customer;
                 return customer ? `${customer.first_name} ${customer.last_name || ''}` : 'N/A';
             }
         },
         {
             title: 'Phone',
             render: (_, record) =>
-                record.session_attend_customer?.customer_has_branch?.customer?.contact_no || 'N/A',
-
+                record.clinic_attend_customer?.customer_has_branch?.customer?.contact_no || 'N/A',
         },
         {
             title: 'Date',
@@ -91,25 +86,23 @@ function PatientManagement() {
         },
     ];
 
-
     // load patient query
     const LOAD_PATIENT_DATA = gql`
-
         query LoadPatientData($startDate: Datetime, $endDate: Datetime) {
             prescriptionCollection(filter: { 
                 created_at: { 
                     gte: $startDate,
                     lt: $endDate
-                 } 
-                }) {
+                } 
+            }) {
                 edges {
-                    node{
+                    node {
                         id
                         created_at
-                        session_attend_customer{
+                        clinic_attend_customer {
                             id
-                            customer_has_branch{
-                                customer{
+                            customer_has_branch {
+                                customer {
                                     id
                                     first_name
                                     last_name
@@ -124,22 +117,20 @@ function PatientManagement() {
     `;
     const [loadPatientData, { data, loading, error }] = useLazyQuery(LOAD_PATIENT_DATA);
 
-
     // load prescription query
     const LOAD_PRESCRIPTION_DATA = gql`
-
         query LoadPrescriptionData($startDate: Datetime, $endDate: Datetime, $patientId: ID) {
             prescriptionCollection(filter: { 
                 created_at: { 
                     gte: $startDate,
                     lt: $endDate
                 },
-                session_attend_customer_id:{
+                clinic_attend_customer_id: {
                     eq: $patientId
                 } 
-                }) {
+            }) {
                 edges {
-                    node{
+                    node {
                         id
                         remarks
                         created_at
@@ -159,10 +150,8 @@ function PatientManagement() {
     `;
     const [loadPrescriptionData, { data: prescriptionData }] = useLazyQuery(LOAD_PRESCRIPTION_DATA);
 
-
     // update prescription
     const UPDATE_PRESCRIPTION = gql`
-    
         mutation UpdatePrescription(
             $id: ID!, $remarks: String, 
             $rightSph: Float, $rightCyl: Float, $rightAxis: Float, $rightAdd: Float, 
@@ -170,7 +159,7 @@ function PatientManagement() {
             $pupillaryDistance: Float
         ) {
             updateprescriptionCollection(
-                filter: {id:{eq: $id}},
+                filter: { id: { eq: $id } },
                 atMost: 1,
                 set: {
                     remarks: $remarks,
@@ -184,14 +173,13 @@ function PatientManagement() {
                     left_add: $leftAdd,
                     pupillary_distance: $pupillaryDistance
                 }
-            ){
+            ) {
                 affectedCount
                 records {
                     id
                 }
             }
         }
-
     `;
     const [updatePrescription, { loading: updateLoading, error: updateError }] = useMutation(UPDATE_PRESCRIPTION);
 
@@ -210,7 +198,6 @@ function PatientManagement() {
             return;
         }
 
-        // console.log("Updating Prescription with Details:", prescriptionData?.prescriptionCollection?.edges[0]?.node?.id);
         const id = Number(prescriptionData?.prescriptionCollection?.edges[0]?.node?.id);
         const remarks = prescriptionDetails.remarks || "";
         const rightSph = parseFloat(prescriptionDetails.rightEyeSph);
@@ -222,21 +209,6 @@ function PatientManagement() {
         const leftAxis = parseFloat(prescriptionDetails.leftEyeAxis);
         const leftAdd = parseFloat(prescriptionDetails.leftEyeAdd);
         const pupillaryDistance = parseFloat(prescriptionDetails.pupillaryDistance);
-
-        // console.log("Parsed Prescription Details:", {
-        //     id,
-        //     remarks,
-        //     rightSph,
-        //     rightCyl,
-        //     rightAxis,
-        //     rightAdd,
-        //     leftSph,
-        //     leftCyl,
-        //     leftAxis,
-        //     leftAdd,
-        //     pupillaryDistance
-        // });
-
 
         updatePrescription({
             variables: {
@@ -253,9 +225,7 @@ function PatientManagement() {
                 pupillaryDistance
             }
         });
-    }
-
-    // console.log("Prescription Update Result:", { updateLoading, updateError });
+    };
 
     const now = new Date();
     const startDate = new Date(now.setUTCHours(0, 0, 0, 0)).toISOString();
@@ -263,39 +233,32 @@ function PatientManagement() {
 
     // load patients to the table
     useEffect(() => {
-
         loadPatientData({
             variables: { startDate, endDate }
         });
-
-
     }, [loadPatientData, startDate, endDate]);
 
     useEffect(() => {
-
         if (data?.prescriptionCollection.edges.length > 0) {
             const transformedData = data?.prescriptionCollection.edges.map(edge => edge.node);
-
             setPatientData(transformedData);
         }
-
     }, [data]);
-
 
     // load prescription data to the edit modal
     useEffect(() => {
-
-        // console.log("selectedpatient:", selectedpatient?.session_attend_customer?.id);
-
         if (openModal && selectedpatient) {
             loadPrescriptionData({
-                variables: { startDate, endDate, patientId: selectedpatient.session_attend_customer.id }
+                variables: {
+                    startDate,
+                    endDate,
+                    patientId: selectedpatient.clinic_attend_customer.id
+                }
             });
         }
     }, [loadPrescriptionData, startDate, endDate, openModal, selectedpatient]);
 
     useEffect(() => {
-
         const node = prescriptionData?.prescriptionCollection?.edges[0]?.node;
         if (node) {
             setPrescriptionDetails({
@@ -311,17 +274,13 @@ function PatientManagement() {
                 pupillaryDistance: node.pupillary_distance
             });
         }
-
-    }, [prescriptionData])
-
-
-    // console.log("prescriptionData:", prescriptionData)
+    }, [prescriptionData]);
 
     return (
         <>
             <Col className="mx-5">
                 <Content className="mt-5 h-[calc(100vh-10.5vh)] overflow-y-auto pr-2">
-                    <Row className="mt-10 ">
+                    <Row className="mt-10">
                         <Card title="Recent Patients" className="w-full" extra={
                             <Button
                                 icon={<ReloadOutlined />}
@@ -341,8 +300,6 @@ function PatientManagement() {
                 </Content>
             </Col>
 
-            {/* {console.log("prescriptionData:", prescriptionData)} */}
-
             {/* edit modal */}
             <Modal
                 centered
@@ -352,9 +309,7 @@ function PatientManagement() {
                 width={'50vw'}
                 closeIcon={null}
             >
-
-                <Card title="Update Patient Prescription" className="w-full" >
-
+                <Card title="Update Patient Prescription" className="w-full">
                     <Col span={24}>
                         <p className="fs-5 font-semibold mb-2">Right Eye (OD)</p>
 
@@ -400,9 +355,7 @@ function PatientManagement() {
 
                         <Row>
                             <Col span={12}>
-                                <p className="fs-5 font-semibold mt-10 mb-2">
-                                    Pupillary Distance (PD)
-                                </p>
+                                <p className="fs-5 font-semibold mt-10 mb-2">Pupillary Distance (PD)</p>
                                 <Input placeholder="Pupillary Distance (PD)" value={prescriptionDetails.pupillaryDistance} onChange={(e) => setValue("pupillaryDistance", e.target.value)} />
                             </Col>
                         </Row>
@@ -414,10 +367,8 @@ function PatientManagement() {
                             </Col>
                         </Row>
                     </Col>
-
                 </Card>
             </Modal>
-
         </>
     );
 }
