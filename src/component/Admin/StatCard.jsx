@@ -8,7 +8,7 @@ export default function StatCard({ title, value, iconType, color, bgColor }) {
       variant="borderless"
       style={{
         borderRadius: "12px",
-        width: 320, // Increased width to match the aspect ratio in the image
+        width: 250, // Increased width to match the aspect ratio in the image
         boxShadow: "0 4px 12px rgba(0,0,0,0.05)", // Softer shadow
         height: '100%'
       }}

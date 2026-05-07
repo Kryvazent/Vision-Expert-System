@@ -30,8 +30,6 @@ export const icons = {
   received : <SafetyCertificateOutlined style={iconStyle} />,
   arrow: <ArrowRightOutlined style={iconStyle}/>,
   history: < HistoryOutlined style={iconStyle}/>,
-  shopping: < ShoppingOutlined style={iconStyle} />,
-  search: < SearchOutlined style={iconStyle} />,
   moreButton: <MoreOutlined style={iconStyle}/>,
   complaints: <IssuesCloseOutlined  style={iconStyle} />,
   closed: < CloseCircleOutlined style={iconStyle}/>,
@@ -52,9 +50,6 @@ export const icons = {
     />
   ),
 
-  moreButton: <MoreOutlined style={iconStyle} />,
-  complaints: <IssuesCloseOutlined style={iconStyle} />,
-  closed: <CloseCircleOutlined style={iconStyle} />
 };
 
 
