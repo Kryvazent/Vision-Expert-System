@@ -13,9 +13,43 @@ import {
   RiseOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
+// import { useMutation} from "@apollo/client";
+// import { gql} from "@apollo/client";
+
+
+
+
+// const ADD_STAFF = gql`
+//   mutation AddStaff($objects: [staffInsertInput!]!) {
+//     insertIntoStaffCollection(objects: $objects) {
+//       records {
+//         id
+//         first_name
+//       }
+//     }
+//   }
+// `;
 
 export default function OwnerDashboard() {
+
+//  const [formData, setFormData] = useState({ 
+//     first_name: "",
+//     last_name: "",
+//     email: "",
+//     role_id: "",
+//     branch_id: "",
+//   });
+
+
+//   const [addStaff] = useMutation(ADD_STAFF);
+
+
+
   return (
+
+   
+
+
   <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
      
