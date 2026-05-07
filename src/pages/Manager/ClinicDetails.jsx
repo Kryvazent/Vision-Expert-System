@@ -5,10 +5,14 @@ import dayjs from 'dayjs';
 import AddClinic from '../../component/Manager/AddClinic';
 import { gql } from "@apollo/client";
 import { useMutation, useLazyQuery } from "@apollo/client/react";
+import { useAuth } from '../../const/functions';
 
 const { Title } = Typography;
 
 function ClinicDetails() {
+
+  const { staff } = useAuth();
+
 
   const INSERT_CLINIC = gql`
     mutation InsertClinic(
@@ -20,7 +24,8 @@ function ClinicDetails() {
       $contact_number_01: String!,
       $responsible_person_02: String!,
       $contact_number_02: String!,
-      $project_id: ID!
+      $project_id: ID!,
+      $branch_id:ID!
     ) {
       insertIntoclinicCollection(
         objects: {
@@ -33,7 +38,8 @@ function ClinicDetails() {
           responsible_person_02: $responsible_person_02,
           responsible_person_02_contact_no: $contact_number_02,
           project_id: $project_id,
-          clinic_status_id: 1
+          clinic_status_id: 1,
+          branch_id: $branch_id
         }
       ) {
         records { id }
@@ -103,7 +109,7 @@ function ClinicDetails() {
           responsible_person_01: $responsible_person_01,
           responsible_person_01_contact_no: $contact_number_01,
           responsible_person_02: $responsible_person_02,
-          responsible_person_02_contact_no: $contact_number_02
+          responsible_person_02_contact_no: $contact_number_02,
         }
       ) {
         records { id }
@@ -141,7 +147,8 @@ function ClinicDetails() {
           contact_number_01:      values.contactNumber,        // matches form field name
           responsible_person_02:  values.responsiblePerson2,  // matches form field name
           contact_number_02:      values.contactNumber2,       // matches form field name
-          project_id:             values.project           // hardcoded project_id for clinic details
+          project_id:             values.project,           // hardcoded project_id for clinic details
+          branch_id: staff.branch.id  // use branch_id from authenticated staff
         },
       });
       alert('Clinic added successfully!');
@@ -167,6 +174,7 @@ function ClinicDetails() {
           contact_number_01:      values.contactNumber,        // matches form field name
           responsible_person_02:  values.responsiblePerson2,  // matches form field name
           contact_number_02:      values.contactNumber2,       // matches form field name
+          branch_id: staff.branch.id,  // use branch_id from authenticated staff
         }
       });
       alert('Clinic updated successfully!');
