@@ -46,7 +46,7 @@ function NewPrescription() {
                     right_add: $rightEyeAdd,
                     left_add: $leftEyeAdd,
                     pupillary_distance: $pupillaryDistance,
-                    session_attend_customer_id: $sessionAttendCustomerId
+                    clinic_attend_customer_id: $sessionAttendCustomerId
                 }
             ){
                 records{
@@ -71,10 +71,10 @@ function NewPrescription() {
 
     const ADD_SESSION_ATTEND_CUSTOMER = gql`
         mutation AddNewSessionAttendCustomer($customerHasBranchId: ID!, $sessionId: ID!){
-            insertIntosession_attend_customerCollection(
-                objects:{
+            insertIntoclinic_attend_customerCollection(
+                objects:{ 
                     customer_has_branch_id: $customerHasBranchId,
-                    session_id: $sessionId
+                    clinic_id: $sessionId
                 }
             ){
                 records{ id }
@@ -100,33 +100,28 @@ function NewPrescription() {
 
     const GET_SESSION_ATTEND_CUSTOMER = gql`
         query GetSessionAttendCustomer($customerHasBranchId: ID!, $sessionId: ID!) {
-            session_attend_customerCollection(
-                filter: { customer_has_branch_id: { eq: $customerHasBranchId }, session_id: { eq: $sessionId } }
+            clinic_attend_customerCollection(
+                filter: { customer_has_branch_id: { eq: $customerHasBranchId }, clinic_id: { eq: $sessionId } }
             ) {
-                edges { node { id } }
+                edges { node { id } } 
             }
         }
     `;
 
     const GET_CLINIC = gql`
         query GetClinic($branchId: ID!, $today: Date!) {
-            clinicCollection(filter: { branch_id: { eq: $branchId }, date: { eq: $today } }) {
+            clinicCollection(filter: {date: {eq: $today}, branch_id:{eq:$branchId}}) {
                 edges {
-                    node{
+                    node {
                         id
                         venue
-                        sessionCollection {
-                            edges{
-                                node{
-                                    id
-                                    name
-                                }
-                            }
-                        }
+                        from
+                        to
                     }
                 }
             }
         }
+
     `;
 
     const [checkCustomerBranch] = useLazyQuery(GET_CUSTOMER_BRANCH);
@@ -172,7 +167,8 @@ function NewPrescription() {
         }
     }, [staff?.branch.id, loadClinicData, clinicData]);
 
-    const selectedClinicData = clinicData?.clinicCollection?.edges?.find(
+    console.log("clinic data: ", clinicData);
+    const selectedClinicData = clinicData?.projectCollection?.edges?.find(
         (edge) => edge.node.id === selectedClinic
     );
 
