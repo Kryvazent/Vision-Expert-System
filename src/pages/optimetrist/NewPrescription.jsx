@@ -14,9 +14,8 @@ function NewPrescription() {
 
     const [position, setPosition] = useState("start");
     const [selectedPatient, setSelectedPatient] = useState(null);
-    const [sessionId, setSessionId] = useState(null);
-    const [selectedClinic, setSelectedClinic] = useState(null);
-
+    const [selectedClinic, setSelectedClinic] = useState(null);   // formerly sessionId
+    const [selectedProject, setSelectedProject] = useState(null); // formerly selectedClinic
 
     // ========================= MUTATIONS =========================
 
@@ -32,7 +31,7 @@ function NewPrescription() {
             $rightEyeAdd: Float!,
             $leftEyeAdd: Float!,
             $pupillaryDistance: Float!,
-            $sessionAttendCustomerId: ID!
+            $clinicAttendCustomerId: ID!
         ){
             insertIntoprescriptionCollection(
                 objects:{
@@ -46,7 +45,7 @@ function NewPrescription() {
                     right_add: $rightEyeAdd,
                     left_add: $leftEyeAdd,
                     pupillary_distance: $pupillaryDistance,
-                    clinic_attend_customer_id: $sessionAttendCustomerId
+                    clinic_attend_customer_id: $clinicAttendCustomerId
                 }
             ){
                 records{
@@ -69,12 +68,12 @@ function NewPrescription() {
         }
     `;
 
-    const ADD_SESSION_ATTEND_CUSTOMER = gql`
-        mutation AddNewSessionAttendCustomer($customerHasBranchId: ID!, $sessionId: ID!){
+    const ADD_CLINIC_ATTEND_CUSTOMER = gql`
+        mutation AddNewClinicAttendCustomer($customerHasBranchId: ID!, $clinicId: ID!){
             insertIntoclinic_attend_customerCollection(
-                objects:{ 
+                objects:{
                     customer_has_branch_id: $customerHasBranchId,
-                    clinic_id: $sessionId
+                    clinic_id: $clinicId
                 }
             ){
                 records{ id }
@@ -84,12 +83,12 @@ function NewPrescription() {
 
     const [addPrescription] = useMutation(ADD_NEW_PRESCRIPTION);
     const [addCustomerBranch] = useMutation(ADD_CUSTOMER_BRANCH);
-    const [addSessionAttendCustomer] = useMutation(ADD_SESSION_ATTEND_CUSTOMER);
+    const [addClinicAttendCustomer] = useMutation(ADD_CLINIC_ATTEND_CUSTOMER);
 
     // ========================= QUERIES =========================
 
     const GET_CUSTOMER_BRANCH = gql`
-        query GetCustomerBranch($customerId: ID!,$branchId: ID!) {
+        query GetCustomerBranch($customerId: ID!, $branchId: ID!) {
             customer_has_branchCollection(
                 filter: { customer_id: { eq: $customerId }, branch_id: { eq: $branchId } }
             ) {
@@ -98,35 +97,40 @@ function NewPrescription() {
         }
     `;
 
-    const GET_SESSION_ATTEND_CUSTOMER = gql`
-        query GetSessionAttendCustomer($customerHasBranchId: ID!, $sessionId: ID!) {
+    const GET_CLINIC_ATTEND_CUSTOMER = gql`
+        query GetClinicAttendCustomer($customerHasBranchId: ID!, $clinicId: ID!) {
             clinic_attend_customerCollection(
-                filter: { customer_has_branch_id: { eq: $customerHasBranchId }, clinic_id: { eq: $sessionId } }
+                filter: { customer_has_branch_id: { eq: $customerHasBranchId }, clinic_id: { eq: $clinicId } }
             ) {
-                edges { node { id } } 
+                edges { node { id } }
             }
         }
     `;
 
-    const GET_CLINIC = gql`
-        query GetClinic($branchId: ID!, $today: Date!) {
-            clinicCollection(filter: {date: {eq: $today}, branch_id:{eq:$branchId}}) {
+    const GET_PROJECT = gql`
+        query GetProject($branchId: ID!, $today: Date!) {
+            projectCollection(filter: { branch_id: { eq: $branchId }, is_active: { eq: true } }) {
                 edges {
                     node {
                         id
-                        venue
-                        from
-                        to
+                        project_name
+                        clinicCollection(filter: { date: { eq: $today } }) {
+                            edges {
+                                node {
+                                    id
+                                    venue
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-
     `;
 
     const [checkCustomerBranch] = useLazyQuery(GET_CUSTOMER_BRANCH);
-    const [checkSessionAttendCustomer] = useLazyQuery(GET_SESSION_ATTEND_CUSTOMER);
-    const [loadClinicData, { data: clinicData, loading: clinicLoading }] = useLazyQuery(GET_CLINIC);
+    const [checkClinicAttendCustomer] = useLazyQuery(GET_CLINIC_ATTEND_CUSTOMER);
+    const [loadProjectData, { data: projectData, loading: projectLoading }] = useLazyQuery(GET_PROJECT);
 
     // ========================= STATE =========================
 
@@ -150,29 +154,23 @@ function NewPrescription() {
         }));
     };
 
-    // ========================= LOAD CLINIC =========================
-
+    // ========================= LOAD PROJECT =========================
 
     useEffect(() => {
         if (staff?.branch.id) {
             const today = new Date().toISOString().split("T")[0];
-
-            loadClinicData({
+            loadProjectData({
                 variables: {
                     branchId: staff.branch.id,
                     today
                 }
             });
-
         }
-    }, [staff?.branch.id, loadClinicData, clinicData]);
+    }, [staff?.branch.id, loadProjectData]);
 
-    console.log("clinic data: ", clinicData);
-    const selectedClinicData = clinicData?.projectCollection?.edges?.find(
-        (edge) => edge.node.id === selectedClinic
+    const selectedProjectData = projectData?.projectCollection?.edges?.find(
+        (edge) => edge.node.id === selectedProject
     );
-
-    // console.log("Selected Clinic Data:", selectedClinicData);
 
     // ========================= SUBMIT =========================
 
@@ -180,7 +178,7 @@ function NewPrescription() {
 
         if (
             !selectedPatient?.id ||
-            !sessionId ||
+            !selectedClinic ||
             prescriptionDetails.rightEyeSph === null ||
             prescriptionDetails.leftEyeSph === null ||
             prescriptionDetails.rightEyeCyl === null ||
@@ -194,7 +192,7 @@ function NewPrescription() {
         }
 
         try {
-            // 1. check customer branch
+            // 1. Check customer branch
             const customerBranchRes = await checkCustomerBranch({
                 variables: {
                     customerId: selectedPatient.id,
@@ -202,12 +200,9 @@ function NewPrescription() {
                 }
             });
 
-            // console.log("Customer Branch Check Result:", customerBranchRes);
-
             let customerHasBranchId =
                 customerBranchRes?.data?.customer_has_branchCollection?.edges?.[0]?.node?.id;
 
-            // create if not exists
             if (!customerHasBranchId) {
                 const addBranchRes = await addCustomerBranch({
                     variables: {
@@ -215,67 +210,46 @@ function NewPrescription() {
                         branchId: staff.branch.id
                     }
                 });
-
                 customerHasBranchId =
-                    addBranchRes?.data?.customer_has_branchCollection?.records?.[0]?.id;
+                    addBranchRes?.data?.insertIntocustomer_has_branchCollection?.records?.[0]?.id;
             }
 
-            // console.log("CustomerHasBranchId:", customerHasBranchId);
-
-            // 2. check session attend
-            const sessionAttendRes = await checkSessionAttendCustomer({
+            // 2. Check clinic attend customer
+            const clinicAttendRes = await checkClinicAttendCustomer({
                 variables: {
                     customerHasBranchId,
-                    sessionId
+                    clinicId: selectedClinic
                 }
             });
 
-            // console.log("Session Attend Customer Check Result:", sessionAttendRes);
+            let clinicAttendCustomerId =
+                clinicAttendRes?.data?.clinic_attend_customerCollection?.edges?.[0]?.node?.id;
 
-            let sessionAttendCustomerId =
-                sessionAttendRes?.data?.session_attend_customerCollection?.edges?.[0]?.node?.id;
-
-            // create if not exists
-            if (!sessionAttendCustomerId) {
-                const addSessionRes = await addSessionAttendCustomer({
+            if (!clinicAttendCustomerId) {
+                const addClinicAttendRes = await addClinicAttendCustomer({
                     variables: {
                         customerHasBranchId,
-                        sessionId
+                        clinicId: selectedClinic
                     }
                 });
-
-                sessionAttendCustomerId =
-                    addSessionRes?.data?.session_attend_customerCollection?.edges?.[0]?.node?.id;
+                clinicAttendCustomerId =
+                    addClinicAttendRes?.data?.insertIntoclinic_attend_customerCollection?.records?.[0]?.id;
             }
 
-            // console.log("SessionAttendCustomerId:", sessionAttendCustomerId);
-
-            // 3. add prescription
-
-            const remarks = prescriptionDetails.remarks || "";
-            const rightSph = parseFloat(prescriptionDetails.rightEyeSph);
-            const rightCyl = parseFloat(prescriptionDetails.rightEyeCyl);
-            const rightAxis = parseFloat(prescriptionDetails.rightEyeAxis);
-            const rightAdd = parseFloat(prescriptionDetails.rightEyeAdd);
-            const leftSph = parseFloat(prescriptionDetails.leftEyeSph);
-            const leftCyl = parseFloat(prescriptionDetails.leftEyeCyl);
-            const leftAxis = parseFloat(prescriptionDetails.leftEyeAxis);
-            const leftAdd = parseFloat(prescriptionDetails.leftEyeAdd);
-            const pupillaryDistance = parseFloat(prescriptionDetails.pupillaryDistance);
-
+            // 3. Add prescription
             await addPrescription({
                 variables: {
-                    remarks,
-                    rightEyeSph: rightSph,
-                    rightEyeCyl: rightCyl,
-                    rightEyeAxis: rightAxis,
-                    rightEyeAdd: rightAdd,
-                    leftEyeSph: leftSph,
-                    leftEyeCyl: leftCyl,
-                    leftEyeAxis: leftAxis,
-                    leftEyeAdd: leftAdd,
-                    pupillaryDistance: pupillaryDistance,
-                    sessionAttendCustomerId
+                    remarks: prescriptionDetails.remarks || "",
+                    rightEyeSph: parseFloat(prescriptionDetails.rightEyeSph),
+                    rightEyeCyl: parseFloat(prescriptionDetails.rightEyeCyl),
+                    rightEyeAxis: parseFloat(prescriptionDetails.rightEyeAxis),
+                    rightEyeAdd: parseFloat(prescriptionDetails.rightEyeAdd),
+                    leftEyeSph: parseFloat(prescriptionDetails.leftEyeSph),
+                    leftEyeCyl: parseFloat(prescriptionDetails.leftEyeCyl),
+                    leftEyeAxis: parseFloat(prescriptionDetails.leftEyeAxis),
+                    leftEyeAdd: parseFloat(prescriptionDetails.leftEyeAdd),
+                    pupillaryDistance: parseFloat(prescriptionDetails.pupillaryDistance),
+                    clinicAttendCustomerId
                 }
             });
 
@@ -304,37 +278,38 @@ function NewPrescription() {
         setSelectedPatient(null);
     };
 
-    const clinicCount = clinicData?.clinicCollection?.edges?.length || 0;
-    let sessionCount;
-    if (clinicCount > 1) {
-        sessionCount = selectedClinicData?.node?.sessionCollection?.edges?.length || 0;
+    const projectCount = projectData?.projectCollection?.edges?.length || 0;
+
+    let clinicCount;
+    if (projectCount > 1) {
+        clinicCount = selectedProjectData?.node?.clinicCollection?.edges?.length || 0;
     } else {
-        sessionCount = clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.length || 0;
+        clinicCount = projectData?.projectCollection?.edges?.[0]?.node?.clinicCollection?.edges?.length || 0;
     }
 
-    const needsClinicSelection = clinicCount > 1 && !selectedClinic;
-    const needsSessionSelection = selectedClinic && sessionCount > 1 && !sessionId;
+    const needsProjectSelection = projectCount > 1 && !selectedProject;
+    const needsClinicSelection = selectedProject && clinicCount > 1 && !selectedClinic;
 
-    const isDisabled = !selectedClinic || sessionCount === 0;
+    const isDisabled = !selectedProject || clinicCount === 0;
 
     const [collapseKey, setCollapseKey] = useState(['1']);
+
     useEffect(() => {
+        const pCount = projectData?.projectCollection?.edges?.length || 0;
+        const cCount = projectData?.projectCollection?.edges?.[0]?.node?.clinicCollection?.edges?.length || 0;
 
-        let clinicCount = clinicData?.clinicCollection?.edges?.length || 0;
-        let sessionCount = clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.length || 0;
-
-        if (clinicCount === 1) {
-            setSelectedClinic(clinicData?.clinicCollection?.edges?.[0]?.node?.id);
+        if (pCount === 1) {
+            setSelectedProject(projectData?.projectCollection?.edges?.[0]?.node?.id);
         }
 
-
-        if (clinicCount === 1 && sessionCount === 1) {
-            setSessionId(clinicData?.clinicCollection?.edges?.[0]?.node?.sessionCollection?.edges?.[0]?.node?.id);
+        if (pCount === 1 && cCount === 1) {
+            setSelectedClinic(
+                projectData?.projectCollection?.edges?.[0]?.node?.clinicCollection?.edges?.[0]?.node?.id
+            );
         }
 
-        setCollapseKey(clinicCount == 1 && sessionCount == 1 ? [] : ['1'])
-    }, [clinicData]);
-
+        setCollapseKey(pCount === 1 && cCount === 1 ? [] : ['1']);
+    }, [projectData]);
 
     return (
         <div className="m-5 gap-3.5 flex flex-col max-h-[87.25vh] overflow-y-auto">
@@ -347,80 +322,75 @@ function NewPrescription() {
                         label: (
                             <div className="flex justify-between items-center w-full">
                                 <span className="font-semibold">
-                                    Clinic & Session
+                                    Project & Clinic
                                 </span>
-
                                 <span className="text-sm text-gray-500">
-                                    {clinicCount > 1 && !selectedClinic && "⚠ Select Clinic"}
-                                    {clinicCount === 1 && sessionCount === 1 && "✔ Clinic & Session Auto Selected"}
-                                    {selectedClinic && sessionCount > 1 && !sessionId && " | ⚠ Select Session"}
-                                    {selectedClinic && sessionCount === 0 && " | ❌ No Sessions Available"}
+                                    {projectCount > 1 && !selectedProject && "⚠ Select Project"}
+                                    {projectCount === 1 && clinicCount === 1 && "✔ Project & Clinic Auto Selected"}
+                                    {selectedProject && clinicCount > 1 && !selectedClinic && " | ⚠ Select Clinic"}
+                                    {selectedProject && clinicCount === 0 && " | ❌ No Clinics Available"}
                                 </span>
                             </div>
                         ),
                         children: (
                             <Card>
-
                                 <Row className="gap-5">
+
+                                    {/* PROJECT SELECT */}
+                                    <Col span={8}>
+                                        <p className="font-medium">
+                                            Select Project {projectCount > 1 && <span className="text-red-500">*</span>}
+                                        </p>
+                                        <Select
+                                            className="w-full"
+                                            placeholder="Select Project"
+                                            value={selectedProject}
+                                            onChange={(value) => {
+                                                setSelectedProject(value);
+                                                setSelectedClinic(null);
+                                            }}
+                                            options={projectData?.projectCollection?.edges?.map(edge => ({
+                                                label: edge.node.project_name,
+                                                value: edge.node.id
+                                            }))}
+                                            loading={projectLoading}
+                                            status={needsProjectSelection ? "error" : ""}
+                                        />
+                                    </Col>
 
                                     {/* CLINIC SELECT */}
                                     <Col span={8}>
                                         <p className="font-medium">
-                                            Select Today Clinic {clinicCount > 1 && <span className="text-red-500">*</span>}
+                                            Select Today's Clinic {clinicCount > 1 && <span className="text-red-500">*</span>}
                                         </p>
-
                                         <Select
                                             className="w-full"
-                                            placeholder="Select Clinic"
+                                            placeholder={
+                                                !selectedProject
+                                                    ? "Select project first"
+                                                    : clinicCount === 0
+                                                        ? "No clinics available today"
+                                                        : "Select Clinic"
+                                            }
                                             value={selectedClinic}
-                                            onChange={(value) => {
-                                                setSelectedClinic(value);
-                                                setSessionId(null);
-                                            }}
-                                            options={clinicData?.clinicCollection?.edges?.map(edge => ({
+                                            disabled={!selectedProject || clinicCount === 0}
+                                            onChange={(value) => setSelectedClinic(value)}
+                                            options={selectedProjectData?.node?.clinicCollection?.edges?.map(edge => ({
                                                 label: edge.node.venue,
                                                 value: edge.node.id
                                             }))}
-                                            loading={clinicLoading}
                                             status={needsClinicSelection ? "error" : ""}
                                         />
                                     </Col>
 
-                                    {/* SESSION SELECT */}
-                                    <Col span={8}>
-                                        <p className="font-medium">
-                                            Select Today Session {sessionCount > 1 && <span className="text-red-500">*</span>}
-                                        </p>
-
-                                        <Select
-                                            className="w-full"
-                                            placeholder={
-                                                !selectedClinic
-                                                    ? "Select clinic first"
-                                                    : sessionCount === 0
-                                                        ? "No sessions available"
-                                                        : "Select Session"
-                                            }
-                                            value={sessionId}
-                                            disabled={!selectedClinic || sessionCount === 0}
-                                            onChange={(value) => setSessionId(value)}
-                                            options={selectedClinicData?.node?.sessionCollection?.edges?.map(edge => ({
-                                                label: `${edge.node.name}`,
-                                                value: edge.node.id
-                                            }))}
-                                            status={needsSessionSelection ? "error" : ""}
-                                        />
-                                    </Col>
-
                                 </Row>
-
                             </Card>
                         )
                     }
                 ]}
             />
 
-            <Card title="New Prescription" aria-disabled={!selectedClinic || sessionCount === 0}>
+            <Card title="New Prescription" aria-disabled={isDisabled}>
 
                 <Row gutter={16}>
 
@@ -470,9 +440,7 @@ function NewPrescription() {
 
                         <Row>
                             <Col span={12}>
-                                <p className="fs-5 font-semibold mt-10 mb-2">
-                                    Pupillary Distance (PD)
-                                </p>
+                                <p className="fs-5 font-semibold mt-10 mb-2">Pupillary Distance (PD)</p>
                                 <Input placeholder="Pupillary Distance (PD)" value={prescriptionDetails.pupillaryDistance} onChange={(e) => setValue("pupillaryDistance", e.target.value)} />
                             </Col>
                         </Row>
@@ -486,7 +454,12 @@ function NewPrescription() {
 
                         <Row>
                             <Col span={24}>
-                                <Button type="primary" className="mt-5 w-full" onClick={handleAddPrescription} disabled={!selectedPatient || !selectedClinic || sessionCount === 0}>
+                                <Button
+                                    type="primary"
+                                    className="mt-5 w-full"
+                                    onClick={handleAddPrescription}
+                                    disabled={!selectedPatient || !selectedProject || clinicCount === 0}
+                                >
                                     Add Prescription
                                 </Button>
                             </Col>
