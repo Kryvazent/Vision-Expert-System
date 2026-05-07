@@ -112,6 +112,27 @@ const DAMAGED_STOCK = gql`
   }
 `;
 
+const INSERT_DAMAGED_STOCK = gql`
+  mutation InsertDamagedStock($stock_id: BigInt! , $quantity: BigInt!, $reason : String!){
+    insertIntodamaged_stockCollection(
+      objects: [{
+        stock_id: $stock_id
+        damaged_quantity: $quantity
+        reason: $reason
+        status_bool: false
+      }]
+    ){
+        records{
+          id
+          stock_id
+          damaged_quantity
+          reason
+          status_bool
+        }
+      }
+  }
+`;
+
 
 //Fetch data
 const [loadStock, {data: stockData ,loading: stockLoading, error, refetch}] = useLazyQuery(LOAD_STOCK);
@@ -120,6 +141,7 @@ const [fetchOutStock, {data: outStockData ,loading: outStockLoading}] = useLazyQ
 console.log(loadStock);
 
 const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY);
+const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK);
 
 
 useEffect(() =>{
@@ -236,7 +258,7 @@ const outOfStockList =
          <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}}>
             {/* Inventory Table */}
           <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}> Inventory</Title>
-            <StockItemsTable  data={stockList} updateStock={updateStock} onRefetch={refetch}/>
+            <StockItemsTable  data={stockList} updateStock={updateStock} insertDamageStock={insertDamageStock} onRefetch={refetch}/>
         </Card>
 
         <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  

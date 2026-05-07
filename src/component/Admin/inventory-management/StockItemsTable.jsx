@@ -6,13 +6,19 @@ import { EditOutlined, MoreOutlined, WarningOutlined } from '@ant-design/icons';
 // const { TabPane} = Tabs;
 const {TextArea} =  Input;
 
-export default function StockItemsTable({data = [] , updateStock, onRefetch}) {
+export default function StockItemsTable({data = [] , updateStock, insertDamageStock, onRefetch}) {
   
   const [activeTab, setActiveTab] = useState('plasticFrames');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDamagedOpen, setIsDamagedOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  //EDIT mode STATE
   const [updateQty, setUpdateQty] = useState(0);
+
+  //DAMAGE model state
+  const [damagedQty, setDamagedQty] = useState(0);
+  const [damagedReason, setDamagedReason] = useState(' '); 
 
   //HandleEditPopUp
   const handleEditPopup = async () => {
@@ -37,6 +43,40 @@ export default function StockItemsTable({data = [] , updateStock, onRefetch}) {
     }
   };
 
+//Handle damaged pop up
+const handleDamagedSubmit = async () => {
+  if(!damagedQty || damagedQty <= 0){
+    message.error("Enter valid damaged quantity!");
+    return;
+  }
+   if(damagedQty > selectedItem.stockQuantity ){
+    message.error("Damaged quantity cannot exceed current stock!");
+    return;
+  }
+  if(!damagedReason.trim()){
+    message.error("Please enter a reasom");
+    return;
+  }
+
+  try{
+    await insertDamageStock({
+      variables: {
+        stock_id: selectedItem.id,
+        quantity: damagedQty,
+        reason: damagedReason,
+      }
+    });
+    message.success("Submitted for owner approval!");
+    setIsDamagedOpen(false);
+    setDamagedQty(0);
+    setDamagedReason(' ');
+  }catch(err){
+    message.error("Submission failed!");
+    console.error(err);
+  }
+}
+
+
   //Drop down menu
   const getMenu = (record) => ({
     items: [
@@ -49,6 +89,7 @@ export default function StockItemsTable({data = [] , updateStock, onRefetch}) {
         ),
         onClick: () => {
           setSelectedItem(record);
+          setUpdateQty(0);
           setIsEditOpen(true);
         },
       },
@@ -63,6 +104,8 @@ export default function StockItemsTable({data = [] , updateStock, onRefetch}) {
         ),
         onClick: () => {
           setSelectedItem(record);
+          setDamagedQty(0);
+          setDamagedReason('');
           setIsDamagedOpen(true);
         },
       },
@@ -188,11 +231,12 @@ const stockItemsColumns = [
     <Modal
         title="Mark Item as Damaged"
         open={isDamagedOpen}
-        onCancel={() => setIsDamagedOpen(false)}
-        onOk={() => {
-          console.log("Send for approval: ",selectedItem);
-          setIsDamagedOpen(false)
+        onCancel={() => {
+          setIsDamagedOpen(false);
+          setDamagedQty(0);
+          setDamagedReason(' ');
         }}
+        onOk={handleDamagedSubmit}
         okText="Submit for Approval"
         okButtonProps={{danger: true}}  
     >
@@ -206,7 +250,7 @@ const stockItemsColumns = [
       >
         <b>Owner Approval Required</b>
         <p style={{ margin: 0 }}>
-          This will be submitted for owner approval. Once approved, the damaged quantity will be removed from your branch stock.
+          This will be submitted for owner approval. Once approved, the damaged quantity will be removed from the branch stock.
         </p>
       </div>
 
@@ -217,12 +261,26 @@ const stockItemsColumns = [
       <Input value={`${selectedItem?.stockQuantity} units` } disabled/>
 
       <p style={{ marginTop: 10 }}>Damaged Quantity</p>
-      <InputNumber style={{ width: '100%' }} />
-
+      <InputNumber 
+        style={{ width: '100%' }}
+        min={1}
+        max={selectedItem?.stockQuantity}
+        value={damagedQty}
+        onChange={(val) => setDamagedQty(val || 0)}
+       />
+      {damagedQty > 0 && (
+        <p  style={{ marginTop: 8, color: 'orange' }}>
+          Stock after approval: <b>{(selectedItem?.stockQuantity || 0 ) - damagedQty} units</b>
+        </p>
+      )}
       <p style={{ marginTop: 10 }}>Reason</p>
-      <TextArea rows={3} placeholder="Enter reson for damaged"> </TextArea>
+      <TextArea 
+        rows={3} 
+        placeholder="Enter reson for damaged" 
+        value={damagedReason}
+        onChange={(e) => setDamagedReason(e.target.value)} /> 
 
     </Modal>
     </div>
-  )
+  );
 }
