@@ -489,7 +489,14 @@ function NewPrescription() {
                         <Divider />
 
                         {position === "start" && <ExistingPatientSearch onPatientSelect={setSelectedPatient} getSelectedPatient={selectedPatient} />}
-                        {position === "end" && <NewPatientAdd onPatientAdd={setSelectedPatient} />}
+                        {position === "end" && (
+                            <NewPatientAdd
+                                onPatientAdd={(patient) => {
+                                    setSelectedPatient(patient);
+                                    setPosition("start"); 
+                                }}
+                            />
+                        )}
                     </Col>
 
                 </Row>

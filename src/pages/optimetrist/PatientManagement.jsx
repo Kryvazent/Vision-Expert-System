@@ -1,41 +1,213 @@
-import { Button, Card, Col, Input, Modal, Popconfirm, Row, Tag } from "antd";
+import { Button, Card, Col, Input, Modal, Popconfirm, Row } from "antd";
 import { Content } from "antd/es/layout/layout";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from "@ant-design/icons";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import TextArea from "antd/es/input/TextArea";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
 
+const LOAD_PATIENT_DATA = gql`
+    query LoadPatientData {
+        prescriptionCollection {
+            edges {
+                node {
+                    id
+                    created_at
+                    remarks
+                    right_sph
+                    right_cyl
+                    right_axis
+                    right_add
+                    left_sph
+                    left_cyl
+                    left_axis
+                    left_add
+                    pupillary_distance
+                    clinic_attend_customer {
+                        id
+                        customer_has_branch {
+                            customer {
+                                id
+                                first_name
+                                last_name
+                                contact_no
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+const UPDATE_PRESCRIPTION = gql`
+    mutation UpdatePrescription(
+        $id: ID!, 
+        $remarks: String,
+        $rightSph: Float, $rightCyl: Float, $rightAxis: Float, $rightAdd: Float,
+        $leftSph: Float, $leftCyl: Float, $leftAxis: Float, $leftAdd: Float,
+        $pupillaryDistance: Float
+    ) {
+        updateprescriptionCollection(
+            filter: { id: { eq: $id } },
+            atMost: 1,
+            set: {
+                remarks: $remarks,
+                right_sph: $rightSph,
+                right_cyl: $rightCyl,
+                right_axis: $rightAxis,
+                right_add: $rightAdd,
+                left_sph: $leftSph,
+                left_cyl: $leftCyl,
+                left_axis: $leftAxis,
+                left_add: $leftAdd,
+                pupillary_distance: $pupillaryDistance
+            }
+        ) {
+            affectedCount
+            records { id }
+        }
+    }
+`;
+
+const DELETE_PRESCRIPTION = gql`
+    mutation DeletePrescription($id: ID!) {
+        deleteFromprescriptionCollection(
+            filter: { id: { eq: $id } },
+            atMost: 1
+        ) {
+            affectedCount
+        }
+    }
+`;
+
 function PatientManagement() {
 
     const [openModal, setOpenModal] = useState(false);
-    const [selectedpatient, setSelectedPatient] = useState(null);
-    const [patientData, setPatientData] = useState([]);
+    const [selectedPatient, setSelectedPatient] = useState(null);
 
     const [prescriptionDetails, setPrescriptionDetails] = useState({
         remarks: "",
-        rightEyeSph: null,
-        leftEyeSph: null,
-        rightEyeCyl: null,
-        leftEyeCyl: null,
-        rightEyeAxis: null,
-        leftEyeAxis: null,
-        rightEyeAdd: null,
-        leftEyeAdd: null,
-        pupillaryDistance: null
+        rightEyeSph: "",
+        leftEyeSph: "",
+        rightEyeCyl: "",
+        leftEyeCyl: "",
+        rightEyeAxis: "",
+        leftEyeAxis: "",
+        rightEyeAdd: "",
+        leftEyeAdd: "",
+        pupillaryDistance: ""
     });
 
     const setValue = (field, value) => {
-        setPrescriptionDetails(prev => ({
-            ...prev,
-            [field]: value
-        }));
+        setPrescriptionDetails(prev => ({ ...prev, [field]: value }));
     };
+
+    // ========================= QUERIES =========================
+
+    const [loadPatientData, { data: patientRawData, loading, error }] = useLazyQuery(
+        LOAD_PATIENT_DATA,
+        { fetchPolicy: "network-only" }
+    );
+
+    // ========================= MUTATIONS =========================
+
+    const [updatePrescription, { loading: updateLoading }] = useMutation(UPDATE_PRESCRIPTION);
+    const [deletePrescription, { loading: deleteLoading }] = useMutation(DELETE_PRESCRIPTION);
+
+    // ========================= DERIVED DATA =========================
+
+    // Derive table data directly from query result — no separate state needed
+    const patientData = patientRawData?.prescriptionCollection?.edges?.map(edge => edge.node) || [];
+
+    // ========================= EFFECTS =========================
+
+    useEffect(() => {
+        loadPatientData();
+    }, []);
+
+    // When a patient is selected for editing, populate the form
+    useEffect(() => {
+        if (openModal && selectedPatient) {
+            setPrescriptionDetails({
+                remarks: selectedPatient.remarks || "",
+                rightEyeSph: selectedPatient.right_sph ?? "",
+                leftEyeSph: selectedPatient.left_sph ?? "",
+                rightEyeCyl: selectedPatient.right_cyl ?? "",
+                leftEyeCyl: selectedPatient.left_cyl ?? "",
+                rightEyeAxis: selectedPatient.right_axis ?? "",
+                leftEyeAxis: selectedPatient.left_axis ?? "",
+                rightEyeAdd: selectedPatient.right_add ?? "",
+                leftEyeAdd: selectedPatient.left_add ?? "",
+                pupillaryDistance: selectedPatient.pupillary_distance ?? ""
+            });
+        }
+    }, [openModal, selectedPatient]);
+
+    // ========================= HANDLERS =========================
+
+    const handleDelete = async (record) => {
+        try {
+            await deletePrescription({
+                variables: { id: record.id }
+            });
+            // Refetch after delete
+            loadPatientData();
+        } catch (err) {
+            console.error("Delete error:", err);
+            alert("Error deleting prescription.");
+        }
+    };
+
+    const handleUpdate = async () => {
+        if (
+            !prescriptionDetails.rightEyeSph ||
+            !prescriptionDetails.leftEyeSph ||
+            !prescriptionDetails.rightEyeCyl ||
+            !prescriptionDetails.leftEyeCyl ||
+            !prescriptionDetails.rightEyeAxis ||
+            !prescriptionDetails.leftEyeAxis ||
+            !prescriptionDetails.pupillaryDistance
+        ) {
+            alert("Please fill all required fields.");
+            return;
+        }
+
+        try {
+            await updatePrescription({
+                variables: {
+                    id: selectedPatient.id,
+                    remarks: prescriptionDetails.remarks || "",
+                    rightSph: parseFloat(prescriptionDetails.rightEyeSph),
+                    rightCyl: parseFloat(prescriptionDetails.rightEyeCyl),
+                    rightAxis: parseFloat(prescriptionDetails.rightEyeAxis),
+                    rightAdd: parseFloat(prescriptionDetails.rightEyeAdd) || 0,
+                    leftSph: parseFloat(prescriptionDetails.leftEyeSph),
+                    leftCyl: parseFloat(prescriptionDetails.leftEyeCyl),
+                    leftAxis: parseFloat(prescriptionDetails.leftEyeAxis),
+                    leftAdd: parseFloat(prescriptionDetails.leftEyeAdd) || 0,
+                    pupillaryDistance: parseFloat(prescriptionDetails.pupillaryDistance),
+                }
+            });
+
+            // Refetch after update
+            loadPatientData();
+            setOpenModal(false);
+            setSelectedPatient(null);
+            alert("Prescription updated successfully!");
+
+        } catch (err) {
+            console.error("Update error:", err);
+            alert("Error updating prescription.");
+        }
+    };
+
+    // ========================= COLUMNS =========================
 
     const patientColumns = [
         {
-            title: 'Patient ID',
+            title: 'Prescription ID',
             dataIndex: 'id',
             key: 'id',
         },
@@ -43,23 +215,24 @@ function PatientManagement() {
             title: 'Patient',
             render: (_, record) => {
                 const customer = record?.clinic_attend_customer?.customer_has_branch?.customer;
-                return customer ? `${customer.first_name} ${customer.last_name || ''}` : 'N/A';
+                return customer
+                    ? `${customer.first_name} ${customer.last_name || ''}`
+                    : 'N/A';
             }
         },
         {
             title: 'Phone',
             render: (_, record) =>
-                record.clinic_attend_customer?.customer_has_branch?.customer?.contact_no || 'N/A',
+                record?.clinic_attend_customer?.customer_has_branch?.customer?.contact_no || 'N/A',
         },
         {
             title: 'Date',
             dataIndex: 'created_at',
             key: 'created_at',
-            render: (text) => new Date(text).toLocaleDateString().split("T")[0],
+            render: (text) => text ? new Date(text).toLocaleDateString() : 'N/A',
         },
         {
             title: 'Action',
-            dataIndex: 'action',
             key: 'action',
             render: (_, record) => (
                 <div className="flex gap-2">
@@ -67,303 +240,191 @@ function PatientManagement() {
                         type="primary"
                         style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
                         icon={<EditOutlined />}
-                        onClick={() => { setOpenModal(true); setSelectedPatient(record); }}
-                    >
-                    </Button>
+                        onClick={() => {
+                            setSelectedPatient(record);
+                            setOpenModal(true);
+                        }}
+                    />
 
                     <Popconfirm
                         title="Delete the Prescription"
-                        description="Are you sure to delete this patient prescription?"
-                        onConfirm={confirm}
+                        description="Are you sure you want to delete this prescription?"
+                        onConfirm={() => handleDelete(record)}
                         okText="Yes"
                         cancelText="No"
                     >
-                        <Button type="primary" danger icon={<DeleteOutlined />}>
-                        </Button>
+                        <Button
+                            type="primary"
+                            danger
+                            icon={<DeleteOutlined />}
+                            loading={deleteLoading}
+                        />
                     </Popconfirm>
                 </div>
             ),
         },
     ];
 
-    // load patient query
-    const LOAD_PATIENT_DATA = gql`
-        query LoadPatientData($startDate: Datetime, $endDate: Datetime) {
-            prescriptionCollection(filter: { 
-                created_at: { 
-                    gte: $startDate,
-                    lt: $endDate
-                } 
-            }) {
-                edges {
-                    node {
-                        id
-                        created_at
-                        clinic_attend_customer {
-                            id
-                            customer_has_branch {
-                                customer {
-                                    id
-                                    first_name
-                                    last_name
-                                    contact_no
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    `;
-    const [loadPatientData, { data, loading, error }] = useLazyQuery(LOAD_PATIENT_DATA);
+    // ========================= RENDER =========================
 
-    // load prescription query
-    const LOAD_PRESCRIPTION_DATA = gql`
-        query LoadPrescriptionData($startDate: Datetime, $endDate: Datetime, $patientId: ID) {
-            prescriptionCollection(filter: { 
-                created_at: { 
-                    gte: $startDate,
-                    lt: $endDate
-                },
-                clinic_attend_customer_id: {
-                    eq: $patientId
-                } 
-            }) {
-                edges {
-                    node {
-                        id
-                        remarks
-                        created_at
-                        right_sph
-                        right_cyl
-                        right_axis
-                        right_add
-                        left_sph
-                        left_cyl
-                        left_axis
-                        left_add
-                        pupillary_distance
-                    }
-                }
-            }
-        }
-    `;
-    const [loadPrescriptionData, { data: prescriptionData }] = useLazyQuery(LOAD_PRESCRIPTION_DATA);
-
-    // update prescription
-    const UPDATE_PRESCRIPTION = gql`
-        mutation UpdatePrescription(
-            $id: ID!, $remarks: String, 
-            $rightSph: Float, $rightCyl: Float, $rightAxis: Float, $rightAdd: Float, 
-            $leftSph: Float, $leftCyl: Float, $leftAxis: Float, $leftAdd: Float, 
-            $pupillaryDistance: Float
-        ) {
-            updateprescriptionCollection(
-                filter: { id: { eq: $id } },
-                atMost: 1,
-                set: {
-                    remarks: $remarks,
-                    right_sph: $rightSph,
-                    right_cyl: $rightCyl,
-                    right_axis: $rightAxis,
-                    right_add: $rightAdd,
-                    left_sph: $leftSph,
-                    left_cyl: $leftCyl,
-                    left_axis: $leftAxis,
-                    left_add: $leftAdd,
-                    pupillary_distance: $pupillaryDistance
-                }
-            ) {
-                affectedCount
-                records {
-                    id
-                }
-            }
-        }
-    `;
-    const [updatePrescription, { loading: updateLoading, error: updateError }] = useMutation(UPDATE_PRESCRIPTION);
-
-    const updatePrescriptionHandler = () => {
-
-        if (
-            prescriptionDetails.rightEyeSph === null ||
-            prescriptionDetails.leftEyeSph === null ||
-            prescriptionDetails.rightEyeCyl === null ||
-            prescriptionDetails.leftEyeCyl === null ||
-            prescriptionDetails.rightEyeAxis === null ||
-            prescriptionDetails.leftEyeAxis === null ||
-            prescriptionDetails.pupillaryDistance === null
-        ) {
-            alert("Please fill all required fields.");
-            return;
-        }
-
-        const id = Number(prescriptionData?.prescriptionCollection?.edges[0]?.node?.id);
-        const remarks = prescriptionDetails.remarks || "";
-        const rightSph = parseFloat(prescriptionDetails.rightEyeSph);
-        const rightCyl = parseFloat(prescriptionDetails.rightEyeCyl);
-        const rightAxis = parseFloat(prescriptionDetails.rightEyeAxis);
-        const rightAdd = parseFloat(prescriptionDetails.rightEyeAdd);
-        const leftSph = parseFloat(prescriptionDetails.leftEyeSph);
-        const leftCyl = parseFloat(prescriptionDetails.leftEyeCyl);
-        const leftAxis = parseFloat(prescriptionDetails.leftEyeAxis);
-        const leftAdd = parseFloat(prescriptionDetails.leftEyeAdd);
-        const pupillaryDistance = parseFloat(prescriptionDetails.pupillaryDistance);
-
-        updatePrescription({
-            variables: {
-                id,
-                remarks,
-                rightSph,
-                rightCyl,
-                rightAxis,
-                rightAdd,
-                leftSph,
-                leftCyl,
-                leftAxis,
-                leftAdd,
-                pupillaryDistance
-            }
-        });
-    };
-
-    const now = new Date();
-    const startDate = new Date(now.setUTCHours(0, 0, 0, 0)).toISOString();
-    const endDate = new Date(now.setUTCDate(now.getUTCDate() + 1)).toISOString();
-
-    // load patients to the table
-    useEffect(() => {
-        loadPatientData({
-            variables: { startDate, endDate }
-        });
-    }, [loadPatientData, startDate, endDate]);
-
-    useEffect(() => {
-        if (data?.prescriptionCollection.edges.length > 0) {
-            const transformedData = data?.prescriptionCollection.edges.map(edge => edge.node);
-            setPatientData(transformedData);
-        }
-    }, [data]);
-
-    // load prescription data to the edit modal
-    useEffect(() => {
-        if (openModal && selectedpatient) {
-            loadPrescriptionData({
-                variables: {
-                    startDate,
-                    endDate,
-                    patientId: selectedpatient.clinic_attend_customer.id
-                }
-            });
-        }
-    }, [loadPrescriptionData, startDate, endDate, openModal, selectedpatient]);
-
-    useEffect(() => {
-        const node = prescriptionData?.prescriptionCollection?.edges[0]?.node;
-        if (node) {
-            setPrescriptionDetails({
-                remarks: node.remarks || "",
-                rightEyeSph: node.right_sph,
-                leftEyeSph: node.left_sph,
-                rightEyeCyl: node.right_cyl,
-                leftEyeCyl: node.left_cyl,
-                rightEyeAxis: node.right_axis,
-                leftEyeAxis: node.left_axis,
-                rightEyeAdd: node.right_add,
-                leftEyeAdd: node.left_add,
-                pupillaryDistance: node.pupillary_distance
-            });
-        }
-    }, [prescriptionData]);
+    // Debug: log to verify data is coming
+    console.log("patientRawData:", patientRawData);
+    console.log("patientData:", patientData);
+    console.log("loading:", loading);
+    console.log("error:", error);
 
     return (
         <>
             <Col className="mx-5">
                 <Content className="mt-5 h-[calc(100vh-10.5vh)] overflow-y-auto pr-2">
                     <Row className="mt-10">
-                        <Card title="Recent Patients" className="w-full" extra={
-                            <Button
-                                icon={<ReloadOutlined />}
-                                onClick={() => {
-                                    loadPatientData({
-                                        variables: { startDate, endDate }
-                                    });
-                                }}
+                        <Card
+                            title="Recent Patients"
+                            className="w-full"
+                            extra={
+                                <Button
+                                    icon={<ReloadOutlined />}
+                                    onClick={() => loadPatientData()}
+                                    loading={loading}
+                                >
+                                    Reload
+                                </Button>
+                            }
+                        >
+                            {/* Show error if any */}
+                            {error && (
+                                <p className="text-red-500 mb-3">
+                                    Error loading data: {error.message}
+                                </p>
+                            )}
+
+                            {/* Show empty state */}
+                            {!loading && patientData.length === 0 && (
+                                <p className="text-gray-400 text-center py-5">
+                                    No prescriptions found.
+                                </p>
+                            )}
+
+                            <CustomTable
+                                data={patientData}
+                                columns={patientColumns}
+                                pageSize={10}
                                 loading={loading}
-                            >
-                                Reload
-                            </Button>
-                        }>
-                            <CustomTable data={patientData} columns={patientColumns} pageSize={10} />
+                            />
                         </Card>
                     </Row>
                 </Content>
             </Col>
 
-            {/* edit modal */}
+            {/* Edit Modal */}
             <Modal
                 centered
                 open={openModal}
-                onOk={() => { updatePrescriptionHandler(); setOpenModal(false); }}
-                onCancel={() => setOpenModal(false)}
-                width={'50vw'}
-                closeIcon={null}
+                onOk={handleUpdate}
+                okText="Save Changes"
+                confirmLoading={updateLoading}
+                onCancel={() => {
+                    setOpenModal(false);
+                    setSelectedPatient(null);
+                }}
+                width="50vw"
+                destroyOnClose
             >
                 <Card title="Update Patient Prescription" className="w-full">
                     <Col span={24}>
                         <p className="fs-5 font-semibold mb-2">Right Eye (OD)</p>
-
                         <Row className="gap-3 ms-5 mt-5">
                             <Col span={5}>
                                 <p className="font-semibold">Sphere (SPH)</p>
-                                <Input placeholder="Sphere (SPH)" value={prescriptionDetails.rightEyeSph} onChange={(e) => setValue("rightEyeSph", e.target.value)} />
+                                <Input
+                                    placeholder="Sphere (SPH)"
+                                    value={prescriptionDetails.rightEyeSph}
+                                    onChange={(e) => setValue("rightEyeSph", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Cylinder (CYL)</p>
-                                <Input placeholder="Cylinder (CYL)" value={prescriptionDetails.rightEyeCyl} onChange={(e) => setValue("rightEyeCyl", e.target.value)} />
+                                <Input
+                                    placeholder="Cylinder (CYL)"
+                                    value={prescriptionDetails.rightEyeCyl}
+                                    onChange={(e) => setValue("rightEyeCyl", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Axis</p>
-                                <Input placeholder="Axis" value={prescriptionDetails.rightEyeAxis} onChange={(e) => setValue("rightEyeAxis", e.target.value)} />
+                                <Input
+                                    placeholder="Axis"
+                                    value={prescriptionDetails.rightEyeAxis}
+                                    onChange={(e) => setValue("rightEyeAxis", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Add</p>
-                                <Input placeholder="Add" value={prescriptionDetails.rightEyeAdd} onChange={(e) => setValue("rightEyeAdd", e.target.value)} />
+                                <Input
+                                    placeholder="Add"
+                                    value={prescriptionDetails.rightEyeAdd}
+                                    onChange={(e) => setValue("rightEyeAdd", e.target.value)}
+                                />
                             </Col>
                         </Row>
 
                         <p className="fs-5 font-semibold mt-10 mb-2">Left Eye (OS)</p>
-
                         <Row className="gap-3 ms-5 mt-5">
                             <Col span={5}>
                                 <p className="font-semibold">Sphere (SPH)</p>
-                                <Input placeholder="Sphere (SPH)" value={prescriptionDetails.leftEyeSph} onChange={(e) => setValue("leftEyeSph", e.target.value)} />
+                                <Input
+                                    placeholder="Sphere (SPH)"
+                                    value={prescriptionDetails.leftEyeSph}
+                                    onChange={(e) => setValue("leftEyeSph", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Cylinder (CYL)</p>
-                                <Input placeholder="Cylinder (CYL)" value={prescriptionDetails.leftEyeCyl} onChange={(e) => setValue("leftEyeCyl", e.target.value)} />
+                                <Input
+                                    placeholder="Cylinder (CYL)"
+                                    value={prescriptionDetails.leftEyeCyl}
+                                    onChange={(e) => setValue("leftEyeCyl", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Axis</p>
-                                <Input placeholder="Axis" value={prescriptionDetails.leftEyeAxis} onChange={(e) => setValue("leftEyeAxis", e.target.value)} />
+                                <Input
+                                    placeholder="Axis"
+                                    value={prescriptionDetails.leftEyeAxis}
+                                    onChange={(e) => setValue("leftEyeAxis", e.target.value)}
+                                />
                             </Col>
                             <Col span={5}>
                                 <p className="font-semibold">Add</p>
-                                <Input placeholder="Add" value={prescriptionDetails.leftEyeAdd} onChange={(e) => setValue("leftEyeAdd", e.target.value)} />
+                                <Input
+                                    placeholder="Add"
+                                    value={prescriptionDetails.leftEyeAdd}
+                                    onChange={(e) => setValue("leftEyeAdd", e.target.value)}
+                                />
                             </Col>
                         </Row>
 
                         <Row>
                             <Col span={12}>
-                                <p className="fs-5 font-semibold mt-10 mb-2">Pupillary Distance (PD)</p>
-                                <Input placeholder="Pupillary Distance (PD)" value={prescriptionDetails.pupillaryDistance} onChange={(e) => setValue("pupillaryDistance", e.target.value)} />
+                                <p className="fs-5 font-semibold mt-10 mb-2">
+                                    Pupillary Distance (PD)
+                                </p>
+                                <Input
+                                    placeholder="Pupillary Distance (PD)"
+                                    value={prescriptionDetails.pupillaryDistance}
+                                    onChange={(e) => setValue("pupillaryDistance", e.target.value)}
+                                />
                             </Col>
                         </Row>
 
                         <Row>
                             <Col span={24}>
                                 <p className="fs-5 font-semibold mt-10 mb-2">Notes</p>
-                                <TextArea rows={4} value={prescriptionDetails.remarks} onChange={(e) => setValue("remarks", e.target.value)} />
+                                <TextArea
+                                    rows={4}
+                                    value={prescriptionDetails.remarks}
+                                    onChange={(e) => setValue("remarks", e.target.value)}
+                                />
                             </Col>
                         </Row>
                     </Col>
