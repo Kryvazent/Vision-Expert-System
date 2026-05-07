@@ -5,7 +5,7 @@ import { icons } from '../../assets/icons/AdminIcons';
 export default function StatCard({ title, value, iconType, color, bgColor }) {
   return (
     <Card
-      bordered={false}
+      variant="borderless"
       style={{
         borderRadius: "12px",
         width: 320, // Increased width to match the aspect ratio in the image

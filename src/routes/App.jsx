@@ -41,9 +41,6 @@ import Report from '../pages/Manager/Report';
 import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
 
-
-
-
 import ACCashTransfer from "../pages/Accountant/ACCashTransfer";
 import DailySales from "../pages/Accountant/DailySales";
 import OrderFilter from "../pages/Accountant/OrderFilter";
@@ -55,6 +52,7 @@ import PaymentMonitoring from "../pages/owner/PaymentMonitering";
 import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
+import PettyCashHandling from '../pages/AdministrativeOfficer/PettyCashHandling';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -289,6 +287,16 @@ function App() {
         }
       />
 
+      {/* Admin */}
+      <Route
+        path="/petty-cash-handling"
+        element={
+          <Page roles={["admin"]}>
+            <PettyCashHandling />
+          </Page>
+        }
+      />
+
 
        {/* Owner */}
       <Route
@@ -346,16 +354,6 @@ function App() {
           </Page>
         }
       />
-
-
-
-
-
-
-
-
-
-
 
       {/* Manager */}
       <Route path="/manager-dashboard" element={
@@ -430,11 +428,6 @@ function App() {
           <ComplaintManagement />
         </Page>
       } />
-
-
-
-
-
     </Routes>
   );
 }

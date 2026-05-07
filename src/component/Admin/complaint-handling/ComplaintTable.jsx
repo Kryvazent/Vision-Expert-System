@@ -13,7 +13,7 @@ const getStatusTag = (status) => {
          case "Resolved":
             return <Tag color ="green">Resolved</Tag>
          case "Closed":
-            return <Tag color ="default">Closed</Tag>
+            return <Tag color ="red">Closed</Tag>
         default:
             return status;
     }
@@ -30,14 +30,6 @@ const column = [
         title: "Status", 
         render: (_, record) => getStatusTag(record.status),
     },
-    {
-        title: "Action", 
-        render: () => (
-            <Button icon={< EditOutlined/>}>Edit</Button>
-        )
-    },
-    
-
 ]
         
 

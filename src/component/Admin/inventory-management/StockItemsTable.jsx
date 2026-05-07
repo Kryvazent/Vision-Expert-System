@@ -1,42 +1,83 @@
 import React ,{useState} from 'react'
-import { Table, Tag, Tabs, Button, Card, Dropdown, Modal, InputNumber, Input} from 'antd';
+import { Table, Tag, Tabs, Button, Card, Dropdown, Modal, InputNumber, Input, message} from 'antd';
 import { icons } from '../../../assets/icons/AdminIcons';
 import { EditOutlined, MoreOutlined, WarningOutlined } from '@ant-design/icons';
 
-const { TabPane} = Tabs;
+// const { TabPane} = Tabs;
 const {TextArea} =  Input;
 
-export default function StockItemsTable() {
+export default function StockItemsTable({data = [] , updateStock, insertDamageStock, onRefetch}) {
   
- const [activeTab, setActiveTab] = useState('plasticFrames');
+  const [activeTab, setActiveTab] = useState('plasticFrames');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDamagedOpen, setIsDamagedOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
 
-  const stockItemsData = [
-    {
-      key: '1', 
-      productName: 'Ray-Ban Classic Aviator',
-      category: 'plasticFrames',
-      date: '2026-04-29',
-      stockQuantity: 10, 
-    },
-    {
-     key: '2', 
-      productName: 'Oakley Sport Frame',
-      category: 'metalFrame',
-      date: '2026-04-29',
-      stockQuantity: 2,
-    },  
-    {
-      key: '3', 
-      productName: 'Dolce & Gabbana Frame',
-      date: '2026-04-30',
-      category: 'metalFrame',
-      stockQuantity: 0,
-      
-    },
-  ];
+  //EDIT mode STATE
+  const [updateQty, setUpdateQty] = useState(0);
+
+  //DAMAGE model state
+  const [damagedQty, setDamagedQty] = useState(0);
+  const [damagedReason, setDamagedReason] = useState(' '); 
+
+  //HandleEditPopUp
+  const handleEditPopup = async () => {
+    try{
+      const newQty = selectedItem.stockQuantity + updateQty;
+      if (newQty < 0){
+        message.error("Quantity cannot be negative!");
+        return;
+      }
+      await updateStock({
+        variables: {
+          id: selectedItem.id,
+          quantity: newQty,
+        }
+      });
+      message.success("Stock Updated!");
+      setIsEditOpen(false);
+      setUpdateQty(0);
+      onRefetch && onRefetch();
+    }catch(err){
+      message.error('Update failed!');
+    }
+  };
+
+//Handle damaged pop up
+const handleDamagedSubmit = async () => {
+  if(!damagedQty || damagedQty <= 0){
+    message.error("Enter valid damaged quantity!");
+    return;
+  }
+   if(damagedQty > selectedItem.stockQuantity ){
+    message.error("Damaged quantity cannot exceed current stock!");
+    return;
+  }
+  if(!damagedReason.trim()){
+    message.error("Please enter a reasom");
+    return;
+  }
+
+  try{
+    await insertDamageStock({
+      variables: {
+        stock_id: selectedItem.id,
+        quantity: damagedQty,
+        reason: damagedReason,
+      }
+    });
+    message.success("Submitted for owner approval!");
+    setIsDamagedOpen(false);
+    setDamagedQty(0);
+    setDamagedReason(' ');
+  }catch(err){
+    message.error("Submission failed!");
+    console.error(err);
+  }
+}
+
+
+  //Drop down menu
   const getMenu = (record) => ({
     items: [
       {
@@ -48,6 +89,7 @@ export default function StockItemsTable() {
         ),
         onClick: () => {
           setSelectedItem(record);
+          setUpdateQty(0);
           setIsEditOpen(true);
         },
       },
@@ -62,6 +104,8 @@ export default function StockItemsTable() {
         ),
         onClick: () => {
           setSelectedItem(record);
+          setDamagedQty(0);
+          setDamagedReason('');
           setIsDamagedOpen(true);
         },
       },
@@ -81,6 +125,12 @@ const stockItemsColumns = [
       </div>
     ),
   },
+   {
+    title: 'Category',
+    dataIndex: 'category',
+    key: 'category',
+    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
+   },
    {
     title: 'Date',
     dataIndex: 'date',
@@ -115,7 +165,7 @@ const stockItemsColumns = [
 ];
 
 //Filter stock items based on  tab
-  const filterData = stockItemsData.filter(
+  const filterData = data.filter(
     item => item.category === activeTab
   );
 
@@ -125,19 +175,28 @@ const stockItemsColumns = [
     <div title="Inventory Items" style={{borderRadius:"12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)",}}>
       {/*<Tabs ">*/}
 
-      <Tabs activeKey={activeTab} onChange={setActiveTab} type="card" size="large" style={{ marginBottom: 16 }}>
-        <TabPane tab="Plastic Frames" key="plasticFrames" />
-        <TabPane tab="Metal Frame" key="metalFrame" />
-        <TabPane tab="Night Vision" key="nightVision" />
-        <TabPane tab="Double Bride" key="doubleBride" />
-        <TabPane tab="Sun Glasses" key="sunGlasses" />
-        <TabPane tab="Hard Boxes" key="hardBoxes" />
-        <TabPane tab="Plastic Boxes" key="plasticBoxes" />
-        <TabPane tab="Cleaning Clothes" key="cleaningClothes" />
-       <TabPane tab="Cleaning Solutions" key="cleaningSolutions" />
-        <TabPane tab="Leaflets" key="leaflets" />
-        <TabPane tab="Poster" key="poster"/>
-      </Tabs>
+      <Tabs 
+        activeKey={activeTab} 
+        onChange={setActiveTab} 
+        type="card" 
+        size="large" 
+        style={{ marginBottom: 16 }}
+        items = {[
+          {label: 'Plastic Frames', key: 'plasticFrames'},
+          {label: 'Metal Frames', key: 'metalFrames'},
+          {label: 'Night Vision', key: 'nightVision'},
+          {label: 'Double Bride', key: 'doubleBride'},
+          {label: 'Sun Glasses', key: 'sunGlasses'},
+          {label: 'Hard Boxes', key: 'hardBoxes'},
+          {label: 'Plastic Boxes', key: 'plasticBoxes'},
+          {label: 'Cleaning Clothes', key: 'cleaningClothes'},
+          {label: 'Leaflets', key: 'leaflets'},
+          {label: 'Poster', key: 'poster'},
+     
+        ]}
+
+      />
+       
 
     <Table columns={stockItemsColumns} dataSource={filterData} pagination={false} />
 
@@ -145,9 +204,8 @@ const stockItemsColumns = [
     <Modal 
         title='Edit Quantity'
         open={isEditOpen}
-        onCancel={() => setIsEditOpen(false)}
-        onOk={() => { setIsEditOpen(false);
-        }}
+        onCancel={() =>  { setIsEditOpen(false);  setUpdateQty(0); }}
+        onOk={handleEditPopup}  //set with popup
         okText='Update Quantity'      
     >
       <p>Product Name</p>
@@ -156,18 +214,29 @@ const stockItemsColumns = [
       <p style={{ marginTop: 10 }}>Current Quantity</p>
       <Input value={`${selectedItem?.stockQuantity} units`} disabled/>
 
-      <p  style={{ marginTop: 10 }}>Add/Remove Stock</p>
-      <InputNumber  style={{width: '100%' }} placeholder='+10 or -5' />
+      <p  style={{ marginTop: 10 }}>Add Stock</p>
+      <InputNumber  
+          style={{width: '100%' }} 
+          placeholder='+10 ' 
+          value={updateQty}
+          onChange={(val) => setUpdateQty(val || 0)}
+          />
+          {updateQty !== 0 && (
+            <p style={{ marginTop: 8, color: '#1890ff' }}>
+              New quantity: <b>{(selectedItem?.stockQuantity || 0) + updateQty} units</b>
+            </p>
+          )}
     </Modal>
 
     <Modal
         title="Mark Item as Damaged"
         open={isDamagedOpen}
-        onCancel={() => setIsDamagedOpen(false)}
-        onOk={() => {
-          console.log("Send for approval: ",selectedItem);
-          setIsDamagedOpen(false)
+        onCancel={() => {
+          setIsDamagedOpen(false);
+          setDamagedQty(0);
+          setDamagedReason(' ');
         }}
+        onOk={handleDamagedSubmit}
         okText="Submit for Approval"
         okButtonProps={{danger: true}}  
     >
@@ -181,7 +250,7 @@ const stockItemsColumns = [
       >
         <b>Owner Approval Required</b>
         <p style={{ margin: 0 }}>
-          This will be submitted for owner approval. Once approved, the damaged quantity will be removed from your branch stock.
+          This will be submitted for owner approval. Once approved, the damaged quantity will be removed from the branch stock.
         </p>
       </div>
 
@@ -192,12 +261,26 @@ const stockItemsColumns = [
       <Input value={`${selectedItem?.stockQuantity} units` } disabled/>
 
       <p style={{ marginTop: 10 }}>Damaged Quantity</p>
-      <InputNumber style={{ width: '100%' }} />
-
+      <InputNumber 
+        style={{ width: '100%' }}
+        min={1}
+        max={selectedItem?.stockQuantity}
+        value={damagedQty}
+        onChange={(val) => setDamagedQty(val || 0)}
+       />
+      {damagedQty > 0 && (
+        <p  style={{ marginTop: 8, color: 'orange' }}>
+          Stock after approval: <b>{(selectedItem?.stockQuantity || 0 ) - damagedQty} units</b>
+        </p>
+      )}
       <p style={{ marginTop: 10 }}>Reason</p>
-      <TextArea rows={3} placeholder="Enter reson for damaged"> </TextArea>
+      <TextArea 
+        rows={3} 
+        placeholder="Enter reson for damaged" 
+        value={damagedReason}
+        onChange={(e) => setDamagedReason(e.target.value)} /> 
 
     </Modal>
     </div>
-  )
+  );
 }

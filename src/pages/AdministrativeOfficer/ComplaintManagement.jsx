@@ -141,7 +141,7 @@ const count = {
                 <StatCard title="Pending" value={count.pending} iconType="clock" color="#F5222D" bgColor="#FFF1F0" />
                 <StatCard title="In-Progress" value={count.progress} iconType="edit" color="#FAAD14" bgColor="#FFF7E6" />
                 <StatCard title="Resolved" value={count.resolved} iconType="delivered" color="#1890FF" bgColor="#E6F7FF" />
-                <StatCard title="Closed" value={count.closed} iconType="closed" color="#1890FF" bgColor="#E6F7FF" />
+                <StatCard title="Closed" value={count.closed} iconType="closed" color="#db4015" bgColor="#f3a996" />
              </div>
              <div style={{ marginBottom: 20 }}>
                 <Select 
