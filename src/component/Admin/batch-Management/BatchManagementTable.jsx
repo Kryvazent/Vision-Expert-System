@@ -123,12 +123,12 @@ export default function BatchManagementTable() {
         next === "Final Status" ? (
           <Tag color="green">Final Status</Tag>
         ) : (
-          <Button type='primary' icon={icons.arrow} backgroundColor="white">Next</Button>
+          <Button  icon={icons.arrow} backgroundColor="white">Next</Button>
         ),
     },{
       title: "Action",
       render: () => (
-        <Button  icon={icons.history} />
+        <Button  icon={icons.history}type='default' />
       ),
     },
   ];
