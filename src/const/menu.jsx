@@ -31,6 +31,7 @@ export const MENU_BY_ROLE = {
     {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
     { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
+    { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
   ],
 
   
@@ -68,7 +69,7 @@ export const MENU_BY_ROLE = {
     { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
     { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Stock Management' },
     { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
-    { key: '/pending-laborders', icon: <ClockCircleOutlined />,   label: 'Pending Lab Orders' },
+    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
     { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
     

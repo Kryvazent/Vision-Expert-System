@@ -40,6 +40,8 @@ import PendingPayment from './../pages/Manager/PendingPayment';
 import Report from '../pages/Manager/Report';
 import ComplaintHandling from './../pages/Manager/ComplaintHandling';
 
+
+import ACCashTransfer from "../pages/Accountant/ACCashTransfer";
 import DailySales from "../pages/Accountant/DailySales";
 import OrderFilter from "../pages/Accountant/OrderFilter";
 import RecoveryFiltering from "../pages/Accountant/RecoveryFiltering";
@@ -50,7 +52,7 @@ import PaymentMonitoring from "../pages/owner/PaymentMonitering";
 import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
-import ACCashTransfer from './../pages/Accountant/ACCashTransfer';
+import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -285,6 +287,16 @@ function App() {
         }
       />
 
+      {/* Admin */}
+      <Route
+        path="/petty-cash-handling"
+        element={
+          <Page roles={["admin"]}>
+            <PettyCashHandling />
+          </Page>
+        }
+      />
+
 
        {/* Owner */}
       <Route
@@ -343,16 +355,6 @@ function App() {
         }
       />
 
-
-
-
-
-
-
-
-
-
-
       {/* Manager */}
       <Route path="/manager-dashboard" element={
         <Page roles={["manager"]}>
@@ -368,7 +370,7 @@ function App() {
 
       <Route path="/stock-management" element={
         <Page roles={["manager"]}>
-          <ManagerStockManagement />
+          <InventoryManagement />
         </Page>
       } />
 
@@ -380,13 +382,13 @@ function App() {
 
       <Route path="/petty-cash" element={
         <Page roles={["manager"]}>
-          <PettyCash />
+          <PettyCashHandling />
         </Page>
       } />
 
-      <Route path="/pending-laborders" element={
+      <Route path="/batch-tracking" element={
         <Page roles={["manager"]}>
-          <PendingLabOrders />
+          <BatchTracking />
         </Page>
       } />
 
@@ -426,11 +428,6 @@ function App() {
           <ComplaintManagement />
         </Page>
       } />
-
-
-
-
-
     </Routes>
   );
 }
