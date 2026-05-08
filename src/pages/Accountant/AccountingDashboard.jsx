@@ -2,8 +2,26 @@ import { Card, Select, DatePicker } from "antd";
 import AcStatCard from "./AcStatCard";
 const { Option } = Select;
 const { RangePicker } = DatePicker;
+import { gql } from "@apollo/client";
+import { useQuery } from "@apollo/client/react";
+
+const GET_BRANCHES = gql`
+  query {
+    branchCollection {
+      edges {
+        node {
+          branch_name
+        }
+      }
+    }
+  }
+`;
 
 function AccountantDashboard() {
+  const { data, loading, error } = useQuery(GET_BRANCHES);
+  console.log(data?.branchCollection?.edges[1]?.node?.branch_name);
+  
+
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
       {/* Title
@@ -12,18 +30,22 @@ function AccountantDashboard() {
       </h1> */}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 justify-center" >
-        <Select defaultValue="All Branches" className="w-52">
+      <div className="flex flex-wrap gap-4 justify-center">
+        <Select defaultValue="all" className="w-52">
           <Option value="all">All Branches</Option>
-          <Option value="colombo">Colombo</Option>
-          <Option value="kandy">Kandy</Option>
+
+          {data?.branchCollection?.edges?.map((b) => (
+            <Option key={b.node.branch_name} value={b.node.branch_name}>
+              {b.node.branch_name}
+            </Option>
+          ))}
         </Select>
 
         <RangePicker className="w-64" />
       </div>
 
       {/* Cards */}
-      <div className="flex flex-wrap gap-6 justify-center" >
+      <div className="flex flex-wrap gap-6 justify-center">
         {/* Card 1 */}
         <Card className="w-[40%] rounded-xl shadow-sm">
           <p className="text-gray-500">Total Revenue</p>
@@ -44,7 +66,10 @@ function AccountantDashboard() {
         <Card className="w-[40%] rounded-xl shadow-sm">
           <p className="text-gray-500">Pending Collections</p>
           <h2 className="text-2xl font-bold">Rs. 181,000</h2>
-          <AcStatCard iconType="creditcard" className="absolute top-4 right-4" />
+          <AcStatCard
+            iconType="creditcard"
+            className="absolute top-4 right-4"
+          />
           <p className="text-red-500 font-medium">-3.2%</p>
         </Card>
 
@@ -58,12 +83,9 @@ function AccountantDashboard() {
       </div>
 
       <div className="flex justify-center">
-      <h2>Branch Performance Analysis</h2>
+        <h2>Branch Performance Analysis</h2>
       </div>
       <div className="flex flex-wrap gap-6 justify-center">
-
-
-        
         <Card className="w-[40%] rounded-xl shadow-sm">
           <p className="text-gray-500">Avarage Delivery Time</p>
           <h2 className="text-2xl font-bold">10 days</h2>
@@ -72,22 +94,18 @@ function AccountantDashboard() {
         </Card>
 
         <Card className="w-[40%] rounded-xl shadow-sm">
-        <p className="text-gray-500">Best Performing Branch</p>
-        <h2 className="text-2xl font-bold">Colombo</h2>
-        <AcStatCard iconType="trophy" className="absolute top-4 right-4" />
-        <p className="text-green-500 font-medium">9 days ago</p>
+          <p className="text-gray-500">Best Performing Branch</p>
+          <h2 className="text-2xl font-bold">Colombo</h2>
+          <AcStatCard iconType="trophy" className="absolute top-4 right-4" />
+          <p className="text-green-500 font-medium">9 days ago</p>
         </Card>
-
-     
 
         <Card className="w-[40%] rounded-xl shadow-sm">
-        <p className="text-gray-500">Order completed</p>
-        <h2 className="text-2xl font-bold">24</h2>
-        <AcStatCard iconType="check" className="absolute top-4 right-4" />
-        <p className="text-green-500 font-medium">+3.8%</p>
+          <p className="text-gray-500">Order completed</p>
+          <h2 className="text-2xl font-bold">24</h2>
+          <AcStatCard iconType="check" className="absolute top-4 right-4" />
+          <p className="text-green-500 font-medium">+3.8%</p>
         </Card>
-
-
       </div>
     </div>
   );
