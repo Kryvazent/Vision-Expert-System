@@ -22,6 +22,7 @@ import {
 } from "@ant-design/icons";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { message } from "antd";
 
 const { RangePicker } = DatePicker;
 
@@ -126,33 +127,9 @@ export default function ProjectManagement() {
       }
     }
   `;
-  const [createProject] = useMutation(ADD_NEW_PROJECT);
-
-  const handleCreateProject = async () => {
-
-    if (!newProjectData.projectName || !newProjectData.branchId) {
-      console.log("Missing fields:", newProjectData);
-      alert("Please fill all required fields");
-
-      return;
-    }
-
-    console.log("Missing fields:", newProjectData);
-
-    await createProject({
-      variables: {
-        projectName: newProjectData.projectName,
-        venue: newProjectData.venue,
-        description: newProjectData.description,
-        branchId: newProjectData.branchId
-      }
-    })
-  }
 
 
-
-
-  // // load projects
+ // // load projects
   const LOAD_PROJECTS = gql`
   
     query GetProjects {
@@ -178,6 +155,48 @@ export default function ProjectManagement() {
       }
     }
   `;
+
+
+
+
+
+
+
+const [createProject] = useMutation(ADD_NEW_PROJECT, {
+  refetchQueries: [{ query: LOAD_PROJECTS }],
+});
+
+  const handleCreateProject = async () => {
+
+    if (!newProjectData.projectName || !newProjectData.branchId) {
+      console.log("Missing fields:", newProjectData);
+      alert("Please fill all required fields");
+
+      return;
+    }
+
+    console.log("Missing fields:", newProjectData);
+
+    await createProject({
+      variables: {
+        projectName: newProjectData.projectName,
+        venue: newProjectData.venue,
+        description: newProjectData.description,
+        branchId: newProjectData.branchId
+      }
+    })
+
+    message.success("Project created successfully");
+    
+    setOpen(false);
+  }
+
+  
+
+
+
+
+ 
   const [loadProjects, { data: projectsData }] = useLazyQuery(LOAD_PROJECTS);
 
   useEffect(() => {
