@@ -99,12 +99,6 @@ function RecoveryDashboard() {
           <Title level={5} className="mb-0!" style={{ fontWeight: 600 }}>
             Pending Deliveries
           </Title>
-          <Button
-            type="primary"
-            style={{ background: "#2563EB", borderRadius: 8, fontWeight: 600, height: 40 }}
-          >
-            Recovery Sheet
-          </Button>
         </div>
 
         <Table

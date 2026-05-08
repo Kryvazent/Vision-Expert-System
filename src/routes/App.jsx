@@ -52,7 +52,7 @@ import PaymentMonitoring from "../pages/owner/PaymentMonitering";
 import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
-import PettyCashHandling from '../pages/AdministrativeOfficer/PettyCashHandling';
+import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -370,7 +370,7 @@ function App() {
 
       <Route path="/stock-management" element={
         <Page roles={["manager"]}>
-          <ManagerStockManagement />
+          <InventoryManagement />
         </Page>
       } />
 
@@ -382,13 +382,13 @@ function App() {
 
       <Route path="/petty-cash" element={
         <Page roles={["manager"]}>
-          <PettyCash />
+          <PettyCashHandling />
         </Page>
       } />
 
-      <Route path="/pending-laborders" element={
+      <Route path="/batch-tracking" element={
         <Page roles={["manager"]}>
-          <PendingLabOrders />
+          <BatchTracking />
         </Page>
       } />
 

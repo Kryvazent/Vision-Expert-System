@@ -65,14 +65,14 @@ export const MENU_BY_ROLE = {
 
 "manager": [
     { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinics' },
-    { key: '/stock-management',        icon: <ShoppingOutlined />,     label: 'Stock Management' },
+    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
     { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
+    { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Stock Management' },
     { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
-    { key: '/pending-laborders', icon: <ClockCircleOutlined />,   label: 'Pending Lab Orders' },
+    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
     { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
-    { key: '/reports',        icon: <BarChartOutlined />,     label: 'Reports' },
+    
   ],
 
 

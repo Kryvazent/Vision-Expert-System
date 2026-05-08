@@ -6,11 +6,12 @@ import ComplaintTable from '../../component/Admin/complaint-handling/ComplaintTa
 import AddComplaint from '../../component/Admin/complaint-handling/AddComplaint'
 
 
+
 const {Title, Text} = Typography;
 const {Content} = Layout;
 const {Option} = Select;
 
-export default function ComplaintHandling() {
+export default function ComplaintManagement() {
 
 const [statusFilter, setStatusFilter] = useState("All");
 const [isModalOpen, setIsModalOpen] = useState(false);
