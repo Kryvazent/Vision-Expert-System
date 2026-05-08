@@ -13,7 +13,6 @@ function ClinicDetails() {
 
   const { staff } = useAuth();
 
-
   const INSERT_CLINIC = gql`
     mutation InsertClinic(
       $clinic_center: String!,
@@ -25,7 +24,7 @@ function ClinicDetails() {
       $responsible_person_02: String!,
       $contact_number_02: String!,
       $project_id: ID!,
-      $branch_id:ID!
+      $branch_id: ID!
     ) {
       insertIntoclinicCollection(
         objects: {
@@ -87,6 +86,7 @@ function ClinicDetails() {
     }
   `;
 
+  
   const UPDATE_CLINIC = gql`
     mutation UpdateClinic(
       $id: ID!,
@@ -97,7 +97,8 @@ function ClinicDetails() {
       $responsible_person_01: String!,
       $contact_number_01: String!,
       $responsible_person_02: String!,
-      $contact_number_02: String!
+      $contact_number_02: String!,
+      $branch_id: ID!
     ) {
       updateclinicCollection(
         filter: { id: { eq: $id } }
@@ -110,6 +111,7 @@ function ClinicDetails() {
           responsible_person_01_contact_no: $contact_number_01,
           responsible_person_02: $responsible_person_02,
           responsible_person_02_contact_no: $contact_number_02,
+          branch_id: $branch_id
         }
       ) {
         records { id }
@@ -131,24 +133,21 @@ function ClinicDetails() {
     loadAllClinics();
   }, []);
 
-  // Form fields from AddClinic are: clinicCenter, date, time, 
-  // responsiblePerson, contactNumber, responsiblePerson2, contactNumber2
   const handleAdd = async (values) => {
     try {
       const [fromTime, toTime] = values.time || [];
-      console.log('Adding clinic with values:', values);
       await insertClinic({
         variables: {
-          clinic_center:          values.clinicCenter,
-          date:                   values.date,
-          from:                   fromTime.format("HH:mm:ss"),
-          to:                     toTime.format("HH:mm:ss"),
-          responsible_person_01:  values.responsiblePerson,   // matches form field name
-          contact_number_01:      values.contactNumber,        // matches form field name
-          responsible_person_02:  values.responsiblePerson2,  // matches form field name
-          contact_number_02:      values.contactNumber2,       // matches form field name
-          project_id:             values.project,           // hardcoded project_id for clinic details
-          branch_id: staff.branch.id  // use branch_id from authenticated staff
+          clinic_center:         values.clinicCenter,
+          date:                  dayjs(values.date).format("YYYY-MM-DD"),
+          from:                  fromTime.format("HH:mm:ss"),
+          to:                    toTime.format("HH:mm:ss"),
+          responsible_person_01: values.responsiblePerson,
+          contact_number_01:     values.contactNumber,
+          responsible_person_02: values.responsiblePerson2,
+          contact_number_02:     values.contactNumber2,
+          project_id:            values.project,
+          branch_id:             staff.branch.id,
         },
       });
       alert('Clinic added successfully!');
@@ -160,22 +159,23 @@ function ClinicDetails() {
     }
   };
 
+
   const handleUpdate = async (values) => {
     try {
       const [fromTime, toTime] = values.time;
       await updateClinic({
         variables: {
-          id:                     selectedClinic.id,
-          clinic_center:          values.clinicCenter,
-          date:                   values.date,
-          from:                   fromTime.format("HH:mm:ss"),
-          to:                     toTime.format("HH:mm:ss"),
-          responsible_person_01:  values.responsiblePerson,   // matches form field name
-          contact_number_01:      values.contactNumber,        // matches form field name
-          responsible_person_02:  values.responsiblePerson2,  // matches form field name
-          contact_number_02:      values.contactNumber2,       // matches form field name
-          branch_id: staff.branch.id,  // use branch_id from authenticated staff
-        }
+          id:                    selectedClinic.id,
+          clinic_center:         values.clinicCenter,
+          date:                  dayjs(values.date).format("YYYY-MM-DD"),
+          from:                  fromTime.format("HH:mm:ss"),
+          to:                    toTime.format("HH:mm:ss"),
+          responsible_person_01: values.responsiblePerson,
+          contact_number_01:     values.contactNumber,
+          responsible_person_02: values.responsiblePerson2,
+          contact_number_02:     values.contactNumber2,
+          branch_id:             staff.branch.id,
+        },
       });
       alert('Clinic updated successfully!');
       setEditOpen(false);
@@ -186,21 +186,20 @@ function ClinicDetails() {
     }
   };
 
+
   const handleEditClick = (record) => {
     setSelectedClinic({
       id:               record.clinicId,
       clinicCenter:     record.clinicCenter,
       date:             dayjs(record.date),
-      // Pass dayjs objects so RangePicker pre-fills correctly
       time: [
         dayjs(`1970-01-01T${record.rawFrom}`),
         dayjs(`1970-01-01T${record.rawTo}`),
       ],
-      // These keys are read by AddClinic's setFieldsValue
-      responsiblePerson01: record.responsiblePerson01,
-      contactNumber1:      record.contactNumber1,
-      responsiblePerson02: record.responsiblePerson02,
-      contactNumber2:      record.contactNumber2,
+      responsiblePerson:  record.responsiblePerson01,  // ✅ was responsiblePerson01
+      contactNumber:      record.contactNumber1,        // ✅ was contactNumber1
+      responsiblePerson2: record.responsiblePerson02,  // ✅ was responsiblePerson02
+      contactNumber2:     record.contactNumber2,
     });
     setEditOpen(true);
   };
@@ -217,13 +216,13 @@ function ClinicDetails() {
 
   const columns = [
     { title: 'Clinic ID',             dataIndex: 'clinicId',           key: 'clinicId',           width: 100 },
-    { title: 'Clinic Center',         dataIndex: 'clinicCenter',        key: 'clinicCenter',        width: 200 },
-    { title: 'Date',                  dataIndex: 'date',                key: 'date',                width: 150 },
-    { title: 'Time',                  dataIndex: 'time',                key: 'time',                width: 200 },
-    { title: 'Responsible Person 01', dataIndex: 'responsiblePerson01', key: 'responsiblePerson01', width: 200 },
-    { title: 'Contact Number 01',     dataIndex: 'contactNumber1',      key: 'contactNumber1',      width: 150 },
-    { title: 'Responsible Person 02', dataIndex: 'responsiblePerson02', key: 'responsiblePerson02', width: 200 },
-    { title: 'Contact Number 02',     dataIndex: 'contactNumber2',      key: 'contactNumber2',      width: 150 },
+    { title: 'Clinic Center',         dataIndex: 'clinicCenter',       key: 'clinicCenter',        width: 200 },
+    { title: 'Date',                  dataIndex: 'date',               key: 'date',                width: 150 },
+    { title: 'Time',                  dataIndex: 'time',               key: 'time',                width: 200 },
+    { title: 'Responsible Person 01', dataIndex: 'responsiblePerson01',key: 'responsiblePerson01', width: 200 },
+    { title: 'Contact Number 01',     dataIndex: 'contactNumber1',     key: 'contactNumber1',      width: 150 },
+    { title: 'Responsible Person 02', dataIndex: 'responsiblePerson02',key: 'responsiblePerson02', width: 200 },
+    { title: 'Contact Number 02',     dataIndex: 'contactNumber2',     key: 'contactNumber2',      width: 150 },
     {
       title: 'Actions',
       key: 'actions',
@@ -237,20 +236,20 @@ function ClinicDetails() {
 
   const mapData = (data) =>
     data?.clinicCollection?.edges?.map((item) => ({
-      key:               item.node.id,
-      clinicId:          item.node.id,
-      clinicCenter:      item.node.venue,
-      date:              item.node.date,
-      time:              `${item.node.from} - ${item.node.to}`,  // display string
-      rawFrom:           item.node.from,                          // for edit modal time picker
-      rawTo:             item.node.to,                            // for edit modal time picker
+      key:                 item.node.id,
+      clinicId:            item.node.id,
+      clinicCenter:        item.node.venue,
+      date:                item.node.date,
+      time:                `${item.node.from} - ${item.node.to}`,
+      rawFrom:             item.node.from,
+      rawTo:               item.node.to,
       responsiblePerson01: item.node.responsible_person_01,
       contactNumber1:      item.node.responsible_person_01_contact_no,
       responsiblePerson02: item.node.responsible_person_02,
       contactNumber2:      item.node.responsible_person_02_contact_no,
     })) || [];
 
-  const allTableData = mapData(allClinicsData);
+  const allTableData      = mapData(allClinicsData);
   const filteredTableData = mapData(filteredClinicsData);
 
   return (
