@@ -1,15 +1,15 @@
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { Select } from "antd";
+import { useMemo } from "react";
 
 function ExistingPatientSearch({ onPatientSelect, getSelectedPatient }) {
 
     const SEARCH_PATIENTS = gql`
-    
         query SearchExistingUser($nic: String!) {
             customerCollection(filter: { nic: { like: $nic } }) {
                 edges {
-                    node{
+                    node {
                         id
                         first_name
                         last_name
@@ -23,37 +23,54 @@ function ExistingPatientSearch({ onPatientSelect, getSelectedPatient }) {
         }
     `;
 
-    const [searchPatients, { data, loading, error }] = useLazyQuery(SEARCH_PATIENTS);
+    const [searchPatients, { data, loading }] = useLazyQuery(SEARCH_PATIENTS);
 
-    // console.log("Search patients data:", data);
+    // Merge search results with the currently selected patient
+    // so a newly added patient (not yet searched) still shows in the dropdown
+    const options = useMemo(() => {
+        const searchedOptions = data?.customerCollection?.edges?.map(({ node }) => ({
+            value: node.id,
+            label: `${node.first_name} ${node.last_name || ''} - ${node.nic}`,
+            node,
+        })) || [];
+
+        // If selected patient is not in search results, add it manually
+        if (
+            getSelectedPatient?.id &&
+            !searchedOptions.find((o) => o.value === getSelectedPatient.id)
+        ) {
+            searchedOptions.unshift({
+                value: getSelectedPatient.id,
+                label: `${getSelectedPatient.first_name} ${getSelectedPatient.last_name || ''} - ${getSelectedPatient.nic}`,
+                node: getSelectedPatient,
+            });
+        }
+
+        return searchedOptions;
+    }, [data, getSelectedPatient]);
 
     return (
         <>
             <p>Search Patient by NIC</p>
             <Select
                 className="w-full"
-                showSearch={{
-                    filterOption: (input, option) =>
-                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                }}
+                showSearch
+                filterOption={false} // We handle filtering server-side
                 placeholder="Search by NIC"
                 onSearch={(value) => {
-                    searchPatients({ variables: { nic: value } });
-                    console.log("Searching for patients with NIC:", value);
+                    if (value) {
+                        searchPatients({ variables: { nic: `%${value}%` } });
+                    }
                 }}
-                options={data?.customerCollection?.edges?.map(({ node }) => ({
-                    value: node.id,
-                    label: `${node.first_name} ${node.last_name || ''} - ${node.nic}`,
-                })) || []}
+                options={options}
                 onSelect={(value) => {
-                    const patient = data?.customerCollection?.edges?.find(({ node }) => node.id === value)?.node;
+                    const patient = options.find((o) => o.value === value)?.node;
                     if (patient) {
                         onPatientSelect(patient);
                     }
                 }}
                 loading={loading}
-                value={getSelectedPatient?.id}
-                
+                value={getSelectedPatient?.id || null}
             />
         </>
     );

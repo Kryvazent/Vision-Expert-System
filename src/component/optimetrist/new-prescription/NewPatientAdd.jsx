@@ -62,29 +62,39 @@ function NewPatientAdd({ onPatientAdd }) {
         contactNumber: "",
     });
 
-const handlePatientAdding = async () => {
+    const handlePatientAdding = async () => {
+        const res = await checkPatientExists({
+            variables: { nic: patientDetails.nic.trim() }
+        });
 
-    const res = await checkPatientExists({
-        variables: { nic: patientDetails.nic.trim() }
-    });
-
-    const existingPatient = res?.data?.customerCollection?.edges?.[0]?.node;
-    if (existingPatient) {
-        alert("A patient with this NIC already exists.");
-        onPatientAdd(existingPatient);
-        return;
-    }
-
-    const addRes = await addPatient({
-        variables: {
-            ...patientDetails,
-            lastName: patientDetails.lastName || null
+        const existingPatient = res?.data?.customerCollection?.edges?.[0]?.node;
+        if (existingPatient) {
+            alert("A patient with this NIC already exists.");
+            onPatientAdd(existingPatient);
+            return;
         }
-    });
 
-    const newPatient = addRes?.data?.insertIntocustomerCollection?.records?.[0];
-    onPatientAdd(newPatient);
-};
+        const addRes = await addPatient({
+            variables: {
+                ...patientDetails,
+                lastName: patientDetails.lastName || null
+            }
+        });
+
+        const newPatient = addRes?.data?.insertIntocustomerCollection?.records?.[0];
+        if (newPatient) {
+            onPatientAdd(newPatient);
+
+            // ← Clear form after successful add
+            setPatientDetails({
+                firstName: "",
+                lastName: "",
+                dob: "",
+                nic: "",
+                contactNumber: "",
+            });
+        }
+    }; 
 
     return (
         <>
@@ -92,21 +102,21 @@ const handlePatientAdding = async () => {
             <Row className="gap-3">
                 <Col span={10}>
                     <p className="font-semibold">Patient Name</p>
-                    <Input placeholder="Patient Name" value={patientDetails.firstName} onChange={(e) => setPatientDetails({...patientDetails, firstName: e.target.value})} />
+                    <Input placeholder="Patient Name" value={patientDetails.firstName} onChange={(e) => setPatientDetails({ ...patientDetails, firstName: e.target.value })} />
                 </Col>
                 <Col span={10}>
                     <p className="font-semibold">Date of Birth</p>
-                    <Input type={"date"} placeholder="Date of Birth" value={patientDetails.dob} onChange={(e) => setPatientDetails({...patientDetails, dob: e.target.value})} />
+                    <Input type={"date"} placeholder="Date of Birth" value={patientDetails.dob} onChange={(e) => setPatientDetails({ ...patientDetails, dob: e.target.value })} />
                 </Col>
             </Row>
             <Row className="mt-2 gap-3">
                 <Col span={10}>
                     <p className="font-semibold">NIC Number</p>
-                    <Input placeholder="NIC Number" value={patientDetails.nic} onChange={(e) => setPatientDetails({...patientDetails, nic: e.target.value})} />
+                    <Input placeholder="NIC Number" value={patientDetails.nic} onChange={(e) => setPatientDetails({ ...patientDetails, nic: e.target.value })} />
                 </Col>
                 <Col span={10}>
                     <p className="font-semibold">Phone Number</p>
-                    <Input placeholder="Phone Number" value={patientDetails.contactNumber} onChange={(e) => setPatientDetails({...patientDetails, contactNumber: e.target.value})} />
+                    <Input placeholder="Phone Number" value={patientDetails.contactNumber} onChange={(e) => setPatientDetails({ ...patientDetails, contactNumber: e.target.value })} />
                 </Col>
             </Row>
 
