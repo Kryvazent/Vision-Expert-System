@@ -79,9 +79,9 @@ function App() {
       <Route
         path="/track"
         element={
-          <CommonPageStructure>
+          // <CommonPageStructure>
             <Track />
-          </CommonPageStructure>
+          // </CommonPageStructure>
         }
       />
 
@@ -387,7 +387,7 @@ function App() {
       } />
 
       <Route path="/batch-tracking" element={
-        <Page roles={["manager"]}>
+        <Page roles={["manager","admin"]}>
           <BatchTracking />
         </Page>
       } />
@@ -411,11 +411,7 @@ function App() {
       }/>
 
       {/* Admin */}
-      <Route path="/batch-tracking" element={
-        <Page roles={["admin"]}>
-          <BatchTracking />
-        </Page>
-      } />
+
 
       <Route path="/reminder-calls" element={
         <Page roles={["admin"]}>
@@ -428,6 +424,17 @@ function App() {
           <ComplaintManagement />
         </Page>
       } />
+
+
+
+      <Route
+        path="/sales-reports"
+        element={
+          <Page roles={["sales-executive"]}>
+            <Reports />
+          </Page>
+        }
+      />
     </Routes>
   );
 }
