@@ -65,6 +65,7 @@ function Page({ roles, children }) {
   );
 }
 
+
 // After login, send the user to their role's home page
 function RoleRedirect() {
   const { isAuthenticated, homeRoute, isLoading } = useAuth();
