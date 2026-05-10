@@ -69,7 +69,7 @@ export default function CustomerLookup() {
                   <StatCard title="Delivery Date" value='2026-02-20' />
 
            </div>
-           <CustomerInformation/>
+           <CustomerInformation />
       </Content>
     </Layout>
   );

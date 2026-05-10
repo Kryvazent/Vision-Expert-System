@@ -1,60 +1,28 @@
 import React, { useState } from 'react'
-import {Card, Table, Tag, Select, Button, Space, Badge } from "antd";
+import {Card, Table, Tag, Select, Button, Space, Badge, Typography } from "antd";
 import { icons } from '../../../assets/icons/AdminIcons';
+import { RightCircleOutlined } from '@ant-design/icons';
+import { Content } from 'antd/es/layout/layout';
+import BatchHistoryModal from './BatchHistoryModal';
 
 const {Option} = Select;
+const {Text} = Typography
 
-export default function BatchManagementTable() {
+export default function BatchManagementTable({data = []}) {
 
-  const [data, setData] = useState([
-    {
-      key : "1",
-      batch : "BATCH-2026-001",
-      orders : 3,
-      status : "Delivered",
-      update : "Delivered" ,
-      next : "Final Status",
-    },
-    {
-      key : "2",
-      batch : "BATCH-2026-002",
-      orders : 2,
-      status : "Received from the Lab",
-      update : "Out for delivery" ,
-      next : "next",
-    },
-    {
-      key: "3",
-      batch: "BATCH-2026-003",
-      orders: 1,
-      status: "Delivered to the Lab",
-      update: "Delivered to the Lab",
-      next: "Next",
-    },
-    {
-      key: "4",
-      batch: "BATCH-2026-004",
-      orders: 4,
-      status: "Confirmations Completed",
-      update: "Confirmations Completed",
-      next: "Next",
-    },
-    {
-      key: "5",
-      batch: "BATCH-2026-005",
-      orders: 2,
-      status: "Pending Customer Confirmation",
-      update: "Pending Customer Confirmation",
-      next: "Next",
-    },
-  ]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState(null);
+
+  // Open history popup
+  const openHistory = (record) => {
+    setSelectedBatch(record.historyData);
+    setHistoryOpen(true);
+  };
 
   const getStatusTag = (status) => {
     switch (status) {
       case "Delivered":
-        return (
-          <Tag color="green" icon={icons.delivered}>Delivered</Tag>
-        );
+        return (<Tag color="green" icon={icons.delivered}>Delivered</Tag>);
 
       case "Received from the Lab":
         return (
@@ -75,6 +43,11 @@ export default function BatchManagementTable() {
         return (
           <Tag color="orange" icon={icons.clock}>Pending Customer Confirmation </Tag>
         );
+      
+      case "Out for Delivery":
+        return (
+          <Tag color="purple" icon={<ShoppingOutlined />}>Out for Delivery</Tag>
+        )  
 
       default:
         return <Tag>{status}</Tag>;
@@ -84,7 +57,10 @@ export default function BatchManagementTable() {
   const columns = [
     {
       title : "Batch Number",
-      dataIndex : "batch",
+      dataIndex : "batchNumber",
+      key: "batchNumber",
+      fixed: 'left',
+      width: 180,
       render : (text) => (
         <a style={{fontWeight: 500}}>{text}</a>
       ),
@@ -92,21 +68,27 @@ export default function BatchManagementTable() {
     {
       title : "Orders",
       dataIndex : "orders",
+      key : "orders",
       align : "center",
+      width: 90,
       render: (orders) => (
         <Badge count={orders} style={{backgroundColor: "#1677ff"}} />
       ),
     },
     {
       title: "Current Status",
-      dataIndex: "status",
+      dataIndex: "currentStatus",
+      key: "currentStatus",
+      width: 260,
       render: (status) => getStatusTag(status),
     },
     {
       title: "Update Status",
-      dataIndex: "update",
-      render: (value) => (
-        <Select defaultValue={value} style={{width: 220}}>
+      dataIndex: "updateStatus",
+      key: "updateStatus",
+      width: 260,
+      render: (value, record) => (
+        <Select defaultValue={value} style={{width: 220}} onChange={(newVal) => onUpdateStatus && onUpdateStatus(record.key, newVal)}>
           <Option value="Delivered">Delivered</Option>
           <Option value="Received from the Lab">Received from the Lab</Option>
           <Option value="Delivered to the Lab">Delivered to the Lab</Option>
@@ -118,7 +100,8 @@ export default function BatchManagementTable() {
     },
     {
       title: "Next Status",
-      dataIndex: "next",
+      dataIndex: "nextStatus",
+      key: "nextStatus",
       render: (next) => 
         next === "Final Status" ? (
           <Tag color="green">Final Status</Tag>
@@ -126,23 +109,51 @@ export default function BatchManagementTable() {
           <Button  icon={icons.arrow} backgroundColor="white">Next</Button>
         ),
     },{
-      title: "Action",
-      render: () => (
-        <Button  icon={icons.history}type='default' />
+      title: "Actions",
+      key: "actions",
+      width: 120,
+      render: (_, record) => (
+        <Space size="small">
+          <Button  
+            icon={<RightCircleOutlined />}
+            onClick={() => onNextStatus && onNextStatus(record.key)}
+            disabled={record.currentStatus === "Delivered"}
+          />
+          <Button 
+            icon={<HistoryOutlined />}
+            onClick={() => openHistory(record)}
+          />
+        </Space>
+        
       ),
     },
   ];
     
   return (
+    <>
     <Card title={
       <Space>
-        <span icon="cleaningSolutions"> Batch mangement</span>
-        <Badge count = {5} style={{backgroundColor:"#1677ff"}}/>
+        <span icon="cleaningSolutions" > Batch mangement</span>
+        <Badge count = {totalBatches ?? data.length} style={{backgroundColor:"#1677ff"}}/>
       </Space>
     } 
-      style={{borderRadius: 12,}} >
-        <Table columns={columns} dataSource={data} pagination={{pageSize: 5}}/>
+      style={{borderRadius: 12, border: '1px solid #e5e7eb'}} 
+      bodyStyle={{ padding: 0 }}
+      >
 
+        <Table 
+          columns={columns} 
+          dataSource={data} 
+          pagination={{pageSize: 5}}
+          scroll={{x: 'max-content'}}
+          rowKey="key"
+          size='middle'
+          />
     </Card>
+
+    <BatchHistoryModal
+      open={historyOpen}
+      onClose={() => setHistoryOpen(false)}  batch={selectedBatch}/>
+   </>  
   );
 }
