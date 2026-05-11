@@ -36,7 +36,7 @@ export default function ProjectClinic() {
 
                 {/* RIGHT SIDE */}
                 <Col>
-                    <Button icon={icons.addButton } type='primary' onClick={() => {console.log("Clicked");
+                    {/* <Button icon={icons.addButton } type='primary' onClick={() => {console.log("Clicked");
                     setIsModalOpen(true)}}
                         style={{
                             background: "#e6f0ff",
@@ -55,7 +55,7 @@ export default function ProjectClinic() {
                             handleAddClinic(data);
                             console.log("new Clinic", data);
                             setIsModalOpen(false)
-                            }} />
+                            }} /> */}
                     
                 </Col>
             </Row>

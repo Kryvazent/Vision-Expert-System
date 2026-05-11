@@ -1,14 +1,14 @@
 import React, { useState } from 'react'
 import {Card, Table, Tag, Select, Button, Space, Badge, Typography } from "antd";
 import { icons } from '../../../assets/icons/AdminIcons';
-import { RightCircleOutlined } from '@ant-design/icons';
+import { RightCircleOutlined, HistoryOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Content } from 'antd/es/layout/layout';
 import BatchHistoryModal from './BatchHistoryModal';
 
 const {Option} = Select;
 const {Text} = Typography
 
-export default function BatchManagementTable({data = []}) {
+export default function BatchManagementTable({data = [], onRefetch, onUpdateStatus}) {
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -20,38 +20,17 @@ export default function BatchManagementTable({data = []}) {
   };
 
   const getStatusTag = (status) => {
-    switch (status) {
-      case "Delivered":
-        return (<Tag color="green" icon={icons.delivered}>Delivered</Tag>);
+    const statusMap = {
+      "Delivered" : {color: "green", icon: icons.delivered},
+      "Received from the Lab": { color: "blue", icon: icons.received },
+      "Delivered to the Lab": { color: "cyan", icon: icons.send },
+      "Confirmations Completed": { color: "geekblue", icon: icons.delivered },
+      "Pending Customer Confirmation": { color: "orange", icon: icons.clock },
+      "Out for Delivery": { color: "purple", icon: <ShoppingOutlined /> }
+    };
 
-      case "Received from the Lab":
-        return (
-          <Tag color="blue" icon={icons.received}>Received from the Lab</Tag>
-        );
-
-      case "Delivered to the Lab":
-        return (
-          <Tag color="cyan" icon={icons.send}>Delivered to the Lab</Tag>
-        );
-
-      case "Confirmations Completed":
-        return (
-          <Tag color="geekblue" icon={icons.delivered}>Confirmations Completed</Tag>
-        );
-
-      case "Pending Customer Confirmation":
-        return (
-          <Tag color="orange" icon={icons.clock}>Pending Customer Confirmation </Tag>
-        );
-      
-      case "Out for Delivery":
-        return (
-          <Tag color="purple" icon={<ShoppingOutlined />}>Out for Delivery</Tag>
-        )  
-
-      default:
-        return <Tag>{status}</Tag>;
-    }
+    const config = statusMap[status] || {color: "default", icon: null};
+    return <Tag color={config.color} icon={config.icon}>{status}</Tag>
   };
 
   const columns = [
@@ -99,26 +78,11 @@ export default function BatchManagementTable({data = []}) {
       )
     },
     {
-      title: "Next Status",
-      dataIndex: "nextStatus",
-      key: "nextStatus",
-      render: (next) => 
-        next === "Final Status" ? (
-          <Tag color="green">Final Status</Tag>
-        ) : (
-          <Button  icon={icons.arrow} backgroundColor="white">Next</Button>
-        ),
-    },{
       title: "Actions",
       key: "actions",
       width: 120,
       render: (_, record) => (
         <Space size="small">
-          <Button  
-            icon={<RightCircleOutlined />}
-            onClick={() => onNextStatus && onNextStatus(record.key)}
-            disabled={record.currentStatus === "Delivered"}
-          />
           <Button 
             icon={<HistoryOutlined />}
             onClick={() => openHistory(record)}
@@ -134,7 +98,7 @@ export default function BatchManagementTable({data = []}) {
     <Card title={
       <Space>
         <span icon="cleaningSolutions" > Batch mangement</span>
-        <Badge count = {totalBatches ?? data.length} style={{backgroundColor:"#1677ff"}}/>
+        <Badge count = {  data.length} style={{backgroundColor:"#1677ff"}}/>
       </Space>
     } 
       style={{borderRadius: 12, border: '1px solid #e5e7eb'}} 
@@ -153,7 +117,8 @@ export default function BatchManagementTable({data = []}) {
 
     <BatchHistoryModal
       open={historyOpen}
-      onClose={() => setHistoryOpen(false)}  batch={selectedBatch}/>
+      onClose={() => setHistoryOpen(false)}  
+      batch={selectedBatch}/>
    </>  
   );
 }
