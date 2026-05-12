@@ -2,93 +2,128 @@ import { Badge, Button, Calendar, Card, Col, Row, Tag } from "antd";
 import TopBar from "../../component/optimetrist/dashboard/TopBar";
 import { Content } from "antd/es/layout/layout";
 import PrescriptionDetailsModel from "../../component/optimetrist/dashboard/PrescriptionDetailsModel";
-import { use, useState } from "react";
+import { useEffect, useState } from "react";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 
 import { EyeOutlined } from "@ant-design/icons";
 import DateClinicSessionModal from "../../component/optimetrist/dashboard/DateClinicSessionModal";
 import MonthClinicSessionModal from "../../component/optimetrist/dashboard/MonthClinicSessionModal";
 import { gql } from "@apollo/client";
-import { useLazyQuery } from "@apollo/client/react";
+import { useLazyQuery, useQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
+
+import dayjs from "dayjs";
 
 function OptimetristDashboard() {
 
     const { staff } = useAuth();
-    const branchId = staff?.branch_id;
+    const branchId = staff?.branch.id;
 
     const [showPrescriptionDetailModal, setShowPrescriptionDetailModal] = useState(false);
     const [modelType, setModelType] = useState("date");
     const [showModal, setShowModal] = useState(false);
+    const [startDate, setStartDate] = useState("");
 
+    const [calendarClinics, setCalendarClinics] = useState({});
+    const [currentPanelDate, setCurrentPanelDate] = useState(dayjs());
 
-    // load clinics and sessions based on the selected date
-    const GET_CLINICS_AND_SESSIONS_BY_DATE = gql`
+    // load projects and clinics based on the selected date
+    const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
     
-        query GetClinicsAndSessionsByDate($date: Date!, $branchId: ID!) {
-
-            clinicCollection(filter: {date: {eq: $date}, branch_id: {eq: $branchId}}) {
+        query GetProjectsAndClinicsByDate($date: Date!, $branchId: ID!) {
+            projectCollection(filter: { branch_id: { eq: $branchId } }) {
                 edges {
-                node {
-                    id
-                    date
-                    venue
-                    branch {
+                    node {
                         id
-                    }
-                    sessionCollection {
+                        project_name
+                        description
+                        clinicCollection(
+                            filter: { 
+                                date: { eq: $date } 
+                            }
+                        ) {
                         edges {
                             node {
                                 id
-                                name
+                                venue
                                 from
                                 to
+                                date
+                                responsible_person_01
+                                responsible_person_02
+                                responsible_person_01_contact_no
+                                responsible_person_02_contact_no
+                                clinic_status {
+                                    id
+                                    status
+                                }
                             }
                         }
+                        }
                     }
-                }
                 }
             }
         }
 
     `;
-    const [getClinicsAndSessionsByDate, { loading, error, data }] = useLazyQuery(GET_CLINICS_AND_SESSIONS_BY_DATE);
+    const [getClinicsAndSessionsByDate, { loading, error, data }] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE);
 
     const daySelected = (date) => {
 
+        setModelType("date");
+
         const formattedDate = date.format("YYYY-MM-DD");
-        console.log("Formatted date:", formattedDate);
+
+        setStartDate(formattedDate);
 
         getClinicsAndSessionsByDate({
             variables: {
                 date: formattedDate,
-                branchId 
+                branchId
             }
         });
+
         setShowModal(true);
     }
 
-    console.log("Clinics and sessions data:", data);
-    const clinicCount = data?.clinicCollection?.edges.length || 0;
-    const sessionCount = data?.clinicCollection?.edges.reduce((total, clinic) => total + clinic.node.sessionCollection.edges.length, 0) || 0;
+    // console.log("projects and clinic data:", data);
 
+    const projectCount = data?.projectCollection?.edges.length || 0;
+    // console.log("Project Count:", projectCount);
 
-    const dateClinicSessionModalData = {
-        date: data?.clinicCollection?.edges[0]?.node?.date || '',
+    const clinicCount =
+        data?.projectCollection?.edges?.reduce((total, project) => {
+            return total + (project.node.clinicCollection?.edges?.length || 0);
+        }, 0) || 0;
+
+    // console.log("Clinic Count:", clinicCount);
+
+    const dateClinicModalData = {
+        date: startDate,
+        projectCount,
         clinicCount,
-        sessionCount,
-        clinicAndSessionList: data?.clinicCollection?.edges.map(clinic => ({
-            clinicName: `Clinic: ${clinic.node.id}`,
-            clinicVenue: clinic.node.venue,
-            sessions: clinic.node.sessionCollection.edges.map(session => ({
-                id: session.node.id,
-                patient: session.node.name,
-                from: session.node.from,
-                to: session.node.to,
-                name: session.node.name
-            }))
-        })) || []
-    }
+        description: data?.projectCollection?.edges[0]?.node.description || '',
+        projectAndClinicList:
+            data?.projectCollection?.edges.map((project) => ({
+                projectName: project.node.project_name,
+                clinics:
+                    project.node.clinicCollection?.edges.map((clinic) => ({
+                        id: clinic.node.id,
+                        venue: clinic.node.venue,
+                        from: clinic.node.from,
+                        to: clinic.node.to,
+                        responsiblePerson1: clinic.node.responsible_person_01,
+                        responsiblePerson2: clinic.node.responsible_person_02,
+                        responsiblePerson1Contact: clinic.node.responsible_person_01_contact_no,
+                        responsiblePerson2Contact: clinic.node.responsible_person_02_contact_no,
+                        status: clinic.node.clinic_status?.status,
+                    })) || [],
+            })) || [],
+    };
+
+    // console.log("Transformed Modal Data:", dateClinicModalData);
+
+
 
     const topBar = [
         {
@@ -100,29 +135,7 @@ function OptimetristDashboard() {
                 <path d="M19 7v4M21 9h-4" stroke="#378ADD" strokeWidth="1.8" strokeLinecap="round" />
             </svg>),
             bg: "#E6F1FB"
-        },
-        {
-            title: "Today Sessions",
-            value: 0,
-            iconSVG: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="4" width="18" height="14" rx="2.5" stroke="#1D9E75" strokeWidth="1.8" />
-                <path d="M8 10h8M8 13.5h5" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round" />
-                <circle cx="7" cy="10" r="1" fill="#1D9E75" />
-                <circle cx="7" cy="13.5" r="1" fill="#1D9E75" />
-                <path d="M8 20h8M12 18v2" stroke="#1D9E75" strokeWidth="1.8" strokeLinecap="round" />
-            </svg>),
-            bg: "#E1F5EE"
-        },
-        {
-            title: "Prescriptions",
-            value: 0,
-            iconSVG: (<svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <rect x="5" y="3" width="14" height="18" rx="2.5" stroke="#D4537E" strokeWidth="1.8" />
-                <path d="M8 8h8M8 11.5h8M8 15h5" stroke="#D4537E" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M8 5.5h4" stroke="#D4537E" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-            </svg>),
-            bg: "#FBEAF0"
-        },
+        }
     ]
 
     const getListData = value => {
@@ -220,20 +233,6 @@ function OptimetristDashboard() {
         return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '4px 0' }}>
 
-                {data.totalClinics > 0 && (
-                    <span style={{
-                        fontSize: 12,
-                        background: '#E6F1FB',
-                        color: '#185FA5',
-                        borderRadius: 4,
-                        padding: '2px 8px',
-                        whiteSpace: 'nowrap',
-                        display: 'inline-block'
-                    }}>
-                        {data.totalClinics} clinic{data.totalClinics > 1 ? 's' : ''}
-                    </span>
-                )}
-
                 {data.totalSessions > 0 && (
                     <span style={{
                         fontSize: 12,
@@ -244,7 +243,7 @@ function OptimetristDashboard() {
                         whiteSpace: 'nowrap',
                         display: 'inline-block'
                     }}>
-                        {data.totalSessions} session{data.totalSessions > 1 ? 's' : ''}
+                        {data.totalSessions} Clinic{data.totalSessions > 1 ? 's' : ''}
                     </span>
                 )}
 
@@ -252,58 +251,121 @@ function OptimetristDashboard() {
         );
     };
 
-    const dateCellRender = value => {
 
-        // console.log("value in dateCellRender:", value);
+    // load clinics based on date to show in calendar
+    const GET_VISIBLE_CLINICS = gql`
 
-        const listData = getListData(value);
-        if (!listData.length) return null;
+        query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: ID!) {
+            clinicCollection(
+                filter: {date: {gte: $startDate, lte: $endDate}, branch_id: {eq: $branchId}}
+            ) {
+                edges {
+                    node {
+                        id
+                        date
+                        project {
+                            id
+                            branch_id
+                        }
+                    }
+                }
+            }
+        }
+    `;
 
-        const sessionCount = listData.filter(item => item.type === 'success').length;
-        const clinicCount = listData.filter(item => item.type === 'warning').length;
+    const [
+        getVisibleClinics,
+        {
+            loading: clinicsLoading,
+            error: clinicsError,
+            data: clinicsData
+        }
+    ] = useLazyQuery(GET_VISIBLE_CLINICS, {
+        onCompleted: (data) => {
+
+            const grouped = {};
+
+            data?.clinicCollection?.edges?.forEach(({ node }) => {
+
+                if (!grouped[node.date]) {
+                    grouped[node.date] = [];
+                }
+
+                grouped[node.date].push(node);
+
+            });
+
+            setCalendarClinics(grouped);
+        }
+    });
+
+    // console.log("Visible Clinics Data:", clinicsData);
+    console.log(clinicsError);
+
+    // console.log("Calendar Clinics State:", calendarClinics);
+
+
+    useEffect(() => {
+
+        if (!branchId) return;
+
+        // Start of visible calendar grid
+        const startOfMonth = currentPanelDate.startOf('month');
+        const startDate = startOfMonth.startOf('week')
+        const fsd = startDate.format('YYYY-MM-DD');
+        console.log("start date:", fsd);
+
+        // End of 6-row calendar grid
+        const endDate = startDate.add(41, 'day')
+        const efd = endDate.format('YYYY-MM-DD');
+        console.log("end date:", efd);
+
+        console.log("Fetching clinics from", fsd, "to", efd, "for branch ID:", branchId);
+        getVisibleClinics({
+            variables: {
+                startDate: startDate,
+                endDate: endDate,
+                branchId
+            }
+        });
+
+    }, [currentPanelDate, branchId, getVisibleClinics]);
+
+    const dateCellRender = (date) => {
+
+        const formattedDate = date.format("YYYY-MM-DD");
+        const clinics = calendarClinics[formattedDate] || [];
+
+        if (clinics.length === 0) return null;
 
         return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-                {clinicCount > 0 && (
-                    <span style={{
-                        fontSize: 11,
-                        background: '#E6F1FB',
-                        color: '#185FA5',
-                        borderRadius: 4,
-                        padding: '1px 5px',
-                        whiteSpace: 'nowrap'
-                    }}>
-                        {clinicCount} clinic{clinicCount > 1 ? 's' : ''}
-                    </span>
-                )}
-
-                {sessionCount > 0 && (
-                    <span style={{
-                        fontSize: 11,
-                        background: '#E1F5EE',
-                        color: '#0F6E56',
-                        borderRadius: 4,
-                        padding: '1px 5px',
-                        whiteSpace: 'nowrap'
-                    }}>
-                        {sessionCount} session{sessionCount > 1 ? 's' : ''}
-                    </span>
-                )}
-
+            <div
+                style={{
+                    marginTop: 2
+                }}
+            >
+                <Badge
+                    count={`${clinics.length} Clinic${clinics.length > 1 ? 's' : ''}`}
+                    style={{
+                        backgroundColor: '#378ADD',
+                        fontSize: 10
+                    }}
+                />
             </div>
         );
     };
 
+
     const cellRender = (current, info) => {
+
         if (info.type === 'date') {
-            setModelType("date");
             return dateCellRender(current);
         }
+
         if (info.type === 'month') {
-            setModelType("month");
             return monthCellRender(current);
         }
+
         return info.originNode;
     };
 
@@ -323,7 +385,9 @@ function OptimetristDashboard() {
                                 fullscreen={true}
                                 cellRender={cellRender}
                                 onSelect={daySelected}
-                                style={{ height: '50px' }}
+                                onPanelChange={(date) => {
+                                    setCurrentPanelDate(date);
+                                }}
                             />
                         </Content>
                     </Card>
@@ -335,8 +399,8 @@ function OptimetristDashboard() {
                 setShowPrescriptionDetailModal={setShowPrescriptionDetailModal}
             />
 
-            {modelType === "date" && showModal && <DateClinicSessionModal show={showModal} setShow={setShowModal} dateClinicSessionModalData={dateClinicSessionModalData} />}
-            {modelType === "month" && showModal && <MonthClinicSessionModal show={showModal} setShow={setShowModal}/>}
+            {modelType === "date" && showModal && <DateClinicSessionModal show={showModal} setShow={setShowModal} dateClinicModalData={dateClinicModalData} />}
+            {modelType === "month" && showModal && <MonthClinicSessionModal show={showModal} setShow={setShowModal} />}
         </>
     )
 }

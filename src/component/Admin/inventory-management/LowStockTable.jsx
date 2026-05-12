@@ -1,91 +1,76 @@
 import React from 'react'
-import { Table, Tag, Space, Tabs, Button, Card, Typography } from 'antd';
-import {icons}  from '../../../assets/icons/AdminIcons';
- 
- const {Title} = Typography;
- const { TabPane} = Tabs;
- 
+import { Table, Tag, Space, Button, Tooltip } from 'antd';
+import { CheckCircleOutlined } from '@ant-design/icons';
 
+export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(), onReOrder }) {
 
-export default function LowStockTable( iconType, title, value, color, bgColor,) {
+  const columns = [
+    {
+      title: 'Product Name',
+      dataIndex: 'productName',
+      key: 'productName',
+      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+    },
+    {
+      title: 'Category',
+      dataIndex: 'category',
+      key: 'category',
+      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+    },
+    {
+      title: 'Quantity',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      render: (qty) => (
+        <Tag color="orange" style={{ fontWeight: 'bold' }}>
+          {qty} units
+        </Tag>
+      ),
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      render: (_, record) => {
+        // ─── Check if this product type is already reordered ──────────────
+        const alreadyOrdered = reOrderedTypeIds.has(String(record.productTypeId));
 
-const dataSource = [
-  {
-    key: '1',   
-    productCode: 'FRM-001',
-    productName: 'Ray-Ban Classic Aviator',
-    category: 'frames',
-    KadawathaStock: 0,
-    reorderLevel: 10,
-    unitPrice: 25000,
-  },
-    {
-    key: '2',
-    productCode: 'LNS-001',
-    productName: 'Single Vision CR-39 Lenses',
-    category: 'hardBoxes',
-    KadawathaStock: 0,  
-    reorderLevel: 50,
-    unitPrice: 50000,
-  },
-];
-
-const columns = [
-    {
-    title: 'Product Code',
-    dataIndex: 'productCode',
-    key: 'productCode',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Product Name',
-    dataIndex: 'productName',
-    key: 'productName',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Category',
-    dataIndex: 'category',
-    key: 'category',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Kadawatha Stock',
-    dataIndex: 'KadawathaStock',
-    key: 'KadawathaStock',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Reorder Level',
-    dataIndex: 'reorderLevel',
-    key: 'reorderLevel',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Unit Price',
-    dataIndex: 'unitPrice',
-    key: 'unitPrice',
-    onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    },
-    {
-    title: 'Action',
-    key: 'action',
-    render: (_, record) => (
-        <Space size="middle">
-            <Button type="primary" size="small">
+        return (
+          <Space size="middle">
+            {alreadyOrdered ? (
+              // ─── Already Reordered Badge ──────────────────────────────────
+              <Tag
+                icon={<CheckCircleOutlined />}
+                color="success"
+                style={{ fontWeight: 'bold', padding: '4px 10px', fontSize: 13 }}
+              >
+                Already Ordered
+              </Tag>
+            ) : (
+              // ─── Reorder Button ───────────────────────────────────────────
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => onReOrder(record.productTypeId)}
+              >
                 Reorder
-            </Button>
-        </Space>
-    ),
-        onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),
-    
-    }
-];
+              </Button>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
-        <Title level={5} className="mb-0 " style={{fontWeight:'bold'}} >Low Stock Items</Title>
-        <Table dataSource={dataSource} columns={columns} pagination={false} />
-      
+      <Table
+        dataSource={data}
+        columns={columns}
+        pagination={false}
+        locale={{ emptyText: 'No low stock items' }}
+      />
     </div>
-  )
+  );
 }

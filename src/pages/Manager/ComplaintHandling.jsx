@@ -1,8 +1,14 @@
 import React from 'react'
+import ComplaintManagement from './../AdministrativeOfficer/ComplaintManagement';
+
+
+
 
 function ComplaintHandling() {
   return (
-    <div>ComplaintHandling</div>
+    <div>
+      <ComplaintManagement />
+    </div>
   )
 }
 
