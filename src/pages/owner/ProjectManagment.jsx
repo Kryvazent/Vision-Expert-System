@@ -1,348 +1,897 @@
 import {
   Card,
-  Table,
   Button,
-  Select,
   Modal,
   Input,
+  Select,
+  Table,
+  Tag,
   DatePicker,
 } from "antd";
-import { useEffect, useState } from "react";
-import {
-  EyeOutlined,
-  EditOutlined,
-  DeleteOutlined,
-} from "@ant-design/icons";
+
+import { useState } from "react";
 
 import {
   FileTextOutlined,
   CalendarOutlined,
-  TeamOutlined,
-  UserOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
-import { gql } from "@apollo/client";
-import { useLazyQuery, useMutation } from "@apollo/client/react";
-import { message } from "antd";
 
-const { RangePicker } = DatePicker;
+import { gql } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client/react";
+
+const LOAD_PROJECTS = gql`
+  query {
+
+    projectCollection {
+
+      edges {
+
+        node {
+
+          id
+
+          project_name
+
+          description
+
+          start_date
+
+          end_date
+
+          start_time
+
+          is_active
+
+          branch {
+
+            id
+            branch_name
+
+          }
+
+          clinicCollection {
+
+            edges {
+
+              node {
+                id
+              }
+
+            }
+
+          }
+
+        }
+
+      }
+
+    }
+
+    branchCollection {
+
+      edges {
+
+        node {
+
+          id
+          branch_name
+
+        }
+
+      }
+
+    }
+
+  }
+`;
+
+const INSERT_PROJECT = gql`
+  mutation InsertProject(
+    $projectName: String!
+    $description: String!
+    $branchId: Int!
+    $startDate: Date!
+    $endDate: Date!
+    $startTime: Time!
+  ) {
+
+    insertIntoprojectCollection(
+      objects: {
+
+        project_name: $projectName
+
+        description: $description
+
+        branch_id: $branchId
+
+        start_date: $startDate
+
+        end_date: $endDate
+
+        start_time: $startTime
+
+        is_active: true
+
+      }
+
+    ) {
+
+      affectedCount
+
+    }
+
+  }
+`;
+
+const UPDATE_PROJECT = gql`
+  mutation UpdateProject(
+    $id: Int!
+    $projectName: String!
+    $description: String!
+    $branchId: Int!
+    $startDate: Date!
+    $endDate: Date!
+    $startTime: Time!
+  ) {
+
+    updateprojectCollection(
+
+      filter: {
+        id: {
+          eq: $id
+        }
+      }
+
+      set: {
+
+        project_name: $projectName
+
+        description: $description
+
+        branch_id: $branchId
+
+        start_date: $startDate
+
+        end_date: $endDate
+
+        start_time: $startTime
+
+      }
+
+    ) {
+
+      affectedCount
+
+    }
+
+  }
+`;
+
+const DELETE_PROJECT = gql`
+  mutation DeleteProject($id: Int!) {
+
+    deleteFromprojectCollection(
+
+      filter: {
+        id: {
+          eq: $id
+        }
+      }
+
+    ) {
+
+      affectedCount
+
+    }
+
+  }
+`;
 
 export default function ProjectManagement() {
 
-  const [open, setOpen] = useState(false);
-  const [newProjectData, setNewProjectData] = useState({
-    projectName: null,
-    branchId: null,
-    desription: null
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
+
+  const [editingProjectId, setEditingProjectId] =
+    useState(null);
+
+  const [selectedBranch, setSelectedBranch] =
+    useState("All");
+
+  const [selectedStatus, setSelectedStatus] =
+    useState("All");
+
+  const [formData, setFormData] = useState({
+
+    projectName: "",
+
+    description: "",
+
+    branchId: "",
+
+    startDate: "",
+
+    endDate: "",
+
+    startTime: "",
+
   });
 
+  const {
+    data,
+    loading,
+    refetch,
+  } = useQuery(LOAD_PROJECTS);
+
+  const [insertProject] =
+    useMutation(INSERT_PROJECT);
+
+  const [updateProject] =
+    useMutation(UPDATE_PROJECT);
+
+  const [deleteProject] =
+    useMutation(DELETE_PROJECT);
+
   const updateValue = (field, value) => {
-    setNewProjectData((prev) => ({
-      ...prev,
+
+    setFormData({
+
+      ...formData,
+
       [field]: value,
-    }));
-  }
 
-  // 🔹 Table columns
-  const columns = [
-    {
-      title: "Project ID",
-      dataIndex: "id",
-    },
-    {
-      title: "Project Name",
-      dataIndex: "project_name",
-    },
-    {
-      title: "Description",
-      dataIndex: "description",
-    },
-    {
-      title: "Branch",
-      dataIndex: "branch",
-      width: 150,
-      render: (val) => (
-        <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded text-sm">
-          {val}
-        </span>
-      ),
-    },
+    });
 
-    {
-      title: "Clinics Count",
-      dataIndex: "clinics",
-      width: 120
-    },
-    {
-      title: "Status",
-      dataIndex: "status",
-      width: 140,
-      render: (val) => {
-        let style = "bg-green-100 text-green-600";
-        return (
-          <span className={`${style} px-2 py-1 rounded text-sm`}>
-            {val}
-          </span>
-        );
-      },
-    },
-  ];
+  };
 
-  // add new projects
-  const LOAD_BRANCHES = gql`
-  
-    query GetBranches {
-      branchCollection(filter: {is_active: {eq: true}}) {
-        edges {
-          node {
-            id
-            branch_name
-          }
-        }
+  // project data
+  const allProjects =
+    data?.projectCollection?.edges?.map((edge) => ({
+
+      key: edge.node.id,
+
+      id: edge.node.id,
+
+      project_name: edge.node.project_name,
+
+      description: edge.node.description,
+
+      start_date: edge.node.start_date,
+
+      end_date: edge.node.end_date,
+
+      start_time: edge.node.start_time,
+
+      branch:
+        edge.node.branch?.branch_name,
+
+      branchId:
+        edge.node.branch?.id,
+
+      clinics_count:
+        edge.node.clinicCollection?.edges
+          ?.length || 0,
+
+      status:
+        edge.node.is_active
+          ? "Active"
+          : "Inactive",
+
+    })) || [];
+
+  // filter
+  const filteredProjects =
+    allProjects.filter((project) => {
+
+      const branchMatch =
+
+        selectedBranch === "All" ||
+
+        project.branch === selectedBranch;
+
+      const statusMatch =
+
+        selectedStatus === "All" ||
+
+        project.status === selectedStatus;
+
+      return branchMatch && statusMatch;
+
+    });
+
+  // cards
+  const totalProjects =
+    allProjects.length;
+
+  const activeProjects =
+    allProjects.filter(
+
+      (p) => p.status === "Active"
+
+    ).length;
+
+  // ADD / UPDATE
+  const handleAddProject = async () => {
+
+    try {
+
+      // EDIT
+      if (editingProjectId) {
+
+        await updateProject({
+
+          variables: {
+
+            id: editingProjectId,
+
+            projectName:
+              formData.projectName,
+
+            description:
+              formData.description,
+
+            branchId:
+              parseInt(formData.branchId),
+
+            startDate:
+              formData.startDate,
+
+            endDate:
+              formData.endDate,
+
+            startTime:
+              formData.startTime,
+
+          },
+
+        });
+
       }
-    }
-  `;
-  const [loadBranches, { data: branchesData }] = useLazyQuery(LOAD_BRANCHES);
 
-  useEffect(() => {
-    loadBranches();
-  }, [loadBranches]);
+      // INSERT
+      else {
 
-  const branchesOptions = branchesData?.branchCollection?.edges?.map((edge) => {
-    return { value: edge.node.id, label: edge.node.branch_name };
-  }) || [];
+        await insertProject({
 
-  const ADD_NEW_PROJECT = gql`
-  
-    mutation CreateProject($projectName: String!, $venue: String!, $description: String, $branchId: ID!) {
-      insertIntoprojectCollection(
-        objects:{
-          branch_id: $branchId,
-          project_name: $projectName,
-          description: $description
-        }
-      ){
-        records{
-          id
-        }
+          variables: {
+
+            projectName:
+              formData.projectName,
+
+            description:
+              formData.description,
+
+            branchId:
+              parseInt(formData.branchId),
+
+            startDate:
+              formData.startDate,
+
+            endDate:
+              formData.endDate,
+
+            startTime:
+              formData.startTime,
+
+          },
+
+        });
+
       }
-    }
-  `;
 
+      refetch();
 
- // // load projects
-  const LOAD_PROJECTS = gql`
-  
-    query GetProjects {
-      projectCollection {
-        edges {
-          node {
-            id
-            project_name
-            branch {
-              id
-              branch_name
-            }
-            is_active
-            clinicCollection{
-              edges{
-                node{
-                  id
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  `;
+      setIsModalOpen(false);
 
+      setEditingProjectId(null);
 
+      setFormData({
 
+        projectName: "",
 
+        description: "",
 
+        branchId: "",
 
+        startDate: "",
 
-const [createProject] = useMutation(ADD_NEW_PROJECT, {
-  refetchQueries: [{ query: LOAD_PROJECTS }],
-});
+        endDate: "",
 
-  const handleCreateProject = async () => {
+        startTime: "",
 
-    if (!newProjectData.projectName || !newProjectData.branchId) {
-      console.log("Missing fields:", newProjectData);
-      alert("Please fill all required fields");
+      });
 
-      return;
+    } catch (err) {
+
+      console.log(err);
+
     }
 
-    console.log("Missing fields:", newProjectData);
+  };
 
-    await createProject({
-      variables: {
-        projectName: newProjectData.projectName,
-        venue: newProjectData.venue,
-        description: newProjectData.description,
-        branchId: newProjectData.branchId
-      }
-    })
+  // EDIT
+  const handleEdit = (project) => {
 
-    message.success("Project created successfully");
-    
-    setOpen(false);
-  }
+    setEditingProjectId(project.id);
 
-  
+    setFormData({
 
+      projectName:
+        project.project_name,
 
+      description:
+        project.description,
 
+      branchId:
+        project.branchId,
 
- 
-  const [loadProjects, { data: projectsData }] = useLazyQuery(LOAD_PROJECTS);
+      startDate:
+        project.start_date,
 
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+      endDate:
+        project.end_date,
 
-  // console.log("Projects:", projectsData);
-  const projectCount = projectsData?.projectCollection?.edges?.length || 0;
-  const allProjects = projectsData?.projectCollection?.edges?.map(edge => {
+      startTime:
+        project.start_time,
 
-    if (edge.node.is_active) {
-      return {
-        id: edge.node.id,
-        project_name: edge.node.project_name,
-        description: edge.node.description,
-        branch: edge.node.branch?.branch_name,
-        clinics: edge.node.clinicCollection?.edges?.length || 0, 
-        status: edge.node.is_active ? "Active" : "Inactive",
-      };
+    });
+
+    setIsModalOpen(true);
+
+  };
+
+  // DELETE
+  const handleDelete = async (id) => {
+
+    try {
+
+      await deleteProject({
+
+        variables: {
+          id,
+        },
+
+      });
+
+      refetch();
+
+    } catch (err) {
+
+      console.log(err);
+
     }
-    return;
-  }) || [];
-  console.log("All Projects:", allProjects);
 
+  };
 
   return (
-    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
+    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-6 pr-2">
 
-      <div className="flex justify-between items-center">
-        {/* <div>
-          <h1 className="text-2xl font-semibold">Project Management</h1>
-          <p className="text-gray-500 text-sm">
-            Manage company projects and clinic schedules
-          </p>
-        </div> */}
+      {/* ADD BUTTON */}
+      <Button
+        type="primary"
+        onClick={() => {
 
-        <Button type="primary" onClick={() => setOpen(true)} className="top-3">
-          + New Project
-        </Button>
-      </div>
+          setEditingProjectId(null);
 
-      {/* 🔹 Stat Cards */}
-      <div className="flex flex-wrap gap-4">
+          setFormData({
 
-        <Card className="min-w-50">
-          <div className="flex items-center gap-2">
-            <div>
-              <FileTextOutlined style={{ fontSize: 40, color: "#2563eb" }} />
-            </div>
-            <div>
-              <p className="text-gray-500">Total Projects</p>
-              <h2 className="text-xl font-bold">{projectCount}</h2>
-            </div>
+            projectName: "",
 
-          </div>
-        </Card>
+            description: "",
 
-        <Card className="min-w-50">
-          <div className="flex items-center gap-2">
-            <div>
-              <CalendarOutlined style={{ fontSize: 40, color: "#10b981" }} />
-            </div>
-            <div>
+            branchId: "",
 
-              <p className="text-gray-500">Active Projects</p>
-              <h2 className="text-xl font-bold text-green-600">{allProjects.filter(p => p.status === "Active").length}</h2>
-            </div>
-          </div>
-        </Card>
+            startDate: "",
 
-      </div>
+            endDate: "",
 
-      {/* 🔹 Filters */}
-      <Card>
-        <div className="flex gap-4 flex-wrap">
-          <Select
-            placeholder="All Branches"
-            className="w-48"
-            options={[
-              { value: "all", label: "All Branches" },
-              { value: "kadawatha", label: "Kadawatha" },
-              { value: "kandy", label: "Kandy" },
-            ]}
-          />
+            startTime: "",
 
-          <Select
-            placeholder="All Status"
-            className="w-48"
-            options={[
-              { value: "all", label: "All Status" },
-              { value: "active", label: "Active" },
-              { value: "planning", label: "Planning" },
-              { value: "completed", label: "Completed" },
-            ]}
-          />
-        </div>
-      </Card>
+          });
 
-      {/* 🔹 Table */}
-      <Card title="Projects">
-        <Table
-          columns={columns}
-          dataSource={allProjects}
-          pagination={false}
-          scroll={{ x: 1000 }} // ⭐ important
-        />
-      </Card>
+          setIsModalOpen(true);
 
-      {/* 🔹 new project Modal */}
-      <Modal
-        title="New Project"
-        open={open}
-        onCancel={() => setOpen(false)}
-        footer={null}
+        }}
       >
-        <div className="space-y-4 mt-5">
 
-          <div>
-            <label>Project Name</label>
-            <Input placeholder="Enter project name" value={newProjectData.projectName} onChange={(e) => updateValue('projectName', e.target.value)} />
+        + New Project
+
+      </Button>
+
+      {/* CARDS */}
+      <div className="flex flex-wrap gap-6">
+
+        <Card className="w-[230px]">
+
+          <div className="flex items-center gap-4">
+
+            <FileTextOutlined
+              style={{
+                fontSize: 40,
+                color: "#2563eb",
+              }}
+            />
+
+            <div>
+
+              <p className="text-gray-500">
+                Total Projects
+              </p>
+
+              <h2 className="text-2xl font-bold">
+                {totalProjects}
+              </h2>
+
+            </div>
+
           </div>
 
-          <div>
-            <label>Description</label>
-            <Input.TextArea rows={3} value={newProjectData.description} onChange={(e) => updateValue('description', e.target.value)} />
+        </Card>
+
+        <Card className="w-[230px]">
+
+          <div className="flex items-center gap-4">
+
+            <CalendarOutlined
+              style={{
+                fontSize: 40,
+                color: "#10b981",
+              }}
+            />
+
+            <div>
+
+              <p className="text-gray-500">
+                Active Projects
+              </p>
+
+              <h2 className="text-2xl font-bold text-green-600">
+                {activeProjects}
+              </h2>
+
+            </div>
+
           </div>
 
-          <div className="flex flex-col">
-            <label>Branch</label>
+        </Card>
+
+      </div>
+
+      {/* FILTERS */}
+      <Card>
+
+        <div className="flex flex-wrap gap-4">
+
+          {/* branch filter */}
+          <Select
+            className="w-[220px]"
+            value={selectedBranch}
+            onChange={setSelectedBranch}
+            options={[
+
+              {
+                value: "All",
+                label: "All Branches",
+              },
+
+              ...(data?.branchCollection?.edges?.map(
+                (b) => ({
+                  value: b.node.branch_name,
+                  label: b.node.branch_name,
+                })
+              ) || []),
+
+            ]}
+          />
+
+          {/* status filter */}
+          <Select
+            className="w-[220px]"
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            options={[
+
+              {
+                value: "All",
+                label: "All Status",
+              },
+
+              {
+                value: "Active",
+                label: "Active",
+              },
+
+              {
+                value: "Inactive",
+                label: "Inactive",
+              },
+
+            ]}
+          />
+
+        </div>
+
+      </Card>
+
+      {/* TABLE */}
+      <Card title="Projects">
+
+        <Table
+          loading={loading}
+
+          dataSource={filteredProjects}
+
+          pagination={false}
+
+          columns={[
+
+            {
+              title: "Project ID",
+              dataIndex: "id",
+            },
+
+            {
+              title: "Project Name",
+              dataIndex: "project_name",
+            },
+
+            {
+              title: "Description",
+              dataIndex: "description",
+            },
+
+            {
+              title: "Branch",
+              dataIndex: "branch",
+
+              render: (branch) => (
+                <Tag color="blue">
+                  {branch}
+                </Tag>
+              ),
+            },
+
+            {
+              title: "Start Date",
+              dataIndex: "start_date",
+            },
+
+            {
+              title: "End Date",
+              dataIndex: "end_date",
+            },
+
+            {
+              title: "Start Time",
+              dataIndex: "start_time",
+            },
+
+            {
+              title: "Clinics Count",
+              dataIndex: "clinics_count",
+            },
+
+            {
+              title: "Status",
+              dataIndex: "status",
+
+              render: (status) => (
+
+                <Tag
+                  color={
+                    status === "Active"
+                      ? "green"
+                      : "red"
+                  }
+                >
+
+                  {status}
+
+                </Tag>
+              ),
+            },
+
+            {
+              title: "Actions",
+
+              render: (_, record) => (
+
+                <div className="flex gap-3">
+
+                  {/* EDIT */}
+                  <Button
+                    type="primary"
+
+                    icon={<EditOutlined />}
+
+                    onClick={() =>
+                      handleEdit(record)
+                    }
+                  >
+
+                    Edit
+
+                  </Button>
+
+                  {/* DELETE */}
+                  <Button
+                    danger
+
+                    icon={<DeleteOutlined />}
+
+                    onClick={() =>
+                      handleDelete(record.id)
+                    }
+                  >
+
+                    Delete
+
+                  </Button>
+
+                </div>
+
+              ),
+            },
+
+          ]}
+        />
+
+      </Card>
+
+      {/* MODAL */}
+      <Modal
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        onOk={handleAddProject}
+        title={
+          editingProjectId
+            ? "Edit Project"
+            : "Add New Project"
+        }
+      >
+
+        <div className="space-y-4">
+
+          {/* name */}
+          <div>
+
+            <p>Project Name</p>
+
+            <Input
+              value={formData.projectName}
+              onChange={(e) =>
+                updateValue(
+                  "projectName",
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
+
+          {/* description */}
+          <div>
+
+            <p>Description</p>
+
+            <Input.TextArea
+              rows={3}
+              value={formData.description}
+              onChange={(e) =>
+                updateValue(
+                  "description",
+                  e.target.value
+                )
+              }
+            />
+
+          </div>
+
+          {/* branch */}
+          <div>
+
+            <p>Branch</p>
+
             <Select
               className="w-full"
-              placeholder="Branch"
-              options={branchesOptions}
-              onChange={(value) => updateValue('branchId', value)}
+
+              value={formData.branchId}
+
+              onChange={(value) =>
+                updateValue(
+                  "branchId",
+                  value
+                )
+              }
+
+              options={
+                data?.branchCollection?.edges?.map(
+                  (b) => ({
+                    value: b.node.id,
+                    label: b.node.branch_name,
+                  })
+                ) || []
+              }
             />
+
           </div>
 
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="primary" onClick={handleCreateProject}>Create</Button>
+          {/* start date */}
+          <div>
+
+            <p>Start Date</p>
+
+            <DatePicker
+              className="w-full"
+
+              onChange={(
+                date,
+                dateString
+              ) =>
+
+                updateValue(
+                  "startDate",
+                  dateString
+                )
+
+              }
+            />
+
+          </div>
+
+          {/* end date */}
+          <div>
+
+            <p>End Date</p>
+
+            <DatePicker
+              className="w-full"
+
+              onChange={(
+                date,
+                dateString
+              ) =>
+
+                updateValue(
+                  "endDate",
+                  dateString
+                )
+
+              }
+            />
+
+          </div>
+
+          {/* start time */}
+          <div>
+
+            <p>Start Time</p>
+
+            <Input
+              type="time"
+
+              value={formData.startTime}
+
+              onChange={(e) =>
+
+                updateValue(
+                  "startTime",
+                  e.target.value
+                )
+
+              }
+            />
+
           </div>
 
         </div>
+
       </Modal>
 
     </div>
+
   );
 }
