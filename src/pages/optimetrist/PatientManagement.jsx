@@ -1,8 +1,8 @@
-import { Button, Card, Col, Input, Modal, Popconfirm, Row } from "antd";
+import { Button, Card, Col, Collapse, Descriptions, Divider, Input, Modal, Popconfirm, Row } from "antd";
 import { Content } from "antd/es/layout/layout";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 import { DeleteOutlined, EditOutlined, ReloadOutlined } from "@ant-design/icons";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, Children } from "react";
 import TextArea from "antd/es/input/TextArea";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
@@ -32,6 +32,7 @@ const LOAD_PATIENT_DATA = gql`
                                 first_name
                                 last_name
                                 contact_no
+                                nic
                             }
                         }
                     }
@@ -85,6 +86,8 @@ const DELETE_PRESCRIPTION = gql`
 function PatientManagement() {
 
     const [openModal, setOpenModal] = useState(false);
+    const [openPrescriptionModal, setOpenPrescriptionModal] = useState(false);
+    const [prescriptionList, setPrescriptionList] = useState([]);
     const [selectedPatient, setSelectedPatient] = useState(null);
 
     const [prescriptionDetails, setPrescriptionDetails] = useState({
@@ -119,13 +122,236 @@ function PatientManagement() {
     // ========================= DERIVED DATA =========================
 
     // Derive table data directly from query result — no separate state needed
-    const patientData = patientRawData?.prescriptionCollection?.edges?.map(edge => edge.node) || [];
+    const nicList = [];
+    const patientData = [];
+
+    patientRawData?.prescriptionCollection?.edges?.forEach(edge => {
+
+        let customerId = edge.node.clinic_attend_customer?.customer_has_branch?.customer?.id;
+        let nic = edge.node.clinic_attend_customer?.customer_has_branch?.customer?.nic;
+        let firstName = edge.node.clinic_attend_customer?.customer_has_branch?.customer.first_name;
+        let lastName = edge.node.clinic_attend_customer?.customer_has_branch?.customer.last_name;
+        let mobile = edge.node.clinic_attend_customer?.customer_has_branch?.customer.contact_no;
+
+        let prescriptionId = edge.node.id;
+
+        let leftAdd = edge.node.left_add ? parseFloat(edge.node.left_add) : 0;
+        let rightAdd = edge.node.right_add ? parseFloat(edge.node.right_add) : 0;
+
+        let leftAxis = edge.node.left_axis ? parseFloat(edge.node.left_axis) : 0;
+        let rightAxis = edge.node.right_axis ? parseFloat(edge.node.right_axis) : 0;
+
+        let leftCyl = edge.node.left_cyl ? parseFloat(edge.node.left_cyl) : 0;
+        let rightCyl = edge.node.right_cyl ? parseFloat(edge.node.right_cyl) : 0;
+
+        let leftSph = edge.node.left_sph ? parseFloat(edge.node.left_sph) : 0;
+        let rightSph = edge.node.right_sph ? parseFloat(edge.node.right_sph) : 0;
+
+        let pupillaryDistance = edge.node.pupillary_distance
+            ? parseFloat(edge.node.pupillary_distance)
+            : 0;
+
+        let remarks = edge.node.remarks || "";
+
+        let createdAtDate = new Date(edge.node.created_at);
+
+        let createdAt = createdAtDate.toLocaleString([], {
+            year: 'numeric',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        // 3 MINUTE
+        let canEditOrDelete = new Date().getTime() - createdAtDate.getTime() < 3 * 60 * 1000;
+
+        const prescriptionChildren = (
+            <div>
+
+                <Divider orientation="left">
+                    General Details
+                </Divider>
+
+                <Descriptions
+                    bordered
+                    column={1}
+                    size="small"
+                >
+                    <Descriptions.Item label="Prescription ID">
+                        {prescriptionId}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="Created At">
+                        {createdAt}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="Pupillary Distance">
+                        {pupillaryDistance}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="Remarks">
+                        {remarks}
+                    </Descriptions.Item>
+                </Descriptions>
+
+                <Divider orientation="left">
+                    Right Eye
+                </Divider>
+
+                <Descriptions
+                    bordered
+                    column={4}
+                    size="small"
+                >
+                    <Descriptions.Item label="SPH">
+                        {rightSph}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="CYL">
+                        {rightCyl}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="AXIS">
+                        {rightAxis}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="ADD">
+                        {rightAdd}
+                    </Descriptions.Item>
+                </Descriptions>
+
+                <Divider orientation="left">
+                    Left Eye
+                </Divider>
+
+                <Descriptions
+                    bordered
+                    column={4}
+                    size="small"
+                >
+                    <Descriptions.Item label="SPH">
+                        {leftSph}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="CYL">
+                        {leftCyl}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="AXIS">
+                        {leftAxis}
+                    </Descriptions.Item>
+
+                    <Descriptions.Item label="ADD">
+                        {leftAdd}
+                    </Descriptions.Item>
+                </Descriptions>
+
+                <Divider />
+
+                {canEditOrDelete ? (
+                    <div className="flex gap-2">
+                        <Button
+                            type="primary"
+                            style={{
+                                backgroundColor: "#faad14",
+                                borderColor: "#faad14"
+                            }}
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                                setSelectedPatient({
+                                    id: prescriptionId,
+                                    remarks,
+                                    right_sph: rightSph,
+                                    left_sph: leftSph,
+                                    right_cyl: rightCyl,
+                                    left_cyl: leftCyl,
+                                    right_axis: rightAxis,
+                                    left_axis: leftAxis,
+                                    right_add: rightAdd,
+                                    left_add: leftAdd,
+                                    pupillary_distance: pupillaryDistance
+                                });
+                                setPrescriptionDetails({
+                                    remarks,
+                                    rightEyeSph: rightSph,
+                                    leftEyeSph: leftSph,
+                                    rightEyeCyl: rightCyl,
+                                    leftEyeCyl: leftCyl,
+                                    rightEyeAxis: rightAxis,
+                                    leftEyeAxis: leftAxis,
+                                    rightEyeAdd: rightAdd,
+                                    leftEyeAdd: leftAdd,
+                                    pupillaryDistance: pupillaryDistance
+                                });
+                                setOpenModal(true);
+                                console.log("Selected patient for editing:", prescriptionDetails);
+                            }}
+                        />
+
+                        <Popconfirm
+                            title="Delete the Prescription"
+                            description="Are you sure you want to delete this prescription?"
+                            onConfirm={() => handleDelete(prescriptionId)}
+                            okText="Yes"
+                            cancelText="No"
+                        >
+                            <Button
+                                type="primary"
+                                danger
+                                icon={<DeleteOutlined />}
+                                loading={deleteLoading}
+                            />
+                        </Popconfirm>
+                    </div>
+                ) : (
+                    <div className="text-red-500 text-sm">
+                        Edit/Delete time expired (3 minutes passed)
+                    </div>
+                )}
+
+            </div>
+        );
+
+        let prescriptionAdd = {
+            id: prescriptionId,
+            key: prescriptionId,
+            label: `Prescription ${prescriptionId} - ${createdAt}`,
+            children: prescriptionChildren
+        };
+
+        if (nicList.includes(nic)) {
+
+            patientData.forEach(patient => {
+
+                if (patient.nic === nic) {
+                    patient.prescriptionList.push(prescriptionAdd);
+                }
+            });
+
+        } else {
+
+            let rowData = {
+                id: customerId,
+                nic: nic,
+                firstName: firstName,
+                lastName: lastName,
+                mobile: mobile,
+                prescriptionList: [prescriptionAdd]
+            };
+
+            patientData.push(rowData);
+        }
+
+        nicList.push(nic);
+    });
 
     // ========================= EFFECTS =========================
 
     useEffect(() => {
         loadPatientData();
-    }, []);
+    }, [loadPatientData]);
 
     // When a patient is selected for editing, populate the form
     useEffect(() => {
@@ -147,13 +373,14 @@ function PatientManagement() {
 
     // ========================= HANDLERS =========================
 
-    const handleDelete = async (record) => {
+    const handleDelete = async (id) => {
         try {
             await deletePrescription({
-                variables: { id: record.id }
+                variables: { id }
             });
             // Refetch after delete
             loadPatientData();
+            setOpenPrescriptionModal(false);
         } catch (err) {
             console.error("Delete error:", err);
             alert("Error deleting prescription.");
@@ -196,6 +423,7 @@ function PatientManagement() {
             setOpenModal(false);
             setSelectedPatient(null);
             alert("Prescription updated successfully!");
+            setOpenPrescriptionModal(false);
 
         } catch (err) {
             console.error("Update error:", err);
@@ -207,60 +435,37 @@ function PatientManagement() {
 
     const patientColumns = [
         {
-            title: 'Prescription ID',
+            title: 'Customer ID',
             dataIndex: 'id',
             key: 'id',
         },
         {
             title: 'Patient',
             render: (_, record) => {
-                const customer = record?.clinic_attend_customer?.customer_has_branch?.customer;
-                return customer
-                    ? `${customer.first_name} ${customer.last_name || ''}`
+                return record?.firstName || record?.lastName
+                    ? `${record.firstName} ${record.lastName || ''}`
                     : 'N/A';
             }
         },
         {
-            title: 'Phone',
-            render: (_, record) =>
-                record?.clinic_attend_customer?.customer_has_branch?.customer?.contact_no || 'N/A',
+            title: 'NIC',
+            render: (_, record) => {
+                return record?.nic || 'N/A';
+            }
         },
         {
-            title: 'Date',
-            dataIndex: 'created_at',
-            key: 'created_at',
-            render: (text) => text ? new Date(text).toLocaleDateString() : 'N/A',
+            title: 'Phone',
+            render: (_, record) => record?.mobile || 'N/A'
+        },
+        {
+            title: 'Number of Prescriptions',
+            render: (_, record) => record?.prescriptionList?.length || 'N/A'
         },
         {
             title: 'Action',
             key: 'action',
             render: (_, record) => (
-                <div className="flex gap-2">
-                    <Button
-                        type="primary"
-                        style={{ backgroundColor: "#faad14", borderColor: "#faad14" }}
-                        icon={<EditOutlined />}
-                        onClick={() => {
-                            setSelectedPatient(record);
-                            setOpenModal(true);
-                        }}
-                    />
-
-                    <Popconfirm
-                        title="Delete the Prescription"
-                        description="Are you sure you want to delete this prescription?"
-                        onConfirm={() => handleDelete(record)}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Button
-                            type="primary"
-                            danger
-                            icon={<DeleteOutlined />}
-                            loading={deleteLoading}
-                        />
-                    </Popconfirm>
-                </div>
+                <Button onClick={() => { showModal(record.prescriptionList) }}>View List</Button>
             ),
         },
     ];
@@ -272,6 +477,12 @@ function PatientManagement() {
     console.log("patientData:", patientData);
     console.log("loading:", loading);
     console.log("error:", error);
+
+
+    const showModal = (prescriptionList) => {
+        setPrescriptionList(prescriptionList);
+        setOpenPrescriptionModal(true);
+    }
 
     return (
         <>
@@ -315,6 +526,37 @@ function PatientManagement() {
                     </Row>
                 </Content>
             </Col>
+
+            {/* Prescription list Modal */}
+            <Modal
+                styles={{
+                    body: {
+                        maxHeight: "85vh",
+                        overflowY: "auto"
+                    }
+                }}
+                centered
+                open={openPrescriptionModal}
+                onCancel={() => {
+                    setOpenPrescriptionModal(false);
+                }}
+                onOk={() => {
+                    setOpenPrescriptionModal(false);
+                }}
+                width="50vw"
+                destroyOnClose
+            >
+                <Card title="Selected Patient's Prescriptions" className="w-full">
+                    <Col span={24}>
+
+                        <Collapse
+                            accordion
+                            items={prescriptionList}
+                        />
+
+                    </Col>
+                </Card>
+            </Modal>
 
             {/* Edit Modal */}
             <Modal

@@ -1,17 +1,107 @@
-import { Alert, Card, Col, Input, Radio, Row, Select, Steps, Tag } from "antd";
+import { Alert, Button, Card, Col, Input, Radio, Row, Select, Steps, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import DigitalSignature from "../../component/sales-executive/new-order/DigitalSignature";
 import Fingerprint from "../../component/sales-executive/new-order/Fingerprint";
+import ExistingPatientSearch from "../../component/optimetrist/new-prescription/ExistingPatientSearch";
+import { gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client/react";
+import { useAuth } from "../../const/functions";
 
 function NewOrder() {
     const [current, setCurrent] = useState(0);
     const [position, setPosition] = useState("start");
+    const [selectedPatient, setSelectedPatient] = useState(null);
+
+    const {staff} = useAuth();
 
     const onChange = value => {
         console.log('onChange:', value);
         setCurrent(value);
     };
+
+    const handleOrderSubmit = () => {
+        console.log("Order submitted!");
+    }
+
+
+    // branches
+    const GET_BRANCHES = gql`
+    
+        query getBranches{
+            branchCollection{
+                edges{
+                    node{
+                        id
+                        branch_name
+                    }
+                }
+            }
+        }
+    `;
+    const [getBranches, { data: branchesData, error: branchesError }] = useLazyQuery(GET_BRANCHES);
+
+    useEffect(() => {
+        getBranches();
+    }, [getBranches]);
+
+    const branchOptions =
+        branchesData?.branchCollection?.edges?.map((branch) => ({
+            value: branch.node.id,
+            label: branch.node.branch_name,
+        })) || [];
+
+    console.log("Branches Data: ", branchesData);
+    console.log("Branches Error: ", branchesError);
+
+
+    // prescription
+    const GET_PRESCRIPTIONS = gql`
+    
+        query getPrescription($customerId: ID!,$branchId: ID!,$clinicId: ID!){ {
+            customerCollection(filter: {id: {eq: $customerId}}) {
+                edges {
+                    node {
+                        id
+                        customer_has_branchCollection(filter: {branch_id: {eq: $branchId}}) {
+                            edges {
+                                node {
+                                    clinic_attend_customerCollection(filter: {clinic_id: {eq: $clinicId}}) {
+                                        edges {
+                                            node {
+                                                prescriptionCollection {
+                                                    edges {
+                                                        node {
+                                                            id
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    `;
+    const [getPrescriptions, { data: prescriptionsData, error: prescriptionsError }] = useLazyQuery(GET_PRESCRIPTIONS);
+
+    useEffect(() => {
+        getPrescriptions({
+            variables: {
+                customerId: selectedPatient?.value,
+                branchId: staff?.branch_id, 
+                clinicId: "selectedClinicId"
+            }
+        });
+    }, [getPrescriptions,selectedPatient,staff]);
+
+    console.log("Prescriptions Data: ", prescriptionsData);
+    console.log("Prescriptions Error: ", prescriptionsError);
 
     return (
         <>
@@ -40,25 +130,11 @@ function NewOrder() {
                         ]}
                     />
 
-
                     <Content hidden={current !== 0} className="mt-10">
-                        <Row className="gap-3 ms-5">
-                            <Col span={24}>
 
-                                <p className="font-semibold">Select Customet</p>
-                                <Select
-                                    className="w-full"
-                                    showSearch={{
-                                        filterOption: (input, option) =>
-                                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                                    }}
-                                    placeholder="Search by NIC"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
-                                />
+                        <Row className="gap-3 ms-5 mt-5">
+                            <Col span={24}>
+                                <ExistingPatientSearch onPatientSelect={setSelectedPatient} getSelectedPatient={selectedPatient} />
                             </Col>
                         </Row>
 
@@ -73,11 +149,7 @@ function NewOrder() {
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
                                     placeholder="Search by NIC"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
+                                    options={branchOptions}
                                 />
                             </Col>
                         </Row>
@@ -251,6 +323,30 @@ function NewOrder() {
                         </Content>
 
                     </Content>
+
+                    <Row className="gap-3 ms-5 mt-5">
+                        <Col span={24}>
+                            {current > 0 && (
+                                <Button className="me-5" type="dashed" onClick={() => setCurrent(current - 1)}>
+                                    Previous
+                                </Button>
+                            )}
+
+                            {current < 4 && (
+                                <Button type="primary" onClick={() => setCurrent(current + 1)}>
+                                    Next
+                                </Button>
+                            )}
+
+                            {current == 4 && (
+                                <Button type="primary" onClick={handleOrderSubmit}>
+                                    Complete Order
+                                </Button>
+                            )}
+
+
+                        </Col>
+                    </Row>
 
                 </Card>
             </div>
