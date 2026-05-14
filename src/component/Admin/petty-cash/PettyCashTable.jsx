@@ -21,6 +21,7 @@ export default function PettyCashTable({transactions = [] , onEdit, onDelete}) {
     const [category, setCategory] = useState("All");
     const [dateRange, setDateRange] = useState(null);
 
+    //prevents unnecessary recalculations.
     const filteredData = useMemo(() => {
         return transactions.filter(item =>{
             if(category !== "All" && item.category !== category) return false;
@@ -47,9 +48,9 @@ export default function PettyCashTable({transactions = [] , onEdit, onDelete}) {
         {title: "Type",dataIndex: "type",
             render: (type) => 
                 type === "Expense" ? (
-                    <Tag color="red" iconType="expense">Expense</Tag>
+                    <Tag color="red">Expense</Tag>
                 ) : (
-                    <Tag color="green" iconType="replenishment">Replenishment</Tag>
+                    <Tag color="green">Replenishment</Tag>
                 ),
         },
 

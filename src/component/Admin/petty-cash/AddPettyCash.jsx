@@ -37,25 +37,27 @@ const CATEGORY_OPTIONS = {
 export default function AddPettyCash({open, onClose, onSave, initialValues = null}) {
 
     const [form] = Form.useForm();
-    const transactionType = Form.useWatch('type', form) || 'Expense';
+    const transactionType = Form.useWatch('type', form) || 'Expense';//categoreis depend on type. so watch type field to update category options
 
     useEffect(() => {
         if ( !open ) return;
         
+        //change form data when ediiting existing data
         if ( initialValues ){
             form.setFieldsValue({
                 type: initialValues.type || 'Expense',
-                date: undefined,
+                date: initialValues.date ? null : null, 
                 category: initialValues.category || undefined,
                 description: initialValues.description || '',
                 amount: initialValues.amount || null,
             });
+            //adding new data
         }else{
             const today = new Date().toISOString().split('T') [0];
 
             form.setFieldsValue({
                 type: 'Expense',
-                date: undefined,
+                date: null,
                 category: undefined,
                 description: '',
                 amount: null,
@@ -69,17 +71,14 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
     };
 
     const handleFinish = (values) => {
-        const formattedDate = values.date
-        ? values.date.toDate().toISOString().split('T') [0]
-        : new Date().toISOString().split('T') [0];
-        
-        const payload = {
-            ...values,
-            date: new Date().toISOString().split("T")[0],
-            amount: Number(values.amount),
-        };
+        const formattedDate = values.date?.format("YYYY-MM-DD");
 
-        onSave(payload);
+        onSave({
+            ...values,      //send all form values to parent component and handle add/edit logic there
+             date: formattedDate,
+        }); 
+     
+    
         form.resetFields();
         onClose();
     };
@@ -91,7 +90,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         onCancel={onClose}
         footer = {null}
         width={650}
-        destroyOnClose
+        destroyOnHidden
         centered
     >
         <Form
@@ -119,7 +118,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
             name = "date"
             rules={[{required:true,message: "Please select date"}]}
         >
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" /> 
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" name='date'  /> 
         </Form.Item>
         <Form.Item
             label={<span><span style={{ color: 'red' }}>* </span>Category</span>}

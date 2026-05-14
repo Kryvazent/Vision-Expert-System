@@ -7,32 +7,132 @@ import {
      Card,
      message
     } from 'antd'
-import React, { useState , useMemo} from 'react'
+import React, { useState , useMemo, useEffect} from 'react'
 import { PlusOutlined } from '@ant-design/icons'
 import StatCard from '../../component/Admin/StatCard'
 import PettyCashTable from '../../component/Admin/petty-cash/PettyCashTable'
 import AddPettyCash from '../../component/Admin/petty-cash/AddPettyCash'
+import { gql } from '@apollo/client'
+import { useMutation, useQuery } from '@apollo/client/react/compiled'
+import dayjs from 'dayjs'
 
 const {Title,Text} = Typography
 const {Content} = Layout
 
-
-
 export default function PettyCashHandling({transactions = []}) {
 
-    //All petty cash transaction
-    const [pettyCashData, setPettyCashData] = useState(transactions);
+    const staffID = 5;
+    const branchID = 1;
+
+    const LOAD_PETTY_CASH_DATA = gql`
+        query LoadPettyCashData{
+            petty_cashCollection{
+                edges{
+                    node{
+                        id
+                        type
+                        amount
+                        description
+                        date
+                        category
+                    }
+                }
+            }
+        }
+    `;
+
+const INSERT_PETTY_CASH = gql`
+mutation InsertPettyCash( 
+    $type: String!, 
+    $amount: Float!,
+    $description: String!, 
+    $date: Date!, 
+    $category: String!,
+    $received_by: BigInt!,
+    $branch_id: BigInt!){
+    insertIntopetty_cashCollection(
+        objects: {
+            type: $type,
+            amount: $amount,
+            description: $description
+            date: $date,
+            category: $category
+            received_by: $received_by
+            branch_id: $branch_id
+        }
+    ){
+        records{
+            id
+            type
+            amount
+            description
+            date
+            category
+            received_by
+            branch_id
+        }
+    }
+}
+
+`;
+
+const UPDATE_PETTY_CASH = gql`
+    mutation UpdatePettyCash( 
+        $id: BigInt!
+        $type: String!, 
+        $amount: Float!,
+        $description: String!, 
+        $date: Date!, 
+        $category: String!
+     ){
+        updatepetty_cashCollection(
+            filter: { id : { eq: $id }}
+            set: {
+                type: $type,
+                amount: $amount,
+                description: $description,
+                date: $date,
+                category: $category,
+            }   
+        ){ 
+            records{
+                id
+                type
+                amount  
+                description
+                date
+                category
+            }   
+    }
+    }
+`;
+
+    const {data: pettyCash, loading, error, refetch} = useQuery(LOAD_PETTY_CASH_DATA);
+    const [insertPettyCash] = useMutation(INSERT_PETTY_CASH);
+    const [updatePettyCash] = useMutation(UPDATE_PETTY_CASH);
+
+    const pettyCashList = 
+        pettyCash?.petty_cashCollection?.edges?.map((item) => ({
+            id: item.node.id,
+            type: item.node.type,
+            amount: item.node.amount,
+            description: item.node.description,
+            date: item.node.date,
+            category: item.node.category,
+            received_by: item.node.received_by,
+        })) || [];  
+
     //Model State
     const [isModelOpen, setIsModelOpen]= useState(false)
     //selected record for editing
     const [editingTransaction, setEditingTransaction] = useState(null);
 
     const totals = useMemo(() => {
-        const totalExpenses = pettyCashData
+        const totalExpenses = pettyCashList
             .filter((item) => item.type === "Expense")
             .reduce((sum, item) => sum + Number(item.amount || 0) , 0);
            
-         const totalReplenishment = pettyCashData
+         const totalReplenishment = pettyCashList
             .filter((item) => item.type === "Replenishment")
             .reduce((sum, item) => sum + Number(item.amount || 0) , 0);    
 
@@ -42,9 +142,9 @@ export default function PettyCashHandling({transactions = []}) {
             totalExpenses,
             totalReplenishment,
             currentBalance,
-            totalTransactions: pettyCashData.length,
+            totalTransactions: pettyCashList.length,
         };
-    }, [pettyCashData]) ;
+    }, [pettyCashList]) ;
 
     const handleAdd = () => {
         setEditingTransaction(null);
@@ -52,7 +152,7 @@ export default function PettyCashHandling({transactions = []}) {
     };
 
     const handleEdit = (record) => {
-        setEditingTransaction(record);
+        setEditingTransaction(record);  //open form with selected record data
         setIsModelOpen(true);
     }
 
@@ -61,42 +161,60 @@ export default function PettyCashHandling({transactions = []}) {
         setEditingTransaction(null);
     }
 
-    const handleSaveTransaction = (values) => {
+    const handleSaveTransaction = async(values) => {
+
+        const formattedDate = values.date || null;
+
         if(values.type === "Expense" && !editingTransaction && values.amount > totals.currentBalance)
         {
             message.error("Insufficient Petty Cash Balance");
             return;
         }
+        try{
+            //INSERT NEW RECORD
+             if(!editingTransaction){
+                await insertPettyCash({         //sends mutation to database to insert new record
+                    variables: {
+                        type: values.type,
+                        amount: Number(values.amount),
+                        description: values.description,
+                        date: formattedDate,
+                        category: values.category,
+                        received_by: staffID, // Placeholder value, replace with actual user ID
+                        branch_id: branchID, // Placeholder value, replace with actual branch ID
+                    },
+                });
+                await refetch();
+                message.success("Transaction added successfully");
 
-        if(editingTransaction){
-            //Update existing record
-            setPettyCashData((prev) => 
-                prev.map((item) => 
-                    item.id === editingTransaction.id ? {...item, ...values} : item
-                )
-             );
+                }else {
+                    await updatePettyCash({
+                        variables: {
+                            id: Number(editingTransaction.id),
+                            type: values.type,
+                            amount: Number(values.amount),
+                            description: values.description,
+                            date: formattedDate,
+                            category: values.category,
+                        },
+                    });
+                    message.success("Transaction updated successfully");
+                }
+                await refetch();
+                handleCloseModal();
 
-             message.success("Transaction updated successfully");
-        }else {
-            //add nee rrcord
-            const newTransaction = {
-                id: Date.now(),
-                ...values,
-            };
-            setPettyCashData((prev) => [newTransaction, ...prev]);
-            message.success("Transaction added successfully");
+        }catch(error){
+            console.error("Error saving transaction:", error);  
+            message.error("Failed to save transaction.");
+             }
         }
 
-        handleCloseModal();
-    }
-
-    const handleDeleteTransaction = (id) => {
-        setPettyCashData((prev) =>
-            prev.filter((item) => item.id !== id)
-        );
-
+    const handleDeleteTransaction = async (id) => {
         message.success("Transaction deleted successfully");
     }
+
+    if(loading) return <p>Loading...</p>;
+    if(error) return <p>Error loading petty cash data</p>;
 
   return (
     <Layout>
@@ -146,7 +264,7 @@ export default function PettyCashHandling({transactions = []}) {
 
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Low of Stock Table */}
-          <PettyCashTable transactions={pettyCashData} onEdit={handleEdit} onDelete={handleDeleteTransaction}/>
+          <PettyCashTable transactions={pettyCashList} onEdit={handleEdit} onDelete={handleDeleteTransaction}/>
         </Card>
 
         {/* add/ edit model */}
