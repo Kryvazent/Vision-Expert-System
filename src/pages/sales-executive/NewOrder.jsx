@@ -1,64 +1,94 @@
-import { Alert, Button, Card, Col, Input, Radio, Row, Select, Steps, Tag } from "antd";
+import { Alert, Button, Card, Col, Collapse, Input, Radio, Row, Select, Steps, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DigitalSignature from "../../component/sales-executive/new-order/DigitalSignature";
 import Fingerprint from "../../component/sales-executive/new-order/Fingerprint";
 import ExistingPatientSearch from "../../component/optimetrist/new-prescription/ExistingPatientSearch";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
+import ProjectAndClinicSelect from "../../component/optimetrist/new-prescription/ProjectAndClinicSelect";
 
 function NewOrder() {
     const [current, setCurrent] = useState(0);
     const [position, setPosition] = useState("start");
     const [selectedPatient, setSelectedPatient] = useState(null);
+    const [selectedPrescription, setSelectedPrescription] = useState(null);
+    const [selectedFrameType, setSelectedFrameType] = useState(null);
+    const [selectedFrame, setSelectedFrame] = useState(null);
+    const [selectedLenseType, setSelectedLenseType] = useState(null);
 
-    const {staff} = useAuth();
+    const [selectedClinic, setSelectedClinic] = useState(null);
+    const [selectedProject, setSelectedProject] = useState(null);
+    const [isDisabled, setIsDisabled] = useState(true);
 
-    const onChange = value => {
-        console.log('onChange:', value);
-        setCurrent(value);
-    };
+    const { staff } = useAuth();
 
     const handleOrderSubmit = () => {
         console.log("Order submitted!");
     }
 
-
-    // branches
-    const GET_BRANCHES = gql`
+    // lense type
+    const GET_LENSE_TYPE = gql`
     
-        query getBranches{
-            branchCollection{
+        query getLenseType{
+            lense_typeCollection{
                 edges{
                     node{
                         id
-                        branch_name
+                        type
                     }
                 }
             }
         }
     `;
-    const [getBranches, { data: branchesData, error: branchesError }] = useLazyQuery(GET_BRANCHES);
+    const [getLenseType, { data: lenseTypeData, error: lenseTypeError }] = useLazyQuery(GET_LENSE_TYPE);
 
-    useEffect(() => {
-        getBranches();
-    }, [getBranches]);
+    console.log("Lense Types: ", lenseTypeData?.lense_typeCollection?.edges?.map(e => e.node) || [], lenseTypeError);
 
-    const branchOptions =
-        branchesData?.branchCollection?.edges?.map((branch) => ({
-            value: branch.node.id,
-            label: branch.node.branch_name,
-        })) || [];
+    // frames
+    const GET_FRAMES = gql`
+    
+        query getFrames($frameTypeId: ID!){
+            frameCollection(filter:{frame_type_id:{eq:$frameTypeId}}){
+                edges{
+                    node{
+                        id
+                        color
+                        serial_no
+                    }
+                }
+            }
+        }
+    `;
+    const [getFrames, { data: framesData, error: framesError }] = useLazyQuery(GET_FRAMES);
 
-    console.log("Branches Data: ", branchesData);
-    console.log("Branches Error: ", branchesError);
+    console.log("Frames: ", framesData?.frameCollection?.edges?.map(e => e.node) || [], framesError);
+
+    // frame types
+    const GET_FRAME_TYPES = gql`
+    
+        query getFrameTypes{
+            frame_typeCollection{
+                edges{
+                    node{
+                        id
+                        type
+                    }
+                }
+            }
+        }
+    `;
+    const [getFrameTypes, { data: frameTypesData, error: frameTypesError }] = useLazyQuery(GET_FRAME_TYPES);
+
+
+    console.log("Frame Types: ", frameTypesData?.frame_typeCollection?.edges?.map(e => e.node) || [], frameTypesError);
 
 
     // prescription
     const GET_PRESCRIPTIONS = gql`
     
-        query getPrescription($customerId: ID!,$branchId: ID!,$clinicId: ID!){ {
+        query getPrescription($customerId: ID!,$branchId: ID!,$clinicId: ID!){ 
             customerCollection(filter: {id: {eq: $customerId}}) {
                 edges {
                     node {
@@ -73,6 +103,7 @@ function NewOrder() {
                                                     edges {
                                                         node {
                                                             id
+                                                            created_at
                                                         }
                                                     }
                                                 }
@@ -90,27 +121,86 @@ function NewOrder() {
     `;
     const [getPrescriptions, { data: prescriptionsData, error: prescriptionsError }] = useLazyQuery(GET_PRESCRIPTIONS);
 
-    useEffect(() => {
-        getPrescriptions({
-            variables: {
-                customerId: selectedPatient?.value,
-                branchId: staff?.branch_id, 
-                clinicId: "selectedClinicId"
-            }
-        });
-    }, [getPrescriptions,selectedPatient,staff]);
+    console.log("prescriptionsError: ", prescriptionsError);
 
-    console.log("Prescriptions Data: ", prescriptionsData);
-    console.log("Prescriptions Error: ", prescriptionsError);
+    const prescriptions = useMemo(() => {
+        return prescriptionsData?.customerCollection?.edges?.[0]?.node?.customer_has_branchCollection?.edges?.[0]?.node?.clinic_attend_customerCollection?.edges?.[0]?.node?.prescriptionCollection?.edges || [];
+    }, [prescriptionsData])
+    console.log("Prescriptions: ", prescriptions);
+
+    const prescriptionSelectOptions = useMemo(() => {
+
+        return prescriptions?.map(({ node }) => ({
+            value: node.id,
+            label: `ID: ${node.id} - ${new Date(node.created_at).toLocaleDateString([], {
+                year: 'numeric',
+                month: 'short',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+            })}`,
+            node,
+        })) || [];
+
+    }, [prescriptions])
+
+
+    const handleStepChange = () => {
+        let moveToNext = false;
+
+        if (current == 0) {
+            if (selectedProject != null && selectedClinic != null && selectedPatient != null) {
+
+                getPrescriptions({
+                    variables: {
+                        customerId: selectedPatient?.value,
+                        branchId: staff?.branch_id,
+                        clinicId: selectedClinic,
+                    }
+                });
+
+                moveToNext = true;
+            }
+        }
+
+        if (current == 1) {
+            if (selectedPrescription != null) {
+                getLenseType();
+                getFrameTypes();
+                moveToNext = true;
+            }
+        }
+
+        if (current == 2) {
+            if (selectedFrameType != null && selectedFrame != null && selectedLenseType != null) {
+                moveToNext = true;
+            }
+        }
+
+        if (moveToNext) {
+            setCurrent(current + 1);
+        } else {
+            alert("Please complete all required selections before proceeding to the next step.");
+        }
+    }
 
     return (
         <>
-            <div className="m-5 w-5xl">
+            <div className="m-5 w-5xl flex flex-col gap-2">
+
+                <ProjectAndClinicSelect
+                    setSelectedClinic={setSelectedClinic}
+                    selectedClinic={selectedClinic}
+                    setSelectedProject={setSelectedProject}
+                    selectedProject={selectedProject}
+                    setIsDisabled={setIsDisabled}
+                />
+
                 <Card title="New Order">
 
                     <Steps
                         current={current}
-                        onChange={onChange}
                         items={[
                             {
                                 title: 'Customer',
@@ -137,22 +227,6 @@ function NewOrder() {
                                 <ExistingPatientSearch onPatientSelect={setSelectedPatient} getSelectedPatient={selectedPatient} />
                             </Col>
                         </Row>
-
-                        <Row className="gap-3 ms-5 mt-5">
-                            <Col span={24}>
-
-                                <p className="font-semibold">Branch</p>
-                                <Select
-                                    className="w-full"
-                                    showSearch={{
-                                        filterOption: (input, option) =>
-                                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                                    }}
-                                    placeholder="Search by NIC"
-                                    options={branchOptions}
-                                />
-                            </Col>
-                        </Row>
                     </Content>
 
                     <Content hidden={current !== 1} className="mt-10">
@@ -166,12 +240,19 @@ function NewOrder() {
                                         filterOption: (input, option) =>
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
-                                    placeholder="Search by NIC"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
+                                    placeholder="Search by Prescription ID"
+                                    options={prescriptionSelectOptions}
+                                    onChange={(value) => {
+                                        setSelectedPrescription(prescriptions.find(p => p.node.id === value))
+                                    }}
+                                    onSelect={(value) => {
+                                        // console.log("Selected Prescription ID: ", value);
+                                        const prescription = prescriptions.find(p => p.node.id === value)
+                                        //console.log("Selected Prescription: ", prescription);
+                                        if (prescription) {
+                                            setSelectedPrescription(prescription);
+                                        }
+                                    }}
                                 />
                             </Col>
                         </Row>
@@ -179,7 +260,25 @@ function NewOrder() {
 
                     <Content hidden={current !== 2} className="mt-10">
                         <Row className="gap-3 ms-5 mt-5">
-                            <Col span={24}>
+                            <Col span={10}>
+
+                                <p className="font-semibold">Select Frame Type</p>
+                                <Select
+                                    className="w-full"
+                                    showSearch={{
+                                        filterOption: (input, option) =>
+                                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+                                    }}
+                                    placeholder="Select Frame Type"
+                                    options={[
+                                        { value: '1', label: 'Jack' },
+                                        { value: '2', label: 'Lucy' },
+                                        { value: '3', label: 'Tom' },
+                                    ]}
+                                />
+                            </Col>
+
+                            <Col span={10}>
 
                                 <p className="font-semibold">Select Frame</p>
                                 <Select
@@ -188,7 +287,7 @@ function NewOrder() {
                                         filterOption: (input, option) =>
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
-                                    placeholder="Search by NIC"
+                                    placeholder="Search Frame"
                                     options={[
                                         { value: '1', label: 'Jack' },
                                         { value: '2', label: 'Lucy' },
@@ -199,16 +298,16 @@ function NewOrder() {
                         </Row>
 
                         <Row className="gap-3 ms-5 mt-5">
-                            <Col span={24}>
+                            <Col span={10}>
 
-                                <p className="font-semibold">Select Lense</p>
+                                <p className="font-semibold">Select Lense Type</p>
                                 <Select
                                     className="w-full"
                                     showSearch={{
                                         filterOption: (input, option) =>
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
-                                    placeholder="Search by NIC"
+                                    placeholder="Select Lense Type"
                                     options={[
                                         { value: '1', label: 'Jack' },
                                         { value: '2', label: 'Lucy' },
@@ -326,20 +425,20 @@ function NewOrder() {
 
                     <Row className="gap-3 ms-5 mt-5">
                         <Col span={24}>
-                            {current > 0 && (
+                            {current > 0 && !isDisabled && (
                                 <Button className="me-5" type="dashed" onClick={() => setCurrent(current - 1)}>
                                     Previous
                                 </Button>
                             )}
 
-                            {current < 4 && (
-                                <Button type="primary" onClick={() => setCurrent(current + 1)}>
+                            {current < 4 && !isDisabled && (
+                                <Button disabled={isDisabled} type="primary" onClick={handleStepChange}>
                                     Next
                                 </Button>
                             )}
 
-                            {current == 4 && (
-                                <Button type="primary" onClick={handleOrderSubmit}>
+                            {current == 4 && !isDisabled && (
+                                <Button disabled={isDisabled} type="primary" onClick={handleOrderSubmit}>
                                     Complete Order
                                 </Button>
                             )}
