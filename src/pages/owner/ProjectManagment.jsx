@@ -38,8 +38,6 @@ const LOAD_PROJECTS = gql`
 
           start_date
 
-          end_date
-
           start_time
 
           is_active
@@ -93,7 +91,7 @@ const INSERT_PROJECT = gql`
     $description: String!
     $branchId: Int!
     $startDate: Date!
-    $endDate: Date!
+    
     $startTime: Time!
   ) {
 
@@ -108,7 +106,7 @@ const INSERT_PROJECT = gql`
 
         start_date: $startDate
 
-        end_date: $endDate
+        
 
         start_time: $startTime
 
@@ -132,7 +130,7 @@ const UPDATE_PROJECT = gql`
     $description: String!
     $branchId: Int!
     $startDate: Date!
-    $endDate: Date!
+    
     $startTime: Time!
   ) {
 
@@ -154,7 +152,7 @@ const UPDATE_PROJECT = gql`
 
         start_date: $startDate
 
-        end_date: $endDate
+       
 
         start_time: $startTime
 
@@ -213,7 +211,7 @@ export default function ProjectManagement() {
 
     startDate: "",
 
-    endDate: "",
+   
 
     startTime: "",
 
@@ -260,7 +258,7 @@ export default function ProjectManagement() {
 
       start_date: edge.node.start_date,
 
-      end_date: edge.node.end_date,
+      
 
       start_time: edge.node.start_time,
 
@@ -338,8 +336,7 @@ export default function ProjectManagement() {
             startDate:
               formData.startDate,
 
-            endDate:
-              formData.endDate,
+            
 
             startTime:
               formData.startTime,
@@ -369,8 +366,6 @@ export default function ProjectManagement() {
             startDate:
               formData.startDate,
 
-            endDate:
-              formData.endDate,
 
             startTime:
               formData.startTime,
@@ -397,7 +392,7 @@ export default function ProjectManagement() {
 
         startDate: "",
 
-        endDate: "",
+        
 
         startTime: "",
 
@@ -430,8 +425,7 @@ export default function ProjectManagement() {
       startDate:
         project.start_date,
 
-      endDate:
-        project.end_date,
+      
 
       startTime:
         project.start_time,
@@ -486,7 +480,7 @@ export default function ProjectManagement() {
 
             startDate: "",
 
-            endDate: "",
+            
 
             startTime: "",
 
@@ -659,10 +653,7 @@ export default function ProjectManagement() {
               dataIndex: "start_date",
             },
 
-            {
-              title: "End Date",
-              dataIndex: "end_date",
-            },
+            
 
             {
               title: "Start Time",
@@ -842,28 +833,7 @@ export default function ProjectManagement() {
 
           </div>
 
-          {/* end date */}
-          <div>
-
-            <p>End Date</p>
-
-            <DatePicker
-              className="w-full"
-
-              onChange={(
-                date,
-                dateString
-              ) =>
-
-                updateValue(
-                  "endDate",
-                  dateString
-                )
-
-              }
-            />
-
-          </div>
+          
 
           {/* start time */}
           <div>

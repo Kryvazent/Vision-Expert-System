@@ -1,316 +1,404 @@
-import { useState } from "react";
-import { Card, Select } from "antd";
-
+import { Card, Select, Table } from "antd";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
+import { useMemo, useState } from "react";
+
+const { Option } = Select;
+
+// ================= GET BRANCHES =================
 
 const GET_BRANCHES = gql`
   query {
-
     branchCollection {
       edges {
         node {
+          id
           branch_name
         }
       }
     }
-
   }
 `;
 
-const GET_RECOVERY_DETAILS = gql`
-  query GetRecoveryDetails {
+// ================= GET RECOVERY DETAILS =================
 
+const GET_RECOVERY_DETAILS = gql`
+  query {
     orderCollection {
       edges {
         node {
-
           id
-
-          venue
-
+          placed_at
           estimated_delivery
-
           advance
-
           total_payment
 
           clinic_attend_customer {
+            id
 
             customer_has_branch {
+              id
 
               branch {
+                id
                 branch_name
               }
 
+              customer {
+                id
+                first_name
+                last_name
+                contact_no
+              }
             }
           }
-
         }
       }
     }
-
   }
 `;
 
-export default function RecoveryDetails() {
+function RecoveryDetails() {
 
-  // selected branch
+  // ================= STATE =================
+
   const [selectedBranch, setSelectedBranch] =
-    useState("All");
+    useState("all");
 
-  // branch data
-  const {
-    data: branchData
-  } = useQuery(GET_BRANCHES);
+  // ================= BRANCH QUERY =================
 
-  // recovery data
+  const { data: branchData } =
+    useQuery(GET_BRANCHES);
+
+  // ================= RECOVERY QUERY =================
+
   const {
-    data,
+    data: recoveryData,
     loading,
-    error
+    error,
   } = useQuery(GET_RECOVERY_DETAILS);
 
-  // current date
-  const today = new Date();
+  // ================= BRANCHES =================
 
-  // convert backend data
-  const recoveryData =
-    data?.orderCollection?.edges
+  const branches =
+    branchData?.branchCollection?.edges?.map(
+      (item) => item.node
+    ) || [];
 
-      // extra recovery filter
-      ?.filter((item) => {
+  // ================= OVERDUE ORDERS =================
 
-        const order = item?.node;
+  const overdueOrders = useMemo(() => {
 
-        // delivery date
-        const deliveryDate =
-          new Date(order?.estimated_delivery);
+    if (!recoveryData?.orderCollection?.edges)
+      return [];
 
-        // remaining payment
-        const hasRemaining =
-          order?.advance !== order?.total_payment;
+    const today = new Date();
 
-        // delivery already passed
-        const datePassed =
-          deliveryDate < today;
+    return recoveryData.orderCollection.edges
 
-        return hasRemaining && datePassed;
+      .map((edge) => {
 
-      })
+        const order = edge.node;
 
-      // convert structure
-      ?.map((item) => {
+        // ================= RELATIONS =================
 
-        const order = item?.node;
+        const customerBranch =
+          order?.clinic_attend_customer?.customer_has_branch;
 
-        // remaining balance
-        const balance =
-          order?.total_payment -
-          order?.advance;
+        const customer =
+          customerBranch?.customer;
+
+        const branch =
+          customerBranch?.branch;
+
+        // ================= CUSTOMER NAME =================
+
+        const customerName = `
+          ${customer?.first_name || ""}
+          ${customer?.last_name || ""}
+        `.trim();
+
+        // ================= BRANCH NAME =================
+
+        const branchName =
+          branch?.branch_name || "Unknown";
+
+        // ================= PAYMENT =================
+
+        const totalAmount =
+          order?.total_payment || 0;
+
+        const paidAmount =
+          order?.advance || 0;
+
+        const remaining =
+          totalAmount - paidAmount;
+
+        // ================= DATE CHECK =================
+
+        const estimatedDate =
+          new Date(order.estimated_delivery);
+
+        const isOverdue =
+          estimatedDate < today &&
+          remaining > 0;
 
         return {
 
-          branch:
-            order?.clinic_attend_customer
-              ?.customer_has_branch
-              ?.branch
-              ?.branch_name,
+          key: order.id,
 
-          clinic:
-            order?.venue,
+          orderId: `OD${order.id}`,
 
-          total: balance,
+          customer:
+            customerName || "Unknown",
 
-          orders: [
-            {
-              id: `OD${order?.id}`,
+          branch: branchName,
 
-              amount: balance,
-            },
-          ],
+          orderDate: new Date(
+            order.placed_at
+          ).toLocaleDateString(),
+
+          estimatedDelivery: new Date(
+            order.estimated_delivery
+          ).toLocaleDateString(),
+
+          totalAmount,
+
+          paidAmount,
+
+          remaining,
+
+          status: isOverdue
+            ? "OVERDUE"
+            : "OK",
         };
+      })
 
-      }) || [];
+      // ================= ONLY OVERDUE =================
 
-  // branch filter
-  const filteredData =
-    selectedBranch === "All"
-      ? recoveryData
-      : recoveryData.filter(
-          (item) =>
-            item.branch === selectedBranch
+      .filter(
+        (item) => item.status === "OVERDUE"
+      )
+
+      // ================= FILTER BY BRANCH =================
+
+      .filter((item) => {
+
+        if (selectedBranch === "all")
+          return true;
+
+        return (
+          item.branch === selectedBranch
         );
+      });
 
-  // grand total
-  const grandTotal =
-    filteredData.reduce(
-      (sum, item) => sum + item.total,
+  }, [recoveryData, selectedBranch]);
+
+  // ================= TOTAL RECOVERY =================
+
+  const totalRecovery =
+    overdueOrders.reduce(
+      (sum, item) =>
+        sum + item.remaining,
       0
     );
 
+  // ================= TABLE COLUMNS =================
+
+  const columns = [
+
+    {
+      title: "Order ID",
+      dataIndex: "orderId",
+    },
+
+    {
+      title: "Customer",
+      dataIndex: "customer",
+    },
+
+    {
+      title: "Branch",
+      dataIndex: "branch",
+    },
+
+    {
+      title: "Order Date",
+      dataIndex: "orderDate",
+    },
+
+    {
+      title: "Estimated Delivery",
+      dataIndex: "estimatedDelivery",
+    },
+
+    {
+      title: "Total Amount",
+      dataIndex: "totalAmount",
+
+      render: (value) => (
+
+        <span className="text-blue-600 font-semibold">
+
+          LKR {value.toLocaleString()}
+
+        </span>
+
+      ),
+    },
+
+    {
+      title: "Paid Amount",
+      dataIndex: "paidAmount",
+
+      render: (value) => (
+
+        <span className="text-green-600 font-semibold">
+
+          LKR {value.toLocaleString()}
+
+        </span>
+
+      ),
+    },
+
+    {
+      title: "Remaining",
+      dataIndex: "remaining",
+
+      render: (value) => (
+
+        <span className="text-red-500 font-semibold">
+
+          LKR {value.toLocaleString()}
+
+        </span>
+
+      ),
+    },
+
+    {
+      title: "Recovery Status",
+
+      render: () => (
+
+        <span className="bg-red-100 text-red-500 px-3 py-1 rounded">
+
+          OVERDUE
+
+        </span>
+
+      ),
+    },
+
+  ];
+
   return (
+
     <div className="p-6 space-y-6">
 
-      {/* Title */}
-      <h1 className="text-2xl font-semibold">
+      {/* ================= TITLE ================= */}
+
+      <h1 className="text-3xl font-bold">
+
         Recovery Details
+
       </h1>
 
-      {/* Filter */}
+      {/* ================= FILTER CARD ================= */}
+
       <Card>
 
         <div className="space-y-3">
 
-          <p className="font-medium">
-            Search By Branch
+          <p className="font-semibold">
+
+            Filter By Branch
+
           </p>
 
           <Select
-            className="w-[200px]"
-
             value={selectedBranch}
 
-            onChange={setSelectedBranch}
+            onChange={(value) =>
+              setSelectedBranch(value)
+            }
 
-            options={[
+            className="w-72"
+          >
 
-              {
-                value: "All",
-                label: "All",
-              },
+            <Option value="all">
 
-              ...(branchData?.branchCollection?.edges?.map((b) => ({
+              All Branches
 
-                value: b?.node?.branch_name,
+            </Option>
 
-                label: b?.node?.branch_name,
+            {branches.map((branch) => (
 
-              })) || [])
+              <Option
+                key={branch.id}
 
-            ]}
-          />
+                value={branch.branch_name}
+              >
 
+                {branch.branch_name}
+
+              </Option>
+
+            ))}
+          </Select>
         </div>
-
       </Card>
 
-      {/* Content */}
-      <Card className="space-y-6">
+      {/* ================= TABLE CARD ================= */}
 
-        <h2 className="text-lg font-semibold">
+      <Card>
 
-          Extra Recovery Details - {selectedBranch}
+        <div className="flex justify-between items-center mb-5">
 
-        </h2>
+          <h2 className="text-2xl font-semibold">
 
-        {/* Loading */}
-        {loading && (
-          <p>Loading...</p>
-        )}
+            Overdue Orders
 
-        {/* Error */}
+          </h2>
+
+          <div className="text-2xl font-bold">
+
+            Grand Recovery Total:{" "}
+
+            <span className="text-red-500">
+
+              LKR {totalRecovery.toLocaleString()}
+
+            </span>
+
+          </div>
+        </div>
+
+        <Table
+          columns={columns}
+
+          dataSource={overdueOrders}
+
+          loading={loading}
+
+          pagination={{ pageSize: 5 }}
+
+          scroll={{ x: true }}
+        />
+
         {error && (
-          <p>Error loading data</p>
+
+          <p className="text-red-500 mt-4">
+
+            Failed to load recovery data
+
+          </p>
+
         )}
-
-        {/* No Data */}
-        {!loading &&
-          filteredData.length === 0 && (
-            <p>No data available</p>
-          )}
-
-        {/* Data */}
-        <div className="space-y-4">
-
-          {filteredData.map((clinic) => (
-
-            <div
-              key={clinic.clinic}
-              className="border rounded-lg"
-            >
-
-              {/* Header */}
-              <div className="flex justify-between p-4 font-medium">
-
-                <span>
-                  {clinic.clinic}
-                </span>
-
-                <span className="text-red-500">
-
-                  Total: LKR{" "}
-                  {clinic.total.toLocaleString()}
-
-                </span>
-
-              </div>
-
-              {/* Table Header */}
-              <div className="flex justify-between bg-gray-100 p-3 text-sm font-medium">
-
-                <span>Order ID</span>
-
-                <span>Amount</span>
-
-              </div>
-
-              {/* Orders */}
-              {clinic.orders.map((order) => (
-
-                <div
-                  key={order.id}
-                  className="flex justify-between p-3"
-                >
-
-                  <span>
-                    {order.id}
-                  </span>
-
-                  <span className="text-red-500">
-
-                    LKR{" "}
-                    {order.amount.toLocaleString()}
-
-                  </span>
-
-                </div>
-              ))}
-
-              {/* Total */}
-              <div className="flex justify-between p-4 bg-blue-100 font-semibold">
-
-                <span>Total</span>
-
-                <span className="text-red-500">
-
-                  LKR{" "}
-                  {clinic.total.toLocaleString()}
-
-                </span>
-
-              </div>
-
-            </div>
-          ))}
-
-        </div>
-
       </Card>
-
-      {/* Grand Total */}
-      <div className="bg-blue-100 p-6 rounded-xl flex justify-end text-lg font-semibold">
-
-        Grand Total:
-
-        <span className="text-red-500 ml-2">
-
-          LKR {grandTotal.toLocaleString()}
-
-        </span>
-
-      </div>
-
     </div>
   );
 }
+
+export default RecoveryDetails;
