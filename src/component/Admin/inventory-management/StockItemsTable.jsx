@@ -6,7 +6,7 @@ const { TextArea } = Input;
 
 export default function StockItemsTable({ data = [], updateStock, insertDamageStock, onRefetch, productTypeList = [] }) {
 
-  // ─── Set first tab from DB types dynamically ──────────────────────────────
+  //  Set first tab from DB types dynamically 
   const [activeTab, setActiveTab] = useState('');
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDamagedOpen, setIsDamagedOpen] = useState(false);
@@ -16,20 +16,20 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
   const [damagedQty, setDamagedQty] = useState(0);
   const [damagedReason, setDamagedReason] = useState('');
 
-  // ─── Set active tab once productTypeList loads ────────────────────────────
+  //  Set active tab once productTypeList loads 
   React.useEffect(() => {
     if (productTypeList.length > 0 && !activeTab) {
       setActiveTab(productTypeList[0].type); // default to first tab from DB
     }
   }, [productTypeList]);
 
-  // ─── Build tabs dynamically from DB product types ─────────────────────────
+  // Build tabs dynamically from DB product types 
   const tabItems = productTypeList.map((pt) => ({
     label: pt.type,   // Display name from DB e.g. "PlasticFrame"
     key: pt.type,     // Key matches category in data
   }));
 
-  // ─── Handle Edit Submit ───────────────────────────────────────────────────
+  // Handle Edit Submit
   const handleEditPopup = async () => {
     try {
       const newQty = selectedItem.stockQuantity + updateQty;
@@ -46,13 +46,13 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       message.success("Stock Updated!");
       setIsEditOpen(false);
       setUpdateQty(0);
-      onRefetch && onRefetch();
+      onRefetch && onRefetch(); //single call updates all tables with new data
     } catch (err) {
       message.error('Update failed!');
     }
   };
 
-  // ─── Handle Damaged Submit ────────────────────────────────────────────────
+  // ─── Handle Damaged Submit 
   const handleDamagedSubmit = async () => {
     if (!damagedQty || damagedQty <= 0) {
       message.error("Enter valid damaged quantity!");
@@ -67,7 +67,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       return;
     }
     try {
-      // ─── Step 1: Insert damage record ─────────────────────────────────────
+      //  Insert damaged record for owner approval 
       await insertDamageStock({
         variables: {
           stock_id: selectedItem.id,
@@ -76,7 +76,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
         }
       });
 
-      // ─── Step 2: Update stock quantity (deduct damaged quantity) ──────────
+      //  Step 2: Update stock quantity (reduced damaged quantity) 
       const newQuantity = selectedItem.stockQuantity - damagedQty;
       await updateStock({
         variables: {
@@ -89,7 +89,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       setIsDamagedOpen(false);
       setDamagedQty(0);
       setDamagedReason('');
-      onRefetch && onRefetch();  // ← Refresh all tables with new data
+      onRefetch && onRefetch();  //  Refresh all tables with new data
 
     } catch (err) {
       message.error("Submission failed!");
@@ -97,7 +97,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
     }
   };
 
-  // ─── Dropdown Menu ────────────────────────────────────────────────────────
+  // ─── Dropdown Menu 
   const getMenu = (record) => ({
     items: [
       {
@@ -133,7 +133,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
     ],
   });
 
-  // ─── Table Columns ────────────────────────────────────────────────────────
+  // ─── Table Columns 
   const stockItemsColumns = [
     {
       title: 'Product Name',
@@ -167,7 +167,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
         let color = 'green';
         if (qty === 0) {
           color = '#d20d0dc5';
-        } else if (qty <= 10) {
+        } else if (qty <= 100) {
           color = 'orange';
         }
         return <Tag color={color} style={{ fontWeight: 'bold' }}>{qty} units</Tag>;
@@ -185,7 +185,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
     },
   ];
 
-  // ─── Filter data by active tab ────────────────────────────────────────────
+  //  Filter data by active tab 
   const filteredData = data.filter((item) => item.category === activeTab);
 
   return (

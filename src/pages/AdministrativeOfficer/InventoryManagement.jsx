@@ -12,17 +12,10 @@ import StockItemsTable from '../../component/Admin/inventory-management/StockIte
 import OutOfStockTable from '../../component/Admin/inventory-management/OutOfStockTable';
 import LowStockTable from '../../component/Admin/inventory-management/LowStockTable';
 import DamagedStockTable from '../../component/Admin/inventory-management/DamagedStockTable';
-import { useLazyQuery, useMutation } from '@apollo/client/react/compiled';
+import { useQuery, useLazyQuery, useMutation } from '@apollo/client/react/compiled';
 import { useAuth } from '../../const/functions';
 
-export default function InventoryManagement() {
-
-  const { Title, Text } = Typography;
-  const { Content } = Layout;
-  const { staff } = useAuth();
-  const branchId = staff?.branch?.id;
-
-  const LOAD_STOCK = gql`
+ const LOAD_STOCK = gql`
     query LoadStock{
       stockCollection{
         edges{
@@ -48,7 +41,7 @@ export default function InventoryManagement() {
     query LowStock {
       stockCollection(
         filter: {available_quantity : { 
-          lte: 10,
+          lte: 100,
           gt: 0 
           }
         }
@@ -204,55 +197,82 @@ export default function InventoryManagement() {
     }
   `;
 
-  // ─── Fetch Data ───────────────────────────────────────────────────────────────
-  const [loadStock, { data: stockData, refetch }] = useLazyQuery(LOAD_STOCK);
-  const [fetchLowStock, { data: lowStockData }] = useLazyQuery(LOW_STOCK);
-  const [fetchOutStock, { data: outStockData }] = useLazyQuery(OUT_STOCK);
-  const [loadDamagedStock, { data: damagedStockData, refetch: refetchDamaged }] = useLazyQuery(LOAD_DAMAGED_STOCK);
-  const [loadProductTypes, { data: productTypesData }] = useLazyQuery(PRODUCT_TYPES);
-  const [loadReOrders, { data: reOrderData, refetch: refetchReOrders }] = useLazyQuery(LOAD_REORDERS);
+export default function InventoryManagement() {
+
+  const { Title, Text } = Typography;
+  const { Content } = Layout;
+  const { staff } = useAuth();
+  const branchId = staff?.branch?.id;
+
+ 
+
+  //  Fetch Data 
+  const { data: stockData, refetch } = useQuery(LOAD_STOCK, {
+  pollInterval: 5000,           // ← auto-refresh every 5s
+  fetchPolicy: 'network-only',  // ← always fetch fresh from server
+});
+
+const { data: lowStockData, refetch: refetchLowStock } = useQuery(LOW_STOCK, {
+  pollInterval: 5000,
+  fetchPolicy: 'network-only',
+});
+
+const { data: outStockData, refetch: refetchOutStock } = useQuery(OUT_STOCK, {
+  pollInterval: 5000,
+  fetchPolicy: 'network-only',
+});
+
+const { data: damagedStockData, refetch: refetchDamaged } = useQuery(LOAD_DAMAGED_STOCK, {
+  pollInterval: 5000,
+  fetchPolicy: 'network-only',  // ← this fixes damaged table not updating
+});
+
+const { data: productTypesData } = useQuery(PRODUCT_TYPES);
+
+  const [loadReOrders, { data: reOrderData, refetch: refetchReOrders }] = useLazyQuery(LOAD_REORDERS, {pollInterval: 2000, fetchPolicy: 'network-only'});
 
   const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY);
   const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK);
   const [insertReOrder] = useMutation(INSERT_REORDER);
 
-  useEffect(() => {
-    loadStock();
-    fetchLowStock();
-    fetchOutStock();
-    loadDamagedStock();
-    loadProductTypes();
-  }, [loadStock, fetchLowStock, fetchOutStock, loadDamagedStock, loadProductTypes]);
-
-  // ─── Load reorders once branchId is available ─────────────────────────────────
+  //  Load reorders once branchId is available 
   useEffect(() => {
     if (branchId) {
       loadReOrders({ variables: { branch_id: branchId } });
     }
   }, [branchId, loadReOrders]);
 
+  const refetchAll = () => {
+  refetch();
+  refetchLowStock();
+  refetchOutStock();
+  refetchDamaged();
+  refetchReOrders && refetchReOrders();
+};
 
-  // ─── Build Dynamic Category Map from DB ──────────────────────────────────────
+
+  //  Build Product Type List from DB for easy mapping and dynamic tabs
   const productTypeList =
     productTypesData?.product_typeCollection?.edges.map((edge) => ({
       id: edge.node.id,
       type: edge.node.type,
     })) || [];
 
+    //  Map product type string to category for display (can be extended if needed)
   const mapCategory = (type) => {
     if (!type) return 'unknown';
     const category = productTypeList.find((pt) => pt.type === type);
     return category ? category.type : 'unknown';
   };
 
-  // ─── Build reordered product_type_id set for quick lookup ────────────────────
+  //  Store reordered product_type_id set for quick lookup 
   const reOrderedTypeIds = new Set(
     reOrderData?.re_orderCollection?.edges.map(
       (edge) => String(edge.node.product_type_id)
     ) || []
   );
 
-  // ─── Transform GraphQL → Table Format ────────────────────────────────────────
+  //  Transform GraphQL → Table Format 
   const stockList =
     stockData?.stockCollection?.edges.map((item, index) => ({
       key: index,
@@ -295,14 +315,14 @@ export default function InventoryManagement() {
       status_bool: item.node.status_bool,
     })) || [];
 
-  // ─── Stat Card Values ─────────────────────────────────────────────────────────
+  //  Stat Card Values 
   const totalAvailable = stockList.filter((item) => item.stockQuantity > 10).length;
   const totalLowStock = lowStockList.length;
   const totalOutOfStock = outOfStockList.length;
   const pendingDamaged = damagedStockList.filter((item) => item.status_bool === false).length;
 
-  // ─── Handle Reorder ───────────────────────────────────────────────────────────
-  const handleReOrder = async (productTypeId) => {
+  //  Handle Reorder 
+  const handleReOrder = async (productTypeId) => {   //async means database want to some time to response
     try {
       await insertReOrder({
         variables: {
@@ -310,13 +330,13 @@ export default function InventoryManagement() {
           branch_id: branchId,
         },
       });
-      refetchReOrders && refetchReOrders();
+      refetchAll(); // Refresh all tables to reflect new reorder status
     } catch (err) {
       console.error('Reorder failed:', err);
     }
   };
 
-  // ─── Collapse Panel Header ────────────────────────────────────────────────────
+  //  Collapse Panel Header 
   const collapseLabel = (icon, title, count, color) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
       <span style={{ color, fontSize: 18 }}>{icon}</span>
@@ -336,7 +356,7 @@ export default function InventoryManagement() {
   );
 
 
-  // ─── Collapse Items ───────────────────────────────────────────────────────────
+  //  Collapse Items 
   const collapseItems = [
     {
       key: 'outOfStock',
@@ -385,7 +405,7 @@ export default function InventoryManagement() {
           data={stockList}
           updateStock={updateStock}
           insertDamageStock={insertDamageStock}
-          onRefetch={refetch}
+          onRefetch={refetchAll}
           productTypeList={productTypeList}
         />
       ),
@@ -420,7 +440,7 @@ export default function InventoryManagement() {
           marginBottom: "20px",
         }} />
 
-        {/* ── Stat Cards ── */}
+        {/*  Stat Cards  */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
           <StatCard
             title="Available Stock"
@@ -452,7 +472,7 @@ export default function InventoryManagement() {
           />
         </div>
 
-        {/* ── Collapsible Tables ── */}
+        {/*  Collapsible Tables  */}
         <div className="mt-5 h-[calc(100vh-25.5vh)] overflow-y-auto pr-2">
           <Collapse
             defaultActiveKey={['outOfStock']}
@@ -466,3 +486,14 @@ export default function InventoryManagement() {
     </Layout>
   );
 }
+
+// query{
+//     __schema{
+//         mutationType{
+//             fields{
+//                 name
+//             }
+//         }
+//     }
+    
+// }

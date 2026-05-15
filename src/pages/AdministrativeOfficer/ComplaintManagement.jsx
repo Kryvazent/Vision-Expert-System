@@ -13,7 +13,7 @@ const {Option} = Select;
 
 export default function ComplaintManagement() {
 
-const [statusFilter, setStatusFilter] = useState("All");
+const [statusFilter, setStatusFilter] = useState("All");    //stores selected filter status
 const [isModalOpen, setIsModalOpen] = useState(false);
 
 const data = [
@@ -86,6 +86,7 @@ const handleAddComplaints = (newComplaints) => {
     setIsModalOpen(false)
 }
 
+// Filter complaints based on status like pending, in-progress, resolved, closed or all
 const filteredData = 
     statusFilter === "All" ? complaints : complaints.filter(item => item.status === statusFilter);
 
