@@ -91,7 +91,6 @@ const INSERT_PROJECT = gql`
     $description: String!
     $branchId: Int!
     $startDate: Date!
-    
     $startTime: Time!
   ) {
 
@@ -105,8 +104,6 @@ const INSERT_PROJECT = gql`
         branch_id: $branchId
 
         start_date: $startDate
-
-        
 
         start_time: $startTime
 
@@ -130,8 +127,8 @@ const UPDATE_PROJECT = gql`
     $description: String!
     $branchId: Int!
     $startDate: Date!
-    
     $startTime: Time!
+    $isActive: Boolean!
   ) {
 
     updateprojectCollection(
@@ -152,9 +149,9 @@ const UPDATE_PROJECT = gql`
 
         start_date: $startDate
 
-       
-
         start_time: $startTime
+
+        is_active: $isActive
 
       }
 
@@ -211,9 +208,9 @@ export default function ProjectManagement() {
 
     startDate: "",
 
-   
-
     startTime: "",
+
+    status: "Active",
 
   });
 
@@ -257,8 +254,6 @@ export default function ProjectManagement() {
       description: edge.node.description,
 
       start_date: edge.node.start_date,
-
-      
 
       start_time: edge.node.start_time,
 
@@ -336,10 +331,11 @@ export default function ProjectManagement() {
             startDate:
               formData.startDate,
 
-            
-
             startTime:
               formData.startTime,
+
+            isActive:
+              formData.status === "Active",
 
           },
 
@@ -366,7 +362,6 @@ export default function ProjectManagement() {
             startDate:
               formData.startDate,
 
-
             startTime:
               formData.startTime,
 
@@ -392,9 +387,9 @@ export default function ProjectManagement() {
 
         startDate: "",
 
-        
-
         startTime: "",
+
+        status: "Active",
 
       });
 
@@ -425,10 +420,11 @@ export default function ProjectManagement() {
       startDate:
         project.start_date,
 
-      
-
       startTime:
         project.start_time,
+
+      status:
+        project.status,
 
     });
 
@@ -480,9 +476,9 @@ export default function ProjectManagement() {
 
             startDate: "",
 
-            
-
             startTime: "",
+
+            status: "Active",
 
           });
 
@@ -652,8 +648,6 @@ export default function ProjectManagement() {
               title: "Start Date",
               dataIndex: "start_date",
             },
-
-            
 
             {
               title: "Start Time",
@@ -833,8 +827,6 @@ export default function ProjectManagement() {
 
           </div>
 
-          
-
           {/* start time */}
           <div>
 
@@ -853,6 +845,38 @@ export default function ProjectManagement() {
                 )
 
               }
+            />
+
+          </div>
+
+          {/* status */}
+          <div>
+
+            <p>Status</p>
+
+            <Select
+              className="w-full"
+
+              value={formData.status}
+
+              onChange={(value) =>
+                updateValue(
+                  "status",
+                  value
+                )
+              }
+
+              options={[
+                {
+                  value: "Active",
+                  label: "Active",
+                },
+
+                {
+                  value: "Inactive",
+                  label: "Inactive",
+                },
+              ]}
             />
 
           </div>

@@ -1,12 +1,17 @@
-import { Card, DatePicker, Select, Table } from "antd";
-import { useState } from "react";
+import { Card, DatePicker, Select, Table, Input } from "antd";
+import { useEffect, useState } from "react";
+import dayjs from "dayjs";
 
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 
 const GET_RECOVERY_DATA = gql`
   query GetRecoveryData($date: Date!) {
-    orderCollection(filter: { estimated_delivery: { gte: $date } }) {
+    orderCollection(
+      filter: {
+        estimated_delivery: { gte: $date }
+      }
+    ) {
       edges {
         node {
           id
@@ -34,56 +39,160 @@ const GET_RECOVERY_DATA = gql`
 
 function RecoveryFiltering() {
 
+  // today's date
+  const today =
+    new Date().toISOString().split("T")[0];
+
   // store selected date
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] =
+    useState(today);
 
   // store selected branch
   const [selectedBranch, setSelectedBranch] =
     useState("All Branches");
 
+  // customer search
+  const [customerSearch, setCustomerSearch] =
+    useState("");
+
+  // branch search
+  const [branchSearch, setBranchSearch] =
+    useState("");
+
   // GraphQL query
-  const [fetchRecoveryData, { data, loading, error }] =
-    useLazyQuery(GET_RECOVERY_DATA);
+  const [
+    fetchRecoveryData,
+    { data, loading, error }
+  ] = useLazyQuery(GET_RECOVERY_DATA);
+
+  // LOAD TODAY DATA AUTOMATICALLY
+  useEffect(() => {
+
+    fetchRecoveryData({
+      variables: {
+        date: today,
+      },
+    });
+
+  }, []);
 
   // convert GraphQL data to table format
- const tableData =
-  data?.orderCollection?.edges?.map((item, index) => {
+  const tableData =
+    data?.orderCollection?.edges?.map((item, index) => {
 
-    const customerData =
-      item?.node?.clinic_attend_customer?.customer_has_branch;
+      const customerData =
+        item?.node?.clinic_attend_customer?.customer_has_branch;
 
-    return {
+      return {
 
-      key: index,
+        key: index,
 
-      id: item?.node?.id,
+        id: item?.node?.id,
 
-      name: `${customerData?.customer?.first_name || ""} ${customerData?.customer?.last_name || ""
-        }`,
+        name: `${customerData?.customer?.first_name || ""} ${customerData?.customer?.last_name || ""
+          }`,
 
-      mobile: customerData?.customer?.contact_no,
+        mobile:
+          customerData?.customer?.contact_no,
 
-      branch: customerData?.branch?.branch_name,
-    };
-  })
-    ?.filter((item) => {
+        branch:
+          customerData?.branch?.branch_name,
+      };
+    })
 
-      if (selectedBranch === "All Branches") {
-        return true;
-      }
+      ?.filter((item) => {
 
-      return item.branch === selectedBranch;
-    }) || [];
+        // branch dropdown filter
+        const branchFilter =
+          selectedBranch === "All Branches"
+            ? true
+            : item.branch === selectedBranch;
 
+        // customer search filter
+        const customerFilter =
+          item.name
+            ?.toLowerCase()
+            .includes(
+              customerSearch.toLowerCase()
+            );
+
+        // branch search filter
+        const branchSearchFilter =
+          item.branch
+            ?.toLowerCase()
+            .includes(
+              branchSearch.toLowerCase()
+            );
+
+        return (
+          branchFilter &&
+          customerFilter &&
+          branchSearchFilter
+        );
+      }) || [];
 
   return (
+
     <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
 
       <Card className="rounded-xl">
 
+        {/* SEARCH INPUTS */}
+
+        <div className="flex flex-wrap gap-4 mb-6">
+
+          {/* CUSTOMER SEARCH */}
+
+          <div>
+
+            <p className="mb-2 font-medium">
+              Search Customer
+            </p>
+
+            <Input
+              placeholder="Search Customer Name"
+
+              value={customerSearch}
+
+              onChange={(e) =>
+                setCustomerSearch(
+                  e.target.value
+                )
+              }
+
+              className="w-52"
+            />
+          </div>
+
+          {/* BRANCH SEARCH */}
+
+          <div>
+
+            <p className="mb-2 font-medium">
+              Search Branch
+            </p>
+
+            <Input
+              placeholder="Search Branch Name"
+
+              value={branchSearch}
+
+              onChange={(e) =>
+                setBranchSearch(
+                  e.target.value
+                )
+              }
+
+              className="w-52"
+            />
+          </div>
+
+        </div>
+
         <div className="flex flex-wrap gap-6 mb-4">
 
           {/* DATE FILTER */}
+
           <div className="flex-1 min-w-[250px]">
 
             <p className="mb-2 font-medium">
@@ -93,6 +202,12 @@ function RecoveryFiltering() {
             <DatePicker
               className="w-full"
 
+              value={
+                selectedDate
+                  ? dayjs(selectedDate)
+                  : null
+              }
+
               onChange={(date, dateString) => {
 
                 // save selected date
@@ -100,6 +215,7 @@ function RecoveryFiltering() {
 
                 // run query
                 if (dateString) {
+
                   fetchRecoveryData({
                     variables: {
                       date: dateString,
@@ -111,6 +227,7 @@ function RecoveryFiltering() {
           </div>
 
           {/* BRANCH FILTER */}
+
           <div className="flex-1 min-w-[250px]">
 
             <p className="mb-2 font-medium">
@@ -142,11 +259,6 @@ function RecoveryFiltering() {
                   value: "Kandy",
                   label: "Kandy",
                 },
-
-                {
-                  value: "Main Branch",
-                  label: "Main Branch",
-                },
               ]}
 
               onChange={(value) => {
@@ -156,9 +268,11 @@ function RecoveryFiltering() {
               }}
             />
           </div>
+
         </div>
 
         {/* TABLE */}
+
         <Table
           loading={loading}
 
@@ -188,6 +302,16 @@ function RecoveryFiltering() {
 
           pagination={false}
         />
+
+        {error && (
+
+          <p className="text-red-500 mt-4">
+
+            Failed to load recovery data
+
+          </p>
+
+        )}
 
       </Card>
     </div>

@@ -1,4 +1,4 @@
-import { Card, Select, Table } from "antd";
+import { Card, Select, Table, Input } from "antd";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 import { useMemo, useState } from "react";
@@ -60,10 +60,16 @@ const GET_RECOVERY_DETAILS = gql`
 
 function RecoveryDetails() {
 
-  // ================= STATE =================
+  // ================= STATES =================
 
   const [selectedBranch, setSelectedBranch] =
     useState("all");
+
+  const [customerSearch, setCustomerSearch] =
+    useState("");
+
+  const [branchSearch, setBranchSearch] =
+    useState("");
 
   // ================= BRANCH QUERY =================
 
@@ -103,7 +109,8 @@ function RecoveryDetails() {
         // ================= RELATIONS =================
 
         const customerBranch =
-          order?.clinic_attend_customer?.customer_has_branch;
+          order?.clinic_attend_customer
+            ?.customer_has_branch;
 
         const customer =
           customerBranch?.customer;
@@ -180,19 +187,45 @@ function RecoveryDetails() {
         (item) => item.status === "OVERDUE"
       )
 
-      // ================= FILTER BY BRANCH =================
+      // ================= FILTERS =================
 
       .filter((item) => {
 
-        if (selectedBranch === "all")
-          return true;
+        // branch dropdown filter
+        const branchFilter =
+          selectedBranch === "all"
+            ? true
+            : item.branch === selectedBranch;
+
+        // customer search
+        const customerFilter =
+          item.customer
+            .toLowerCase()
+            .includes(
+              customerSearch.toLowerCase()
+            );
+
+        // branch search
+        const branchSearchFilter =
+          item.branch
+            .toLowerCase()
+            .includes(
+              branchSearch.toLowerCase()
+            );
 
         return (
-          item.branch === selectedBranch
+          branchFilter &&
+          customerFilter &&
+          branchSearchFilter
         );
       });
 
-  }, [recoveryData, selectedBranch]);
+  }, [
+    recoveryData,
+    selectedBranch,
+    customerSearch,
+    branchSearch,
+  ]);
 
   // ================= TOTAL RECOVERY =================
 
@@ -309,13 +342,41 @@ function RecoveryDetails() {
 
       <Card>
 
-        <div className="space-y-3">
+        <div className="flex flex-wrap gap-4 items-center">
 
-          <p className="font-semibold">
+          {/* CUSTOMER SEARCH */}
 
-            Filter By Branch
+          <Input
+            placeholder="Search Customer Name"
 
-          </p>
+            value={customerSearch}
+
+            onChange={(e) =>
+              setCustomerSearch(
+                e.target.value
+              )
+            }
+
+            className="w-52"
+          />
+
+          {/* BRANCH SEARCH */}
+
+          <Input
+            placeholder="Search Branch Name"
+
+            value={branchSearch}
+
+            onChange={(e) =>
+              setBranchSearch(
+                e.target.value
+              )
+            }
+
+            className="w-52"
+          />
+
+          {/* BRANCH DROPDOWN */}
 
           <Select
             value={selectedBranch}
@@ -324,7 +385,7 @@ function RecoveryDetails() {
               setSelectedBranch(value)
             }
 
-            className="w-72"
+            className="w-52"
           >
 
             <Option value="all">
@@ -333,20 +394,27 @@ function RecoveryDetails() {
 
             </Option>
 
-            {branches.map((branch) => (
+            {branches
+              ?.filter(
+                (branch) =>
+                  branch.branch_name !==
+                  "Main Branch"
+              )
+              ?.map((branch) => (
 
-              <Option
-                key={branch.id}
+                <Option
+                  key={branch.id}
 
-                value={branch.branch_name}
-              >
+                  value={branch.branch_name}
+                >
 
-                {branch.branch_name}
+                  {branch.branch_name}
 
-              </Option>
+                </Option>
 
             ))}
           </Select>
+
         </div>
       </Card>
 

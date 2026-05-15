@@ -289,17 +289,22 @@ function AccountantDashboard() {
             All Branches
           </Option>
 
-          {data?.branchCollection?.edges?.map((b) => (
+          {data?.branchCollection?.edges
+  ?.filter(
+    (b) =>
+      b.node.branch_name !== "Main Branch"
+  )
+  ?.map((b) => (
 
-            <Option
-              key={b.node.branch_name}
-              value={b.node.branch_name}
-            >
+    <Option
+      key={b.node.branch_name}
+      value={b.node.branch_name}
+    >
 
-              {b.node.branch_name}
+      {b.node.branch_name}
 
-            </Option>
-          ))}
+    </Option>
+))}
 
         </Select>
 
