@@ -12,15 +12,24 @@ import ProjectAndClinicSelect from "../../component/optimetrist/new-prescription
 function NewOrder() {
     const [current, setCurrent] = useState(0);
     const [position, setPosition] = useState("start");
-    const [selectedPatient, setSelectedPatient] = useState(null);
-    const [selectedPrescription, setSelectedPrescription] = useState(null);
-    const [selectedFrameTypeId, setSelectedFrameTypeId] = useState(null);
-    const [selectedFrameId, setSelectedFrameId] = useState(null);
-    const [selectedLenseTypeId, setSelectedLenseTypeId] = useState(null);
-
+    
     const [selectedClinic, setSelectedClinic] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
     const [isDisabled, setIsDisabled] = useState(true);
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    
+    const [selectedPrescription, setSelectedPrescription] = useState(null);
+
+    const [selectedFrameTypeId, setSelectedFrameTypeId] = useState(null);
+    const [selectedFrameId, setSelectedFrameId] = useState(null);
+    const [selectedFramePrice, setSelectedFramePrice] = useState(0);
+    const [selectedLenseTypeId, setSelectedLenseTypeId] = useState(null);
+    const [selectedLenseTypePrice, setSelectedLenseTypePrice] = useState(0);
+
+    const [additionalPrice, setAdditionalPrice] = useState(0);
+    const [advancePayment, setAdvancePayment] = useState(500);
+    const [paidAmount, setPaidAmount] = useState(0);
+
 
     const { staff } = useAuth();
 
@@ -37,6 +46,7 @@ function NewOrder() {
                     node{
                         id
                         type
+                        price
                     }
                 }
             }
@@ -44,7 +54,6 @@ function NewOrder() {
     `;
     const [getLenseType, { data: lenseTypeData, error: lenseTypeError }] = useLazyQuery(GET_LENSE_TYPE);
 
-    console.log("Lense Types: ", lenseTypeData?.lense_typeCollection?.edges?.map(e => e.node) || [], lenseTypeError);
     const lenseTypes = useMemo(() => {
         return lenseTypeData?.lense_typeCollection?.edges?.map(e => e.node) || []
     }, [lenseTypeData]);
@@ -59,6 +68,10 @@ function NewOrder() {
                         id
                         color
                         serial_no
+                        product{
+                            id
+                            selling_price
+                        }
                     }
                 }
             }
@@ -66,7 +79,6 @@ function NewOrder() {
     `;
     const [getFrames, { data: framesData, error: framesError }] = useLazyQuery(GET_FRAMES);
 
-    console.log("Frames: ", framesData?.frameCollection?.edges?.map(e => e.node) || [], framesError);
     const frames = useMemo(() => {
         return framesData?.frameCollection?.edges?.map(e => e.node) || []
     }, [framesData]);
@@ -94,7 +106,6 @@ function NewOrder() {
     const [getFrameTypes, { data: frameTypesData, error: frameTypesError }] = useLazyQuery(GET_FRAME_TYPES);
 
 
-    console.log("Frame Types: ", frameTypesData?.frame_typeCollection?.edges?.map(e => e.node) || [], frameTypesError);
     const frameTypes = useMemo(() => {
         return frameTypesData?.frame_typeCollection?.edges?.map(e => e.node) || []
     }, [frameTypesData]);
@@ -136,13 +147,9 @@ function NewOrder() {
     `;
     const [getPrescriptions, { data: prescriptionsData, error: prescriptionsError }] = useLazyQuery(GET_PRESCRIPTIONS);
 
-    console.log("prescription data: ", prescriptionsData);
-    console.log("prescriptionsError: ", prescriptionsError);
-
     const prescriptions = useMemo(() => {
         return prescriptionsData?.customerCollection?.edges?.[0]?.node?.customer_has_branchCollection?.edges?.[0]?.node?.clinic_attend_customerCollection?.edges?.[0]?.node?.prescriptionCollection?.edges || [];
     }, [prescriptionsData])
-    console.log("Prescriptions: ", prescriptions);
 
     const prescriptionSelectOptions = useMemo(() => {
 
@@ -162,17 +169,13 @@ function NewOrder() {
     }, [prescriptions])
 
 
+
     const handleStepChange = async () => {
         let moveToNext = false;
 
         if (current == 0) {
             if (selectedProject != null && selectedClinic != null && selectedPatient != null) {
 
-                console.log("Fetching prescriptions with variables: ", {
-                    customerId: selectedPatient.id,
-                    branchId: staff?.branch?.id,
-                    clinicId: selectedClinic,
-                });
                 await getPrescriptions({
                     variables: {
                         customerId: selectedPatient.id,
@@ -195,6 +198,12 @@ function NewOrder() {
 
         if (current == 2) {
             if (selectedFrameTypeId != null && selectedFrameId != null && selectedLenseTypeId != null) {
+                moveToNext = true;
+            }
+        }
+
+        if(current == 3){
+            if(paidAmount > 0 && advancePayment >= 0 && selectedFramePrice > 0 && selectedLenseTypePrice > 0 && additionalPrice >= 0){
                 moveToNext = true;
             }
         }
@@ -317,8 +326,13 @@ function NewOrder() {
                                         label: `Serial No: ${f.serial_no} - Color: ${f.color}`,
                                     }))}
                                     onSelect={(value)=>{
-                                        setSelectedFrameId(value)
-                                    }}
+                                        setSelectedFrameId(value);
+                                        const frame = frames.find(f => f.id === value);
+                                        console.log("Selected frame: ", frame);
+                                        if (frame) {
+                                            setSelectedFramePrice(frame.product.selling_price);
+                                        }
+                                    }} 
                                 />
                             </Col>
                         </Row>
@@ -339,8 +353,12 @@ function NewOrder() {
                                         label: lt.type,
                                     }))}
                                     onSelect={(value)=>{
-                                        console.log("selected lense type",value);
                                         setSelectedLenseTypeId(value);
+                                        const lenseType = lenseTypes.find(lt => lt.id === value);
+                                        console.log("Selected lense type: ", lenseType);
+                                        if (lenseType) {
+                                            setSelectedLenseTypePrice(lenseType.price);
+                                        }
                                     }}
                                 />
                             </Col>
@@ -349,51 +367,71 @@ function NewOrder() {
 
                     <Content hidden={current !== 3} className="mt-10">
 
-                        <Row>
-                            <Col span={24}>
+                        <Row className="ms-5 flex flex-row gap-2">
+                            <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
-                                    Total Amount
+                                    Frame & Lense Price
                                 </p>
-                                <Input type={"number"} prefix="Rs." />
+                                <Input type={"number"} prefix="Rs." value={selectedFramePrice+selectedLenseTypePrice} disabled/>
                             </Col>
-                        </Row>
 
-                        <Row>
-                            <Col span={24}>
+                            <Col span={4}>
+                                <p className="fs-5 font-semibold mt-5 mb-2">
+                                    Additional Amount
+                                </p>
+                                <Input autoFocus={true} type={"number"} prefix="Rs." value={additionalPrice} onChange={(e)=>setAdditionalPrice(Number(e.target.value))}/>
+                            </Col>
+
+                            <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
                                     Advance Payment
                                 </p>
-                                <Input type={"number"} prefix="Rs." />
+                                <Input type={"number"} prefix="Rs." value={advancePayment} onChange={(e)=>setAdvancePayment(Number(e.target.value))}/>
                             </Col>
-                        </Row>
 
-                        <Row>
-                            <Col span={24}>
+                            <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
-                                    Paid Amount (Today)
+                                    Total Payment (Today)
                                 </p>
-                                <Input type={"number"} prefix="Rs." placeholder="Enter amount received" />
-                                <p className="text-gray-400">Amount customer is paying right now</p>
+                                <Input type={"number"} prefix="Rs." placeholder="Enter amount received" value={paidAmount} onChange={(e)=>setPaidAmount(Number(e.target.value))}/>
+                            </Col>
+
+                            <Col span={4}>
+
+                                <p className="font-semibold mt-5 mb-2">Payment Method</p>
+                                <Select
+                                    className="w-full"
+                                    showSearch={{
+                                        filterOption: (input, option) =>
+                                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
+                                    }}
+                                    options={[
+                                        { value: '1', label: 'Cash' },
+                                        { value: '2', label: 'Card' },
+                                        { value: '3', label: 'Bank Transfer' },
+                                    ]}
+                                    defaultValue={"Cash"}
+                                />
                             </Col>
                         </Row>
 
-                        <Row className="mt-5">
-                            <Col span={24}>
+                        <Row className="ms-5 mt-5">
+                            <Col span={21}>
                                 <Tag color="blue" variant="outlined" className="w-full ">
 
                                     <Row justify={"space-between"} className="px-5 py-3">
 
                                         <Col>
                                             <p className="text-gray-600">Total Amount</p>
-                                            <p className="font-bold text-black text-2xl">Rs. 0</p>
+                                            <p className="font-bold text-black text-2xl">Rs. {(selectedFramePrice+selectedLenseTypePrice+additionalPrice).toFixed(2)}</p>
                                         </Col>
                                         <Col>
                                             <p className="text-gray-600">Advance Payment</p>
-                                            <p className="font-bold text-green-600 text-2xl">Rs. 0</p>
+                                            <p className="font-bold text-green-600 text-2xl">Rs. {advancePayment.toFixed(2)}</p>
                                         </Col>
                                         <Col>
                                             <p className="text-gray-600">Balance Due</p>
-                                            <p className="font-bold text-red-600 text-2xl">Rs. 0</p>
+                                            <p className="font-bold text-red-600 text-2xl">Rs. {((selectedFramePrice+selectedLenseTypePrice+additionalPrice) - paidAmount).toFixed(2)}</p>
                                         </Col>
 
                                     </Row>
@@ -402,23 +440,8 @@ function NewOrder() {
                             </Col>
                         </Row>
 
-                        <Row className="gap-3 mt-5">
-                            <Col span={24}>
-
-                                <p className="font-semibold">Payment Method</p>
-                                <Select
-                                    className="w-full"
-                                    showSearch={{
-                                        filterOption: (input, option) =>
-                                            (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
-                                    }}
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
-                                />
-                            </Col>
+                        <Row className="gap-3 mt-5 ms-5">
+                            
                         </Row>
                     </Content>
 
