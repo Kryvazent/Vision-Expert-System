@@ -18,7 +18,7 @@ const { TextArea } = Input;
 
 const descMax = 500;
 
-// ─── Queries ──────────────────────────────────────────────────────────────────
+// GraphQL Queries
 
 const GET_ORDERS = gql`
   query GetOrders {
@@ -88,8 +88,7 @@ const GET_COMPLAINT_STATUSES = gql`
   }
 `;
 
-// ─── Mutations ────────────────────────────────────────────────────────────────
-
+//  Mutations 
 const INSERT_COMPLAINT = gql`
   mutation InsertComplaint(
     $orderId: BigInt!
@@ -132,7 +131,6 @@ const UPDATE_COMPLAINT_STATUS = gql`
   }
 `;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const issueTagColor = {
   "Lens Damage": "cyan",
@@ -141,7 +139,6 @@ const issueTagColor = {
   Other: "default",
 };
 
-// Maps status text → visual config (case-insensitive partial match)
 function getStatusCfg(status = "") {
   const s = status.toLowerCase();
   if (s.includes("progress"))
@@ -173,7 +170,7 @@ function parseOrderNode(node) {
   };
 }
 
-// ─── Update Status Modal ───────────────────────────────────────────────────────
+// Update Status Modal
 
 function UpdateStatusModal({ open, onClose, claim, statuses, onSuccess }) {
   const [form] = Form.useForm();
@@ -250,7 +247,6 @@ function UpdateStatusModal({ open, onClose, claim, statuses, onSuccess }) {
   );
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function WarrantyClaim() {
   const [modalOpen, setModalOpen]             = useState(false);
@@ -264,15 +260,10 @@ export default function WarrantyClaim() {
   const [messageApi, contextHolder]           = message.useMessage();
 
   // ── Queries ──
-  const { data: orderData, loading: orderLoading, error: orderError } =
-    useQuery(GET_ORDERS);
+  const { data: orderData, loading: orderLoading, error: orderError } = useQuery(GET_ORDERS);
 
-  const {
-    data: claimsData,
-    loading: claimsLoading,
-    error: claimsError,
-    refetch: refetchClaims,
-  } = useQuery(GET_WARRANTY_CLAIMS, { fetchPolicy: "network-only" });
+  const {data: claimsData, loading: claimsLoading, error: claimsError,
+    refetch: refetchClaims,} = useQuery(GET_WARRANTY_CLAIMS, { fetchPolicy: "network-only" });
 
   const { data: statusData } = useQuery(GET_COMPLAINT_STATUSES);
 
