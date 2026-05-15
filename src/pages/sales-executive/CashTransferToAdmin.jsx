@@ -12,6 +12,7 @@ import {
     Tag,
     DatePicker,
     Typography,
+    message,
 } from "antd";
 import {
     CheckCircleOutlined,
@@ -20,38 +21,15 @@ import {
     DollarOutlined,
     SendOutlined,
     ExclamationCircleOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
+import { useAuth } from "../../const/functions";
+import { gql } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
 
 const { Text } = Typography;
-
-const mockTransfers = [
-    {
-        key: "1",
-        id: "TRF001",
-        amount: 15000,
-        date: "2024-01-15",
-        status: "Pending",
-        note: "January sales revenue",
-    },
-    {
-        key: "2",
-        id: "TRF002",
-        amount: 8500,
-        date: "2024-01-10",
-        status: "Accepted",
-        note: "Weekly collection",
-    },
-    {
-        key: "3",
-        id: "TRF003",
-        amount: 22000,
-        date: "2024-01-08",
-        status: "Rejected",
-        note: "Client payment batch",
-    },
-];
 
 const statusColors = {
     Pending: "orange",
@@ -65,14 +43,254 @@ const statusIcons = {
     Rejected: <CloseCircleOutlined />,
 };
 
+// ── Queries & Mutations ──
+const LOAD_NOT_COMPLETED_ORDERS = gql`
+    query getOrders($branchId: ID!) {
+        customerCollection {
+            edges {
+                node {
+                    id
+                    first_name
+                    last_name
+                    contact_no
+                    customer_has_branchCollection(
+                        filter: { branch_id: { eq: $branchId } }
+                    ) {
+                        edges {
+                            node {
+                                id
+                                clinic_attend_customerCollection {
+                                    edges {
+                                        node {
+                                            id
+                                            clinic {
+                                                id
+                                                date
+                                            }
+                                            orderCollection(
+                                                filter: { order_status_id: { neq: 4 } }
+                                            ) {
+                                                edges {
+                                                    node {
+                                                        id
+                                                        placed_at
+                                                        total_price
+                                                        order_status {
+                                                            id
+                                                            status
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+const LOAD_CASH_TRANSFERS = gql`
+    query getCashTransfers($staffId: ID!) {
+        cash_transfers_to_adminCollection(
+            filter: { by: { eq: $staffId } }
+            orderBy: { created_at: DescNullsLast }
+        ) {
+            edges {
+                node {
+                    id
+                    amount
+                    note
+                    created_at
+                    cash_transfer_status {
+                        id
+                        status
+                    }
+                }
+            }
+        }
+    }
+`;
+
+const NEW_MONEY_TRANSFER = gql`
+    mutation addMoneyTransfer($staffId: ID!, $amount: Float!, $note: String) {
+        insertIntocash_transfers_to_adminCollection(
+            objects: {
+                by: $staffId
+                amount: $amount
+                note: $note
+            }
+        ) {
+            records {
+                id
+                amount
+                note
+                created_at
+                cash_transfer_status {
+                    id
+                    status
+                }
+            }
+        }
+    }
+`;
+
+const CANCEL_TRANSFER = gql`
+    mutation cancelTransfer($transferId: ID!) {
+        deleteFromcash_transfers_to_adminCollection(
+            filter: { id: { eq: $transferId } }
+            atMost: 1
+        ) {
+            records {
+                id
+            }
+        }
+    }
+`;
+
 function CashTransferToAdmin() {
-    
-    const [transfers, setTransfers] = useState(mockTransfers);
+    const { staff } = useAuth();
+
+    const [transfers, setTransfers] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [filterStatus, setFilterStatus] = useState("All");
     const [submitting, setSubmitting] = useState(false);
+    const [cancellingId, setCancellingId] = useState(null);
     const [form] = Form.useForm();
 
+    // ── Load Orders ──
+    const [loadOrders, { data: orderData, loading: ordersLoading }] =
+        useLazyQuery(LOAD_NOT_COMPLETED_ORDERS, {
+            fetchPolicy: "network-only",
+        });
+
+    // ── Load Cash Transfers ──
+    const [
+        loadTransfers,
+        { data: transferData, loading: transfersLoading, error: transferError },
+    ] = useLazyQuery(LOAD_CASH_TRANSFERS, {
+        fetchPolicy: "network-only",
+        onCompleted: (data) => {
+            mapAndSetTransfers(data);
+        },
+        onError: (err) => {
+            console.error("❌ Transfer query error:", err);
+            message.error("Failed to load transfers: " + err.message);
+        },
+    });
+
+    // ── Add Transfer Mutation ──
+    const [addMoneyTransfer] = useMutation(NEW_MONEY_TRANSFER);
+
+    // ── Cancel Transfer Mutation ──
+    const [cancelTransfer] = useMutation(CANCEL_TRANSFER, {
+        onCompleted: () => {
+            message.success("Transfer cancelled successfully.");
+            // ── Reload transfers after cancel ──
+            if (staff?.id) {
+                loadTransfers({ variables: { staffId: staff.id } });
+            }
+        },
+        onError: (err) => {
+            console.error("❌ Cancel mutation error:", err);
+            message.error("Failed to cancel transfer: " + err.message);
+        },
+    });
+
+    // ── Helper: map raw GQL data → table rows ──
+    const mapAndSetTransfers = (data) => {
+        const edges = data?.cash_transfers_to_adminCollection?.edges;
+
+        if (!edges) {
+            console.warn("⚠️ No edges found in transfer data:", data);
+            return;
+        }
+
+        const mapped = edges.map(({ node }) => ({
+            key: node.id,
+            id: node.id,
+            amount: node.amount ?? 0,
+            date: node.created_at
+                ? dayjs(node.created_at).format("YYYY-MM-DD")
+                : "—",
+            note: node.note ?? "—",
+            status: node.cash_transfer_status?.status ?? "Pending",
+        }));
+
+        setTransfers(mapped);
+    };
+
+    // ── Initial Data Load ──
+    useEffect(() => {
+        if (staff?.branch?.id) {
+            loadOrders({ variables: { branchId: staff.branch.id } });
+        }
+    }, [loadOrders, staff?.branch?.id]);
+
+    useEffect(() => {
+        if (staff?.id) {
+            loadTransfers({ variables: { staffId: staff.id } });
+        }
+    }, [loadTransfers, staff?.id]);
+
+    // ── Fallback: handle transferData change ──
+    useEffect(() => {
+        if (transferData) {
+            mapAndSetTransfers(transferData);
+        }
+    }, [transferData]);
+
+    // ── Flatten Orders ──
+    const orders = useMemo(() => {
+        if (!orderData?.customerCollection?.edges) return [];
+        const result = [];
+        orderData.customerCollection.edges.forEach(({ node: customer }) => {
+            customer.customer_has_branchCollection?.edges?.forEach(
+                ({ node: branch }) => {
+                    branch.clinic_attend_customerCollection?.edges?.forEach(
+                        ({ node: clinicAttend }) => {
+                            clinicAttend.orderCollection?.edges?.forEach(
+                                ({ node: orderNode }) => {
+                                    result.push({
+                                        amount: orderNode.total_price ?? 0,
+                                        status: orderNode.order_status?.status ?? "Unknown",
+                                    });
+                                }
+                            );
+                        }
+                    );
+                }
+            );
+        });
+        return result;
+    }, [orderData]);
+
+    // ── Cash on Hand ──
+    const cashOnHand = useMemo(() => {
+        return orders
+            .filter(
+                (o) =>
+                    o.status.toLowerCase() === "active" ||
+                    o.status.toLowerCase() === "completed"
+            )
+            .reduce((sum, o) => sum + o.amount, 0);
+    }, [orders]);
+
+    // ── Refresh All Data ──
+    const refreshData = () => {
+        if (staff?.branch?.id) {
+            loadOrders({ variables: { branchId: staff.branch.id } });
+        }
+        if (staff?.id) {
+            loadTransfers({ variables: { staffId: staff.id } });
+        }
+    };
+
+    // ── Format Currency ──
     const formatCurrency = (value) =>
         new Intl.NumberFormat("en-LK", {
             style: "currency",
@@ -80,20 +298,26 @@ function CashTransferToAdmin() {
             maximumFractionDigits: 0,
         }).format(value);
 
-    // ── Summary values ──
+    // ── Transfer Totals ──
     const totalPending = transfers
         .filter((t) => t.status === "Pending")
-        .reduce((s, t) => s + t.amount, 0);
-
-    const totalAccepted = transfers
-        .filter((t) => t.status === "Accepted")
         .reduce((s, t) => s + t.amount, 0);
 
     const totalRejected = transfers
         .filter((t) => t.status === "Rejected")
         .reduce((s, t) => s + t.amount, 0);
 
+    // ── Stat Cards ──
     const statCards = [
+        {
+            title: "Cash on Hand",
+            value: ordersLoading ? "Loading..." : formatCurrency(cashOnHand),
+            accent: "#1677ff",
+            subtitle: "From active & completed orders",
+            customIcon: (
+                <DollarOutlined style={{ color: "#1677ff", fontSize: 22 }} />
+            ),
+        },
         {
             title: "Pending Transfers",
             value: formatCurrency(totalPending),
@@ -101,15 +325,6 @@ function CashTransferToAdmin() {
             subtitle: "Awaiting admin acceptance",
             customIcon: (
                 <ClockCircleOutlined style={{ color: "#faad14", fontSize: 22 }} />
-            ),
-        },
-        {
-            title: "Accepted Transfers",
-            value: formatCurrency(totalAccepted),
-            accent: "#52c41a",
-            subtitle: "No longer your responsibility",
-            customIcon: (
-                <CheckCircleOutlined style={{ color: "#52c41a", fontSize: 22 }} />
             ),
         },
         {
@@ -123,28 +338,30 @@ function CashTransferToAdmin() {
         },
     ];
 
-    // ── Filtered table data ──
+    // ── Filtered Table Data ──
     const filteredTransfers = useMemo(() => {
         if (filterStatus === "All") return transfers;
         return transfers.filter((t) => t.status === filterStatus);
     }, [filterStatus, transfers]);
 
-    // ── Submit new transfer ──
-    const handleSubmit = (values) => {
+    // ── Submit New Transfer ──
+    const handleSubmit = async (values) => {
         setSubmitting(true);
-        setTimeout(() => {
-            const newTransfer = {
-                key: String(transfers.length + 1),
-                id: `TRF${String(transfers.length + 1).padStart(3, "0")}`,
-                amount: values.amount,
-                date: values.date.format("YYYY-MM-DD"),
-                status: "Pending",
-                note: values.note || "—",
-            };
-            setTransfers([newTransfer, ...transfers]);
-            form.resetFields();
+        try {
+            await addMoneyTransfer({
+                variables: {
+                    staffId: staff.id,
+                    amount: values.amount,
+                    note: values.note || "",
+                },
+            });
+
+            // ── Close modal and reset form ──
             setShowModal(false);
-            setSubmitting(false);
+            form.resetFields();
+
+            // ── Reload transfers ──
+            await loadTransfers({ variables: { staffId: staff.id } });
 
             Modal.success({
                 title: "Transfer Submitted!",
@@ -176,27 +393,51 @@ function CashTransferToAdmin() {
                     style: { background: "#1677ff", borderColor: "#1677ff" },
                 },
             });
-        }, 1200);
+        } catch (error) {
+            console.error("❌ Error submitting transfer:", error);
+            message.error("Failed to submit transfer: " + error.message);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
-    // ── Cancel pending transfer ──
+    // ── Cancel Pending Transfer (calls GraphQL mutation) ──
     const handleCancel = (record) => {
         Modal.confirm({
             title: "Cancel Transfer?",
             icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
-            content: `Are you sure you want to cancel transfer #${record.id}?`,
-            okText: "Yes, Cancel",
-            cancelText: "No",
-            okButtonProps: {
-                danger: true,
-            },
-            onOk: () => {
-                setTransfers(transfers.filter((t) => t.key !== record.key));
+            content: (
+                <div>
+                    <p>Are you sure you want to cancel transfer <strong>#{record.id}</strong>?</p>
+                    <p style={{ color: "#8c8c8c", fontSize: 12 }}>
+                        Amount: {formatCurrency(record.amount)}
+                    </p>
+                    <p style={{ color: "#ff4d4f", fontSize: 12 }}>
+                        ⚠ This action cannot be undone.
+                    </p>
+                </div>
+            ),
+            okText: "Yes, Cancel Transfer",
+            cancelText: "No, Keep It",
+            okButtonProps: { danger: true },
+            // ── Call the GraphQL mutation on confirm ──
+            onOk: async () => {
+                setCancellingId(record.id);
+                try {
+                    await cancelTransfer({
+                        variables: { transferId: record.id },
+                    });
+                } catch (err) {
+                    // error handled in onError above
+                    console.log("❌ Cancel transfer error:", err);
+                } finally {
+                    setCancellingId(null);
+                }
             },
         });
     };
 
-    // ── Table columns ──
+    // ── Table Columns ──
     const columns = [
         {
             title: "Transfer ID",
@@ -270,11 +511,12 @@ function CashTransferToAdmin() {
             title: "Action",
             key: "action",
             render: (_, record) => {
-                if (record.status === "Pending") {
+                if (record.status.toLowerCase() === "pending") {
                     return (
                         <Button
                             size="small"
                             danger
+                            loading={cancellingId === record.id}
                             onClick={() => handleCancel(record)}
                             style={{
                                 background: "#fff1f0",
@@ -300,7 +542,7 @@ function CashTransferToAdmin() {
             {/* ── Stat Cards ── */}
             <Row gutter={[16, 16]}>
                 {statCards.map((item) => (
-                    <Col xs={24} sm={12} xl={8} key={item.title}>
+                    <Col xs={24} sm={12} xl={6} key={item.title}>
                         <Card
                             bordered={false}
                             style={{
@@ -374,6 +616,7 @@ function CashTransferToAdmin() {
                             <Space>
                                 <DollarOutlined style={{ color: "#1677ff" }} />
                                 <span>Cash Transfer History</span>
+                                <Tag color="blue">{transfers.length} records</Tag>
                             </Space>
                         }
                         bordered={false}
@@ -383,7 +626,6 @@ function CashTransferToAdmin() {
                         }}
                         extra={
                             <Space wrap>
-                                {/* Filter buttons */}
                                 {["All", "Pending", "Accepted", "Rejected"].map((status) => (
                                     <Button
                                         key={status}
@@ -391,7 +633,10 @@ function CashTransferToAdmin() {
                                         type={filterStatus === status ? "primary" : "default"}
                                         style={
                                             filterStatus === status
-                                                ? { background: "#1677ff", borderColor: "#1677ff" }
+                                                ? {
+                                                    background: "#1677ff",
+                                                    borderColor: "#1677ff",
+                                                }
                                                 : {}
                                         }
                                         onClick={() => setFilterStatus(status)}
@@ -399,8 +644,14 @@ function CashTransferToAdmin() {
                                         {status}
                                     </Button>
                                 ))}
-
-                                {/* New Transfer button */}
+                                <Button
+                                    size="small"
+                                    icon={<ReloadOutlined />}
+                                    onClick={refreshData}
+                                    loading={transfersLoading}
+                                >
+                                    Refresh
+                                </Button>
                                 <Button
                                     type="primary"
                                     icon={<SendOutlined />}
@@ -416,7 +667,7 @@ function CashTransferToAdmin() {
                             </Space>
                         }
                     >
-                        {/* Responsibility notice */}
+                        {/* ── Responsibility Notice ── */}
                         <div
                             style={{
                                 background: "#fffbe6",
@@ -438,12 +689,37 @@ function CashTransferToAdmin() {
                             </Text>
                         </div>
 
+                        {/* ── Error State ── */}
+                        {transferError && (
+                            <div
+                                style={{
+                                    background: "#fff2f0",
+                                    border: "1px solid #ffccc7",
+                                    borderRadius: 8,
+                                    padding: "8px 14px",
+                                    marginBottom: 16,
+                                    color: "#ff4d4f",
+                                    fontSize: 12,
+                                }}
+                            >
+                                ❌ Error loading transfers: {transferError.message}
+                            </div>
+                        )}
+
                         <Table
                             dataSource={filteredTransfers}
                             columns={columns}
+                            loading={transfersLoading}
                             pagination={{ pageSize: 5, size: "small" }}
                             size="middle"
                             scroll={{ x: 900 }}
+                            locale={{
+                                emptyText: transfersLoading
+                                    ? "Loading..."
+                                    : transferError
+                                        ? "Failed to load data"
+                                        : "No transfers found",
+                            }}
                         />
                     </Card>
                 </Col>
@@ -467,7 +743,6 @@ function CashTransferToAdmin() {
                 centered
                 destroyOnClose
             >
-                {/* Warning inside modal */}
                 <div
                     style={{
                         background: "#fffbe6",
@@ -490,7 +765,6 @@ function CashTransferToAdmin() {
                 </div>
 
                 <Form form={form} layout="vertical" onFinish={handleSubmit}>
-                    {/* Amount */}
                     <Form.Item
                         label="Transfer Amount (LKR)"
                         name="amount"
@@ -515,7 +789,6 @@ function CashTransferToAdmin() {
                         />
                     </Form.Item>
 
-                    {/* Date */}
                     <Form.Item
                         label="Transfer Date"
                         name="date"
@@ -528,7 +801,6 @@ function CashTransferToAdmin() {
                         />
                     </Form.Item>
 
-                    {/* Note */}
                     <Form.Item
                         label={
                             <span>
@@ -554,7 +826,6 @@ function CashTransferToAdmin() {
                         />
                     </Form.Item>
 
-                    {/* Footer buttons */}
                     <Form.Item style={{ marginBottom: 0 }}>
                         <Space style={{ width: "100%", justifyContent: "flex-end" }}>
                             <Button
