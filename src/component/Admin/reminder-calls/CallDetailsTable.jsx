@@ -54,7 +54,7 @@ const columns = [
                     value="answer"
                     label={
                         <>
-                            <CheckCircleOutlined style={{ color: "green", marginRight: 6 }} />Answer
+                            <CheckCircleOutlined style={{ color: "green", marginRight: 6 }}  />Answer
                          </>
                     }
                 >

@@ -127,6 +127,7 @@ const UPDATE_PETTY_CASH = gql`
     //selected record for editing
     const [editingTransaction, setEditingTransaction] = useState(null);
 
+    //prevents unnecessary recalculations.
     const totals = useMemo(() => {
         const totalExpenses = pettyCashList
             .filter((item) => item.type === "Expense")
@@ -173,15 +174,15 @@ const UPDATE_PETTY_CASH = gql`
         try{
             //INSERT NEW RECORD
              if(!editingTransaction){
-                await insertPettyCash({         //sends mutation to database to insert new record
+                await insertPettyCash({         //sends mutation  to database to insert new record
                     variables: {
                         type: values.type,
                         amount: Number(values.amount),
                         description: values.description,
                         date: formattedDate,
                         category: values.category,
-                        received_by: staffID, // Placeholder value, replace with actual user ID
-                        branch_id: branchID, // Placeholder value, replace with actual branch ID
+                        received_by: staffID, 
+                        branch_id: branchID, 
                     },
                 });
                 await refetch();

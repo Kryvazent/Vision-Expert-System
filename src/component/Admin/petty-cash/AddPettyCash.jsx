@@ -27,9 +27,8 @@ const CATEGORY_OPTIONS = {
     'Other',
   ],
   Replenishment: [
-    'Cash Top-Up',
     'Bank Withdrawal',
-    'Manager Deposit',
+    'Owner Deposit',
     'Other',
   ],
 };
@@ -49,6 +48,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
                 date: initialValues.date ? null : null, 
                 category: initialValues.category || undefined,
                 description: initialValues.description || '',
+                received_by: initialValues.received_by || '',
                 amount: initialValues.amount || null,
             });
             //adding new data
@@ -60,6 +60,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
                 date: null,
                 category: undefined,
                 description: '',
+                received_by: '',
                 amount: null,
             });
         }
@@ -74,7 +75,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         const formattedDate = values.date?.format("YYYY-MM-DD");
 
         onSave({
-            ...values,      //send all form values to parent component and handle add/edit logic there
+            ...values,      //send all form values to parent component and handle add logic there
              date: formattedDate,
         }); 
      
@@ -140,6 +141,13 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         >
             <TextArea rows={3} placeholder='"Enter transaction descriptions...' maxLength={300} showCount />
         </Form.Item>
+        {/* <Form.Item
+            label={<span><span style={{ color: 'red' }}>* </span>Received By</span>}
+            name="received_by"
+            rules={[{ required: true, message: 'Please enter received by' }]}
+        >
+            <Input placeholder="Enter received by" />
+        </Form.Item> */}
         <Form.Item
             label={<span><span style={{ color: 'red' }}>* </span>Amount (LKR)</span>}
             name="amount"

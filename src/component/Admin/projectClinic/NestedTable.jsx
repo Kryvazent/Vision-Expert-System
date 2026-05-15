@@ -1,21 +1,10 @@
 import React from 'react';
-import { Table, Tag, Space, Button, message, Popconfirm } from 'antd';
+import { Table, Tag, Button, message,  } from 'antd';
 import {icons} from '../../../assets/icons/AdminIcons';
 import { DeleteOutlined } from '@ant-design/icons';
 
 export default function NestedTable() {
         const [messageApi, holder] = message.useMessage();
-
-        const confirm = (e) => {
-            console.log(e);
-            messageApi.success('Clinic deleted successfully!');  
-        };
-
-        const cancel = (e) => {
-            console.log(e);
-            messageApi.error('Deletion cancelled');
-        };
-
 
     const data = [
         {
@@ -101,33 +90,7 @@ export default function NestedTable() {
         {title : "Expected", dataIndex: 'expectedPatients'},
         {title : "Actual", dataIndex: 'actualPatients'},
         {title : "Status",  render: (_, row) => getStatusTag(row.status)},
-        // {title: "Actions", onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_) => (
-        //     <Space>
-        //         <Button type="primary" 
-        //             style={{
-        //                 background: "#ffffff",
-        //                 borderColor: "#ffffff",
-        //                 color: "#1a73e8",
-        //                 fontWeight: "500",
-        //                 borderRadius: "8px",
-        //                 padding: "5px 15px",
-        //      }}>
-        //         {icons.edit}
-        //         </Button>
-        //         <Popconfirm
-        //             title="Delete Clinic"
-        //             description="Are you sure you want to delete this clinic?"
-        //             onConfirm={confirm}
-        //             onCancel={cancel}
-        //             okText="Yes"
-        //             cancelText="No"
-        //         >
-        //             <Button danger>
-        //                 <DeleteOutlined />
-        //             </Button>
-        //         </Popconfirm>
-        //     </Space>
-        // )}
+       
     ];
 
     return (
@@ -147,21 +110,7 @@ const columns = [
     { title: 'Duration', dataIndex: 'duration', key: 'duration'},
     { title: 'Clinics', dataIndex: 'clinics', key: 'clinics',},
     { title: 'Status', dataIndex: 'status', key: 'status', render: (_, row) => getStatusTag(row.status) },
-    // { title: 'Actions', key: 'actions', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_) => (
-    //     <Space>
-    //         <Button type="primary" 
-    //          style={{
-    //           background: "#ffffff",
-    //           borderColor: "#ffffff",
-    //           color: "#1a73e8",
-    //           fontWeight: "500",
-    //           borderRadius: "8px",
-    //           padding: "5px 15px",
-    //         }}>
-    //             {icons.viewDetails}
-    //         </Button>
-    //     </Space>
-    // )},
+    
 ];
 
 return (

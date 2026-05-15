@@ -33,7 +33,10 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
       key: 'action',
       onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
       render: (_, record) => {
-        // Check if this product type is already reordered
+    
+        if (record.quantity >= 100) {
+          return null; // No action for items that are not low stock
+        }
         const alreadyOrdered = reOrderedTypeIds.has(String(record.productTypeId));
 
         return (

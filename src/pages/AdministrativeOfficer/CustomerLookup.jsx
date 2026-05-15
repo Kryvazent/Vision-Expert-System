@@ -14,6 +14,15 @@ export default function CustomerLookup() {
   const [searchValue, setSearchValue] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  const customerData = {
+    name: "John Doe",
+    nic: "200123456V",
+    mobile: "0771234567",
+    address: "Colombo, Sri Lanka",
+    registerDate: "2026-01-10",
+    customerId: "CUS001"
+  };
+
   const onSearch = (value) =>  {
     console.log('Search: ',value);
 };
@@ -37,13 +46,15 @@ export default function CustomerLookup() {
                     placeholder='e.g. OD1234 or VE-2024-001234' 
                     allowClear
                     prefix={icons.search}
+                    value={searchValue}
+                    onChange={(e) => setSearchValue(e.target.value)}
                     onPressEnter={(e) => onSearch(e.target.value)}
                   />
                   <Button type="primary" 
                     size='large' 
                     style={{padding: '0 28px'}} 
                     icon={icons.search}
-                    onClick={() => onSearch()}
+                    onClick={() => onSearch(searchValue)}
                   > 
                     Search 
                   </Button>

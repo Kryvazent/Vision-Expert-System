@@ -5,13 +5,10 @@ import { Typography, Col, Button, Card } from 'antd';
 import {icons} from '../../assets/icons/AdminIcons';
 import StatCard from '../../component/Admin/StatCard';
 import NestedTable from '../../component/Admin/projectClinic/NestedTable';
-import AddNewClinic from '../../component/Admin/projectClinic/AddNewClinic';
 const { Title, Text } = Typography;
 
 
 export default function ProjectClinic() {
-
-    const [isModalOpen, setIsModalOpen] = React.useState(false);
 
   return (
     <Layout>
@@ -33,31 +30,6 @@ export default function ProjectClinic() {
                         Manage clinics for projects assigned to Kadawatha Branch
                     </Text>
                 </Col>
-
-                {/* RIGHT SIDE */}
-                <Col>
-                    {/* <Button icon={icons.addButton } type='primary' onClick={() => {console.log("Clicked");
-                    setIsModalOpen(true)}}
-                        style={{
-                            background: "#e6f0ff",
-                            borderColor: "#b3d1ff",
-                            color: "#1a73e8",
-                            fontWeight: "500",
-                            borderRadius: "8px",
-                            padding: "5px 15px",
-                        }}>
-                        Add Clinic
-                    </Button>
-                    <AddNewClinic 
-                        open={isModalOpen} 
-                        onClose={() => setIsModalOpen(false)} 
-                        onSubmit={(data) => {
-                            handleAddClinic(data);
-                            console.log("new Clinic", data);
-                            setIsModalOpen(false)
-                            }} /> */}
-                    
-                </Col>
             </Row>
         </div>
 
@@ -73,9 +45,7 @@ export default function ProjectClinic() {
  
                 {/* NESTED TABLE */}
                 <NestedTable />
-
             </Card>
-
         </div>
      </Content>
     </Layout>

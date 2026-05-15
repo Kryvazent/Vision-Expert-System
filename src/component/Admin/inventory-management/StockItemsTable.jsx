@@ -16,20 +16,20 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
   const [damagedQty, setDamagedQty] = useState(0);
   const [damagedReason, setDamagedReason] = useState('');
 
-  // ─── Set active tab once productTypeList loads 
+  //  Set active tab once productTypeList loads 
   React.useEffect(() => {
     if (productTypeList.length > 0 && !activeTab) {
       setActiveTab(productTypeList[0].type); // default to first tab from DB
     }
   }, [productTypeList]);
 
-  // ─── Build tabs dynamically from DB product types 
+  // Build tabs dynamically from DB product types 
   const tabItems = productTypeList.map((pt) => ({
     label: pt.type,   // Display name from DB e.g. "PlasticFrame"
     key: pt.type,     // Key matches category in data
   }));
 
-  // ─── Handle Edit Submit
+  // Handle Edit Submit
   const handleEditPopup = async () => {
     try {
       const newQty = selectedItem.stockQuantity + updateQty;
@@ -46,7 +46,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       message.success("Stock Updated!");
       setIsEditOpen(false);
       setUpdateQty(0);
-      onRefetch && onRefetch();
+      onRefetch && onRefetch(); //single call updates all tables with new data
     } catch (err) {
       message.error('Update failed!');
     }
@@ -67,7 +67,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       return;
     }
     try {
-      // ─── Step 1: Insert damage record 
+      //  Insert damaged record for owner approval 
       await insertDamageStock({
         variables: {
           stock_id: selectedItem.id,
@@ -76,7 +76,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
         }
       });
 
-      // ─── Step 2: Update stock quantity (deduct damaged quantity) 
+      //  Step 2: Update stock quantity (reduced damaged quantity) 
       const newQuantity = selectedItem.stockQuantity - damagedQty;
       await updateStock({
         variables: {
@@ -89,7 +89,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
       setIsDamagedOpen(false);
       setDamagedQty(0);
       setDamagedReason('');
-      onRefetch && onRefetch();  // ← Refresh all tables with new data
+      onRefetch && onRefetch();  //  Refresh all tables with new data
 
     } catch (err) {
       message.error("Submission failed!");
@@ -167,7 +167,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
         let color = 'green';
         if (qty === 0) {
           color = '#d20d0dc5';
-        } else if (qty <= 10) {
+        } else if (qty <= 100) {
           color = 'orange';
         }
         return <Tag color={color} style={{ fontWeight: 'bold' }}>{qty} units</Tag>;
@@ -185,7 +185,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
     },
   ];
 
-  // ─── Filter data by active tab 
+  //  Filter data by active tab 
   const filteredData = data.filter((item) => item.category === activeTab);
 
   return (

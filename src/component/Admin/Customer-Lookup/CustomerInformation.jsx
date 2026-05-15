@@ -5,6 +5,11 @@ import { Card, Row, Col, Typography, Descriptions } from 'antd'
 const {Text} = Typography;
 
 export default function CustomerInformation({customer}) {
+
+  if ( !customer ) {
+    return <p>No customer data available</p>
+  }
+
   return (
     <Card style = {{borderRadius: "12px", background: "#f9fafb", border:  "1px solid #e5e7eb"}}>
       {/*Header*/}
@@ -19,27 +24,27 @@ export default function CustomerInformation({customer}) {
       {/* Descriptions */}
     <Descriptions>
       <Descriptions.Item label="Full Name">
-        <strong>{customer.name}</strong>
+        <strong>{customer?.name}</strong>
       </Descriptions.Item>
 
       <Descriptions.Item label="NIC">
-        {customer.nic}
+        {customer?.nic}
       </Descriptions.Item>
 
       <Descriptions.Item label="Mobile">
-        {customer.mobile}
+        {customer?.mobile}
       </Descriptions.Item>
 
       <Descriptions.Item label="Address" span={2}>
-        {customer.address}
+        {customer?.address}
       </Descriptions.Item>
 
       <Descriptions.Item label="Registered Data">
-        {customer.registerDate}
+        {customer?.registerDate}
       </Descriptions.Item>
 
       <Descriptions.Item label="Customer ID" span={2}>
-        {customer.customerId}
+        {customer?.customerId}
       </Descriptions.Item>
   </Descriptions>  
 

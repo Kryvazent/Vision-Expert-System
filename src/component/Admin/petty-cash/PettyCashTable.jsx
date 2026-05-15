@@ -58,34 +58,14 @@ export default function PettyCashTable({transactions = [] , onEdit, onDelete}) {
             render: (cat) => <Tag>{cat}</Tag>,
 },
         {title: "Description",dataIndex: "description",},
+       
         {
             title: "Amount",
             dataIndex: "amount",
             align: 'right',
             render: (amount) => Number(amount).toLocaleString(),
         },
-        {
-            title: 'Actions',
-            width: 130,
-            render: (_, record) => (
-                <Space>
-                    <Button 
-                        type='text'
-                        icon={<EditOutlined style={{ color: '#1677ff' }} />}
-                        onClick={() => onEdit(record)}
-                    />
-                    <Popconfirm 
-                        title="Delete Transaction"
-                        description="Are you sure you want to delete this transaction?"
-                        onConfirm={() => onDelete(record.id)}
-                        okText="Yes"
-                        cancelText="No"
-                    >
-                        <Button type='text' danger icon={<DeleteOutlined />}/>
-                    </Popconfirm>
-                </Space>
-            )
-        }
+       
     ];
 
   return (
