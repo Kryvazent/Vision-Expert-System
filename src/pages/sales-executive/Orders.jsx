@@ -113,7 +113,7 @@ function Orders() {
                                                         node {
                                                             id
                                                             placed_at
-                                                            total_payment
+                                                            total_price
                                                             order_status {
                                                                 id
                                                                 status
@@ -192,7 +192,7 @@ function Orders() {
                             orderId: order.id,
                             customerName: customerName,
                             mobile: mobile,
-                            totalPayment: order?.total_payment || '-',
+                            totalPayment: order?.total_price || '-',
                             orderDate: order.placed_at
                                 ? new Date(order.placed_at).toLocaleDateString()
                                 : clinicDate,

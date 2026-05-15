@@ -30,6 +30,7 @@ function NewOrder() {
     const [remarks, setRemarks] = useState("");
     const [warrantyMonths, setWarrantyMonths] = useState(0);
     const [clinicAttendCustomerId, setClinicAttendCustomerId] = useState(null);
+    const [discount, setDiscount] = useState(0);
 
     const { staff } = useAuth();
 
@@ -47,45 +48,47 @@ function NewOrder() {
             }
         }
   `;
-
     const [addWarranty, { data: warrantyData, error: warrantyError }] = useMutation(ADD_WARRANTY);
+
+    // payment
+    const ADD_PAYMENT = gql`
+    
+        mutation addPayment($totalPayment: Float!, $remarks: String!, $orderId: ID!, $discount: Float!,$additionalFee: Float!,$advance: Float!){
+            insertIntopaymentCollection(
+                objects:{
+                    total_payment: $totalPayment,
+                    remarks: $remarks,
+                    order_id: $orderId,
+                    discount: $discount,
+                    additional_fee: $additionalFee,
+                    advance: $advance
+                }
+            ){
+                records{
+                    id
+                }
+            }
+        }
+    `;
+    const [addPayment, { data: paymentData, error: paymentError }] = useMutation(ADD_PAYMENT);
 
     // order submit
     const CREATE_ORDER = gql`
         mutation createOrder(
-            $agraharaApplied: Boolean,$advancePayment: Float!,$prescriptionId: ID!,
-            $remarks: String!,$warrantyId: Int!,$totalPayment:Float!,$additionalPrice: Float!,$clinicAttendCustomerId:ID!
+            $agraharaApplied: Boolean,$prescriptionId: ID!,
+            $remarks: String!,$warrantyId: Int!,$clinicAttendCustomerId:ID!,$frameId: ID!,$lenseTypeId: ID!, $frameTypeId: ID!,$totalPrice: Float!
         ){
             insertIntoorderCollection(
                 objects:{
                     agrahara_applied: $agraharaApplied,
-                    advance: $advancePayment,
                     remarks: $remarks,
                     clinic_attend_customer_id: $clinicAttendCustomerId,
                     warranty_id: $warrantyId,
-                    total_payment: $totalPayment,
-                    additional_fee: $additionalPrice,
-                    prescription_id: $prescriptionId
-                }
-            ){
-                records{
-                    id
-                }
-            }
-        }
-  `;
-
-    const [createOrder, { data: orderData, error: orderError }] = useMutation(CREATE_ORDER);
-
-    // add order items
-    const ADD_ORDER_ITEMS = gql`
-        mutation addOrderItems($orderId: ID!,$frameId: ID!,$lenseTypeId: ID!, $frameTypeId: ID!){
-            insertIntoorder_itemCollection(
-                objects:{
-                    order_id: $orderId,
+                    prescription_id: $prescriptionId,
                     lens_type_id: $lenseTypeId,
                     frame_type_id: $frameTypeId,
-                    frame_id: $frameId
+                    frame_id: $frameId,
+                    total_price:$totalPrice
                 }
             ){
                 records{
@@ -94,8 +97,8 @@ function NewOrder() {
             }
         }
   `;
+    const [createOrder, { data: orderData, error: orderError }] = useMutation(CREATE_ORDER);
 
-    const [addOrderItems, { data: orderItemsData, error: orderItemsError }] = useMutation(ADD_ORDER_ITEMS);
 
     const handleOrderSubmit = async () => {
         if (
@@ -112,7 +115,6 @@ function NewOrder() {
             selectedLenseTypePrice > 0 &&
             additionalPrice >= 0
         ) {
-            console.log("clinicAttendCustomerId ", clinicAttendCustomerId);
             try {
                 // 1. Add warranty
                 const warrantyResult = await addWarranty({
@@ -125,26 +127,30 @@ function NewOrder() {
                 const orderResult = await createOrder({
                     variables: {
                         agraharaApplied: false,
-                        advancePayment: advancePayment,
                         remarks: remarks,
                         warrantyId: warrantyId,
-                        totalPayment: totalPayment,
-                        additionalPrice: additionalPrice,
                         clinicAttendCustomerId: clinicAttendCustomerId,
+                        totalPrice: totalPayment,
                         prescriptionId: selectedPrescriptionId,
+                        frameId: selectedFrameId,
+                        lenseTypeId: selectedLenseTypeId,
+                        frameTypeId: selectedFrameTypeId
                     }
                 });
                 const orderId = orderResult.data.insertIntoorderCollection.records[0].id;
 
-                // 3. Add order items
-                await addOrderItems({
+                // 3. Add payment
+                await addPayment({
                     variables: {
-                        orderId,
-                        frameId: selectedFrameId,
-                        lenseTypeId: selectedLenseTypeId,
-                        frameTypeId: selectedFrameTypeId,
+                        totalPayment: totalPayment,
+                        remarks: remarks,
+                        orderId: orderId,
+                        discount: discount,
+                        additionalFee: additionalPrice,
+                        advance: advancePayment
                     }
-                });
+                })
+                
 
                 alert("Order submitted successfully!");
 
