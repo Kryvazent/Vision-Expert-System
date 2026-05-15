@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Col, Collapse, Input, Radio, Row, Select, Steps, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DigitalSignature from "../../component/sales-executive/new-order/DigitalSignature";
 import Fingerprint from "../../component/sales-executive/new-order/Fingerprint";
 import ExistingPatientSearch from "../../component/optimetrist/new-prescription/ExistingPatientSearch";
@@ -14,9 +14,9 @@ function NewOrder() {
     const [position, setPosition] = useState("start");
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [selectedPrescription, setSelectedPrescription] = useState(null);
-    const [selectedFrameType, setSelectedFrameType] = useState(null);
-    const [selectedFrame, setSelectedFrame] = useState(null);
-    const [selectedLenseType, setSelectedLenseType] = useState(null);
+    const [selectedFrameTypeId, setSelectedFrameTypeId] = useState(null);
+    const [selectedFrameId, setSelectedFrameId] = useState(null);
+    const [selectedLenseTypeId, setSelectedLenseTypeId] = useState(null);
 
     const [selectedClinic, setSelectedClinic] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
@@ -45,6 +45,9 @@ function NewOrder() {
     const [getLenseType, { data: lenseTypeData, error: lenseTypeError }] = useLazyQuery(GET_LENSE_TYPE);
 
     console.log("Lense Types: ", lenseTypeData?.lense_typeCollection?.edges?.map(e => e.node) || [], lenseTypeError);
+    const lenseTypes = useMemo(() => {
+        return lenseTypeData?.lense_typeCollection?.edges?.map(e => e.node) || []
+    }, [lenseTypeData]);
 
     // frames
     const GET_FRAMES = gql`
@@ -64,6 +67,15 @@ function NewOrder() {
     const [getFrames, { data: framesData, error: framesError }] = useLazyQuery(GET_FRAMES);
 
     console.log("Frames: ", framesData?.frameCollection?.edges?.map(e => e.node) || [], framesError);
+    const frames = useMemo(() => {
+        return framesData?.frameCollection?.edges?.map(e => e.node) || []
+    }, [framesData]);
+
+    useEffect(() => {
+        if (selectedFrameTypeId) {
+            getFrames({ variables: { frameTypeId: selectedFrameTypeId } });
+        }
+    }, [selectedFrameTypeId, getFrames]);
 
     // frame types
     const GET_FRAME_TYPES = gql`
@@ -83,6 +95,9 @@ function NewOrder() {
 
 
     console.log("Frame Types: ", frameTypesData?.frame_typeCollection?.edges?.map(e => e.node) || [], frameTypesError);
+    const frameTypes = useMemo(() => {
+        return frameTypesData?.frame_typeCollection?.edges?.map(e => e.node) || []
+    }, [frameTypesData]);
 
 
     // prescription
@@ -179,7 +194,7 @@ function NewOrder() {
         }
 
         if (current == 2) {
-            if (selectedFrameType != null && selectedFrame != null && selectedLenseType != null) {
+            if (selectedFrameTypeId != null && selectedFrameId != null && selectedLenseTypeId != null) {
                 moveToNext = true;
             }
         }
@@ -276,11 +291,13 @@ function NewOrder() {
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
                                     placeholder="Select Frame Type"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
+                                    options={frameTypes.map(ft => ({
+                                        value: ft.id,
+                                        label: ft.type,
+                                    }))}
+                                    onSelect={(value) => {
+                                        setSelectedFrameTypeId(value);
+                                    }}
                                 />
                             </Col>
 
@@ -288,17 +305,20 @@ function NewOrder() {
 
                                 <p className="font-semibold">Select Frame</p>
                                 <Select
+                                    disabled={selectedFrameTypeId == null}
                                     className="w-full"
                                     showSearch={{
                                         filterOption: (input, option) =>
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
                                     placeholder="Search Frame"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
+                                    options={frames.map(f => ({
+                                        value: f.id,
+                                        label: `Serial No: ${f.serial_no} - Color: ${f.color}`,
+                                    }))}
+                                    onSelect={(value)=>{
+                                        setSelectedFrameId(value)
+                                    }}
                                 />
                             </Col>
                         </Row>
@@ -314,11 +334,14 @@ function NewOrder() {
                                             (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
                                     }}
                                     placeholder="Select Lense Type"
-                                    options={[
-                                        { value: '1', label: 'Jack' },
-                                        { value: '2', label: 'Lucy' },
-                                        { value: '3', label: 'Tom' },
-                                    ]}
+                                    options={lenseTypes.map(lt => ({
+                                        value: lt.id,
+                                        label: lt.type,
+                                    }))}
+                                    onSelect={(value)=>{
+                                        console.log("selected lense type",value);
+                                        setSelectedLenseTypeId(value);
+                                    }}
                                 />
                             </Col>
                         </Row>
