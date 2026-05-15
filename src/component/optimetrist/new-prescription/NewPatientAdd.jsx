@@ -83,7 +83,7 @@ function NewPatientAdd({ onPatientAdd }) {
             });
 
             const existingPatient = queryResult?.customerCollection?.edges?.[0]?.node;
-            //console.log("Query Result for NIC check:", existingPatient);
+            console.log("Query Result for NIC check:", existingPatient);
 
             if (existingPatient) {
                 alert("A patient with this NIC already exists.");
@@ -121,9 +121,9 @@ function NewPatientAdd({ onPatientAdd }) {
         <>
             <Row className="gap-3">
                 <Col span={10}>
-                    <p className="font-semibold">Patient Name</p>
+                    <p className="font-semibold">Patient First Name</p>
                     <Input
-                        placeholder="Patient Name"
+                        placeholder="Patient First Name"
                         value={patientDetails.firstName}
                         onChange={(e) =>
                             setPatientDetails({ ...patientDetails, firstName: e.target.value })
@@ -131,6 +131,16 @@ function NewPatientAdd({ onPatientAdd }) {
                     />
                 </Col>
                 <Col span={10}>
+                    <p className="font-semibold">Patient Last Name</p>
+                    <Input
+                        placeholder="Patient Last Name"
+                        value={patientDetails.lastName}
+                        onChange={(e) =>
+                            setPatientDetails({ ...patientDetails, lastName: e.target.value })
+                        }
+                    />
+                </Col>
+                <Col span={21}>
                     <p className="font-semibold">Date of Birth</p>
                     <Input
                         type={"date"}

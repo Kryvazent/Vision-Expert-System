@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Col, Collapse, Input, Radio, Row, Select, Steps, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import DigitalSignature from "../../component/sales-executive/new-order/DigitalSignature";
 import Fingerprint from "../../component/sales-executive/new-order/Fingerprint";
 import ExistingPatientSearch from "../../component/optimetrist/new-prescription/ExistingPatientSearch";
@@ -121,6 +121,7 @@ function NewOrder() {
     `;
     const [getPrescriptions, { data: prescriptionsData, error: prescriptionsError }] = useLazyQuery(GET_PRESCRIPTIONS);
 
+    console.log("prescription data: ", prescriptionsData);
     console.log("prescriptionsError: ", prescriptionsError);
 
     const prescriptions = useMemo(() => {
@@ -146,16 +147,21 @@ function NewOrder() {
     }, [prescriptions])
 
 
-    const handleStepChange = () => {
+    const handleStepChange = async () => {
         let moveToNext = false;
 
         if (current == 0) {
             if (selectedProject != null && selectedClinic != null && selectedPatient != null) {
 
-                getPrescriptions({
+                console.log("Fetching prescriptions with variables: ", {
+                    customerId: selectedPatient.id,
+                    branchId: staff?.branch?.id,
+                    clinicId: selectedClinic,
+                });
+                await getPrescriptions({
                     variables: {
-                        customerId: selectedPatient?.value,
-                        branchId: staff?.branch_id,
+                        customerId: selectedPatient.id,
+                        branchId: staff?.branch?.id,
                         clinicId: selectedClinic,
                     }
                 });
@@ -166,8 +172,8 @@ function NewOrder() {
 
         if (current == 1) {
             if (selectedPrescription != null) {
-                getLenseType();
-                getFrameTypes();
+                await getLenseType();
+                await getFrameTypes();
                 moveToNext = true;
             }
         }

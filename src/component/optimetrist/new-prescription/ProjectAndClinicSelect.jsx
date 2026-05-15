@@ -26,7 +26,7 @@ const GET_PROJECT = gql`
         }
     `;
 
-function ProjectAndClinicSelect({ setSelectedClinic,selectedClinic, setSelectedProject,selectedProject, setIsDisabled }) {
+function ProjectAndClinicSelect({ setSelectedClinic, selectedClinic, setSelectedProject, selectedProject, setIsDisabled }) {
 
     const { staff } = useAuth();
     const [collapseKey, setCollapseKey] = useState(['1']);
@@ -49,13 +49,16 @@ function ProjectAndClinicSelect({ setSelectedClinic,selectedClinic, setSelectedP
     const needsProjectSelection = projectCount > 1 && !selectedProject;
     const needsClinicSelection = selectedProject && clinicCount > 1 && !selectedClinic;
 
-    const isDisabled = selectedProject != null && selectedClinic != null;
-    setIsDisabled(!isDisabled);
-
 
     const selectedProjectData = projectData?.projectCollection?.edges?.find(
         (edge) => edge.node.id === selectedProject
     );
+
+    const isDisabled = selectedProject != null && selectedClinic != null;
+
+    useEffect(() => {
+        setIsDisabled(!isDisabled);
+    }, [isDisabled, setIsDisabled]);
 
     useEffect(() => {
         const pCount = projectData?.projectCollection?.edges?.length || 0;
@@ -72,7 +75,7 @@ function ProjectAndClinicSelect({ setSelectedClinic,selectedClinic, setSelectedP
         }
 
         setCollapseKey(pCount === 1 && cCount === 1 ? [] : ['1']);
-    }, [projectData,setSelectedClinic,setSelectedProject]);
+    }, [projectData, setSelectedClinic, setSelectedProject]);
 
 
     useEffect(() => {

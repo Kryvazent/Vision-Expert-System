@@ -401,6 +401,8 @@ function PatientManagement() {
             return;
         }
 
+        console.log("Updating prescription with details:", prescriptionDetails);
+
         try {
             await updatePrescription({
                 variables: {

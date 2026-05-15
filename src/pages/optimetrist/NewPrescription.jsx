@@ -322,7 +322,7 @@ function NewPrescription() {
                                     type="primary"
                                     className="mt-5 w-full"
                                     onClick={handleAddPrescription}
-                                    disabled={!selectedPatient || !selectedProject || clinicCount === 0}
+                                    disabled={!selectedPatient || !selectedProject || selectedClinic === null}
                                 >
                                     Add Prescription
                                 </Button>
