@@ -19,106 +19,20 @@ import {
   DollarOutlined,
   PauseCircleOutlined,
 } from "@ant-design/icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SpectacleVisualization } from "../../component/sales-executive/dashboard/SpectacleVisualization";
 
 import order from "../../assets/icons/sales-executive/order.png";
 import active from "../../assets/icons/sales-executive/active-order.png";
+import { gql } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { useAuth } from "../../const/functions";
 
 function SalesExecutiveDashboard() {
-
-  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [filterStatus, setFilterStatus] = useState("All");
   const [messageApi, contextHolder] = message.useMessage();
+  const [filterStatus, setFilterStatus] = useState("All");
 
-  const [orders, setOrders] = useState([
-    {
-      key: "1",
-      orderId: "001",
-      customer: "Mike",
-      status: "Active",
-      priority: "High",
-      amount: 12500,
-      createdAt: "2026-04-11",
-      id: "RX-001",
-      optometrist: "Dr. Silva",
-      customerName: "Mike",
-      date: "2026-04-11",
-      pd: "62",
-      notes: "Wear full time",
-      rightEye: { sphere: "-1.25", cylinder: "-0.50", axis: "90", add: "1.00" },
-      leftEye: { sphere: "-1.00", cylinder: "-0.25", axis: "80", add: "1.00" },
-    },
-    {
-      key: "2",
-      orderId: "002",
-      customer: "Sarah",
-      status: "Pending",
-      priority: "Medium",
-      amount: 9800,
-      createdAt: "2026-04-10",
-      id: "RX-002",
-      optometrist: "Dr. Perera",
-      customerName: "Sarah",
-      date: "2026-04-10",
-      pd: "60",
-      notes: "Reading glasses only",
-      rightEye: { sphere: "+0.75", cylinder: "-0.25", axis: "45", add: "0.75" },
-      leftEye: { sphere: "+1.00", cylinder: "-0.50", axis: "60", add: "0.75" },
-    },
-    {
-      key: "3",
-      orderId: "003",
-      customer: "David",
-      status: "Completed",
-      priority: "Low",
-      amount: 15200,
-      createdAt: "2026-04-09",
-      id: "RX-003",
-      optometrist: "Dr. Silva",
-      customerName: "David",
-      date: "2026-04-09",
-      pd: "64",
-      notes: "Outdoor use",
-      rightEye: { sphere: "-2.00", cylinder: "-0.75", axis: "120", add: "1.50" },
-      leftEye: { sphere: "-1.75", cylinder: "-0.50", axis: "110", add: "1.50" },
-    },
-    {
-      key: "4",
-      orderId: "004",
-      customer: "Amara",
-      status: "Hold",
-      priority: "High",
-      amount: 6400,
-      createdAt: "2026-04-08",
-      id: "RX-004",
-      optometrist: "Dr. Nair",
-      customerName: "Amara",
-      date: "2026-04-08",
-      pd: "58",
-      notes: "Allergic to preservatives",
-      rightEye: { sphere: "-0.50", cylinder: "0.00", axis: "0", add: "0.00" },
-      leftEye: { sphere: "-0.75", cylinder: "0.00", axis: "0", add: "0.00" },
-    },
-    {
-      key: "5",
-      orderId: "005",
-      customer: "James",
-      status: "Cancelled",
-      priority: "Low",
-      amount: 4200,
-      createdAt: "2026-04-07",
-      id: "RX-005",
-      optometrist: "Dr. Perera",
-      customerName: "James",
-      date: "2026-04-07",
-      pd: "63",
-      notes: "N/A",
-      rightEye: { sphere: "+2.00", cylinder: "0.00", axis: "0", add: "2.00" },
-      leftEye: { sphere: "+2.25", cylinder: "0.00", axis: "0", add: "2.00" },
-    },
-  ]);
+  const { staff } = useAuth();
 
   const statusColors = {
     Active: "green",
@@ -136,36 +50,115 @@ function SalesExecutiveDashboard() {
     Pending: "#1677ff",
   };
 
-  const priorityColors = {
-    High: "red",
-    Medium: "orange",
-    Low: "green",
-  };
+  // ── Load Orders Query ──
+  const LOAD_NOT_COMPLETED_ORDERS = gql`
+    query getOrders($branchId: ID!) {
+      customerCollection {
+        edges {
+          node {
+            id
+            first_name
+            last_name
+            contact_no
+            customer_has_branchCollection(
+              filter: { branch_id: { eq: $branchId } }
+            ) {
+              edges {
+                node {
+                  id
+                  clinic_attend_customerCollection {
+                    edges {
+                      node {
+                        id
+                        clinic {
+                          id
+                          date
+                        }
+                        orderCollection(
+                          filter: { order_status_id: { neq: 4 } }
+                        ) {
+                          edges {
+                            node {
+                              id
+                              placed_at
+                              total_price
+                              order_status {
+                                id
+                                status
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
 
-  const canHold = (status) => status === "Active" || status === "Pending";
+  const [loadOrders, { data: orderData, loading, error }] = useLazyQuery(
+    LOAD_NOT_COMPLETED_ORDERS,
+    {
+      fetchPolicy: "network-only", 
+    }
+  );
 
-  const handleHoldOrder = (record) => {
-    setOrders((prev) =>
-      prev.map((o) =>
-        o.key === record.key ? { ...o, status: "Hold" } : o
-      )
-    );
-    messageApi.open({
-      type: "warning",
-      content: `Order #${record.orderId} has been placed on hold.`,
-      duration: 3,
+  useEffect(() => {
+    if (staff?.branch?.id) {
+      loadOrders({ variables: { branchId: staff.branch.id } });
+    }
+  }, [loadOrders, staff?.branch?.id]);
+
+  const orders = useMemo(() => {
+    if (!orderData?.customerCollection?.edges) return [];
+
+    const result = [];
+
+    orderData.customerCollection.edges.forEach(({ node: customer }) => {
+      const customerName =
+        `${customer.first_name ?? ""} ${customer.last_name ?? ""}`.trim();
+
+      customer.customer_has_branchCollection?.edges?.forEach(
+        ({ node: branch }) => {
+          branch.clinic_attend_customerCollection?.edges?.forEach(
+            ({ node: clinicAttend }) => {
+              clinicAttend.orderCollection?.edges?.forEach(
+                ({ node: orderNode }) => {
+                  result.push({
+                    key: orderNode.id,
+                    orderId: orderNode.id,
+                    customer: customerName,
+                    contactNo: customer.contact_no,
+                    amount: orderNode.total_price ?? 0,
+                    status: orderNode.order_status?.status ?? "Unknown",
+                    createdAt: orderNode.placed_at
+                      ? new Date(orderNode.placed_at).toLocaleDateString(
+                        "en-LK"
+                      )
+                      : "-",
+                    clinicDate: clinicAttend.clinic?.date
+                      ? new Date(clinicAttend.clinic.date).toLocaleDateString(
+                        "en-LK"
+                      )
+                      : "-",
+                  });
+                }
+              );
+            }
+          );
+        }
+      );
     });
-  };
 
-  const totalOrders = orders.length;
-  const newOrders = orders.filter((o) => o.status === "Pending").length;
-  const activeOrders = orders.filter((o) => o.status === "Active").length;
-  const completedOrders = orders.filter((o) => o.status === "Completed").length;
-  const holdOrders = orders.filter((o) => o.status === "Hold").length;
+    return result;
+  }, [orderData]);
 
-  const totalRevenue = orders
-    .filter((o) => o.status === "Active" || o.status === "Completed")
-    .reduce((sum, o) => sum + o.amount, 0);
+  const canHold = (status) => status.toLowerCase() === "pending";
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat("en-LK", {
@@ -174,12 +167,67 @@ function SalesExecutiveDashboard() {
       maximumFractionDigits: 0,
     }).format(value);
 
+  const totalOrders = orders.length;
+  const newOrders = orders.filter((o) => o.status.toLowerCase() === "pending").length;
+  const activeOrders = orders.filter((o) => o.status.toLowerCase() === "active").length;
+  const cancelledOrders = orders.filter((o) => o.status.toLowerCase() === "cancelled").length;
+  const holdOrders = orders.filter((o) => o.status.toLowerCase() === "hold").length;
 
+  const totalRevenue = orders
+    .filter((o) => o.status.toLowerCase() === "active" || o.status.toLowerCase() === "completed")
+    .reduce((sum, o) => sum + o.amount, 0);
+
+  // ── Filtered Orders ──
   const filteredOrders = useMemo(() => {
     if (filterStatus === "All") return orders;
-    return orders.filter((o) => o.status === filterStatus);
+    return orders.filter(
+      (o) => o.status.toLowerCase() === filterStatus.toLowerCase()
+    );
   }, [filterStatus, orders]);
 
+  // ── Hold Order Mutation ──
+  const HOLD_ORDER = gql`
+    mutation holdOrder($orderId: ID!) {
+      updateorderCollection(
+        filter: { id: { eq: $orderId } }
+        set: { order_status_id: 3 }
+        atMost: 1
+      ) {
+        records {
+          id
+        }
+      }
+    }
+  `;
+
+  const [holdOrder, { loading: holdLoading }] = useMutation(HOLD_ORDER, {
+    refetchQueries: [
+      {
+        query: LOAD_NOT_COMPLETED_ORDERS,
+        variables: { branchId: staff?.branch?.id },
+      },
+    ],
+    awaitRefetchQueries: true, 
+  });
+
+  const handleHoldOrder = async (record) => {
+    try {
+      await holdOrder({ variables: { orderId: record.orderId } });
+
+      messageApi.open({
+        type: "warning",
+        content: `Order #${record.orderId} has been placed on hold.`,
+        duration: 3,
+      });
+    } catch (err) {
+      console.error("Hold Order Error:", err);
+      messageApi.open({
+        type: "error",
+        content: `Failed to hold order #${record.orderId}. Please try again.`,
+        duration: 3,
+      });
+    }
+  };
 
   const statCards = [
     {
@@ -224,6 +272,18 @@ function SalesExecutiveDashboard() {
       render: (v) => <span style={{ fontWeight: 500 }}>{v}</span>,
     },
     {
+      title: "Contact No",
+      dataIndex: "contactNo",
+      key: "contactNo",
+      render: (v) => <span style={{ color: "#595959" }}>{v ?? "-"}</span>,
+    },
+    {
+      title: "Clinic Date",
+      dataIndex: "clinicDate",
+      key: "clinicDate",
+      render: (v) => <span style={{ color: "#8c8c8c" }}>{v}</span>,
+    },
+    {
       title: "Amount",
       dataIndex: "amount",
       key: "amount",
@@ -236,17 +296,13 @@ function SalesExecutiveDashboard() {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (v) => (
-        <Tag color={statusColors[v] || "blue"}>{v}</Tag>
-      ),
+      render: (v) => <Tag color={statusColors[v] || "blue"}>{v}</Tag>,
     },
     {
-      title: "Date",
+      title: "Order Date",
       dataIndex: "createdAt",
       key: "createdAt",
-      render: (v) => (
-        <span style={{ color: "#8c8c8c" }}>{v}</span>
-      ),
+      render: (v) => <span style={{ color: "#8c8c8c" }}>{v}</span>,
     },
     {
       title: "Action",
@@ -266,12 +322,14 @@ function SalesExecutiveDashboard() {
                 <ExclamationCircleOutlined style={{ color: "#faad14" }} />
               }
               okButtonProps={{
+                loading: holdLoading, 
                 style: { background: "#faad14", borderColor: "#faad14" },
               }}
             >
               <Button
                 size="small"
                 icon={<PauseCircleOutlined />}
+                loading={holdLoading} // ✅ Show loading state on button
                 style={{
                   color: "#faad14",
                   borderColor: "#ffe58f",
@@ -292,11 +350,7 @@ function SalesExecutiveDashboard() {
                 : `Cannot hold a ${record.status} order`
             }
           >
-            <Button
-              size="small"
-              icon={<PauseCircleOutlined />}
-              disabled
-            >
+            <Button size="small" icon={<PauseCircleOutlined />} disabled>
               Hold Order
             </Button>
           </Tooltip>
@@ -305,11 +359,11 @@ function SalesExecutiveDashboard() {
     },
   ];
 
-
   return (
     <div className="m-5">
+      {contextHolder}
 
-      {/* ── Stat cards ── */}
+      {/* ── Stat Cards ── */}
       <Row gutter={[16, 16]}>
         {statCards.map((item) => (
           <Col xs={24} sm={12} xl={6} key={item.title}>
@@ -331,13 +385,27 @@ function SalesExecutiveDashboard() {
                 }}
               >
                 <div>
-                  <div style={{ color: "#8c8c8c", fontSize: 13, marginBottom: 6 }}>
+                  <div
+                    style={{
+                      color: "#8c8c8c",
+                      fontSize: 13,
+                      marginBottom: 6,
+                    }}
+                  >
                     {item.title}
                   </div>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: "#1f1f1f" }}>
+                  <div
+                    style={{
+                      fontSize: 26,
+                      fontWeight: 700,
+                      color: "#1f1f1f",
+                    }}
+                  >
                     {item.value}
                   </div>
-                  <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                  <div
+                    style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}
+                  >
                     {item.subtitle}
                   </div>
                 </div>
@@ -368,7 +436,7 @@ function SalesExecutiveDashboard() {
         ))}
       </Row>
 
-      {/* ── Status breakdown ── */}
+      {/* ── Status Breakdown ── */}
       <Row gutter={[16, 16]} className="mt-5">
         <Col span={24}>
           <Card
@@ -383,8 +451,8 @@ function SalesExecutiveDashboard() {
               {[
                 { label: "Active", value: activeOrders },
                 { label: "Pending", value: newOrders },
-                { label: "Completed", value: completedOrders },
                 { label: "Hold", value: holdOrders },
+                { label: "Cancelled", value: cancelledOrders },
               ].map((item) => {
                 const percent = totalOrders
                   ? Math.round((item.value / totalOrders) * 100)
@@ -423,7 +491,7 @@ function SalesExecutiveDashboard() {
         </Col>
       </Row>
 
-      {/* ── Orders table ── */}
+      {/* ── Orders Table ── */}
       <Row className="mt-5">
         <Col span={24}>
           <Card
@@ -435,7 +503,7 @@ function SalesExecutiveDashboard() {
             }}
             extra={
               <Space wrap>
-                {["All", "Active", "Pending", "Completed", "Hold", "Cancelled"].map(
+                {["All", "Active", "Pending", "Hold", "Cancelled"].map(
                   (status) => (
                     <Button
                       key={status}
@@ -458,43 +526,20 @@ function SalesExecutiveDashboard() {
             <Table
               dataSource={filteredOrders}
               columns={columns}
-              pagination={{ pageSize: 3, size: "small" }}
+              pagination={{ pageSize: 5, size: "small" }}
               size="middle"
-              scroll={{ x: 800 }}
+              scroll={{ x: 900 }}
+              loading={loading || holdLoading} // ✅ Show loading during hold too
+              locale={{
+                emptyText: error
+                  ? `Error loading orders: ${error.message}`
+                  : "No orders found",
+              }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* ── Prescription modal ── */}
-      <Modal
-        title={null}
-        open={showPrescriptionModal}
-        onCancel={() => {
-          setShowPrescriptionModal(false);
-          setSelectedPrescription(null);
-        }}
-        footer={[
-          <Button key="print" onClick={() => window.print()}>
-            Print Prescription
-          </Button>,
-          <Button
-            key="close"
-            type="primary"
-            onClick={() => setShowPrescriptionModal(false)}
-            style={{ background: "#1677ff", borderColor: "#1677ff" }}
-          >
-            Close
-          </Button>,
-        ]}
-        width={900}
-        centered
-        destroyOnClose
-      >
-        {selectedPrescription && (
-          <SpectacleVisualization prescription={selectedPrescription} />
-        )}
-      </Modal>
     </div>
   );
 }
