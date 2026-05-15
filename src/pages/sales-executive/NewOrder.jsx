@@ -35,63 +35,63 @@ function NewOrder() {
 
     // add warranty
     const ADD_WARRANTY = gql`
-    mutation addWarranty($months: Int!){
-      insertIntowarrantyCollection(
-        objects:{
-          month: $months
+        mutation addWarranty($months: Int!){
+            insertIntowarrantyCollection(
+                objects:{
+                    month: $months
+                }
+            ){
+                records{
+                    id
+                }
+            }
         }
-      ){
-        records{
-          id
-        }
-      }
-    }
   `;
 
     const [addWarranty, { data: warrantyData, error: warrantyError }] = useMutation(ADD_WARRANTY);
 
     // order submit
     const CREATE_ORDER = gql`
-    mutation createOrder(
-      $agraharaApplied: Boolean,$advancePayment: Float!,
-      $remarks: String!,$warrantyId: Int!,$totalPayment:Float!,$additionalPrice: Float!,$clinicAttendCustomerId:ID!
-    ){
-      insertIntoorderCollection(
-        objects:{
-          agrahara_applied: $agraharaApplied,
-          advance: $advancePayment,
-          remarks: $remarks,
-          clinic_attend_customer_id: $clinicAttendCustomerId,
-          warranty_id: $warrantyId,
-          total_payment: $totalPayment,
-          additional_fee: $additionalPrice
+        mutation createOrder(
+            $agraharaApplied: Boolean,$advancePayment: Float!,
+            $remarks: String!,$warrantyId: Int!,$totalPayment:Float!,$additionalPrice: Float!,$clinicAttendCustomerId:ID!
+        ){
+            insertIntoorderCollection(
+                objects:{
+                    agrahara_applied: $agraharaApplied,
+                    advance: $advancePayment,
+                    remarks: $remarks,
+                    clinic_attend_customer_id: $clinicAttendCustomerId,
+                    warranty_id: $warrantyId,
+                    total_payment: $totalPayment,
+                    additional_fee: $additionalPrice
+                }
+            ){
+                records{
+                    id
+                }
+            }
         }
-      ){
-        records{
-          id
-        }
-      }
-    }
   `;
 
     const [createOrder, { data: orderData, error: orderError }] = useMutation(CREATE_ORDER);
 
     // add order items
     const ADD_ORDER_ITEMS = gql`
-    mutation addOrderItems($orderId: ID!,$frameId: ID!,$lenseTypeId: ID!, $frameTypeId: ID!){
-      insertIntoorder_itemCollection(
-        objects:{
-          order_id: $orderId,
-          lens_type_id: $lenseTypeId,
-          frame_type_id: $frameTypeId,
-          frame_id: $frameId
+        mutation addOrderItems($orderId: ID!,$frameId: ID!,$lenseTypeId: ID!, $frameTypeId: ID!){
+            insertIntoorder_itemCollection(
+                objects:{
+                    order_id: $orderId,
+                    lens_type_id: $lenseTypeId,
+                    frame_type_id: $frameTypeId,
+                    frame_id: $frameId
+                }
+            ){
+                records{
+                    id
+                }
+            }
         }
-      ){
-        records{
-          id
-        }
-      }
-    }
   `;
 
     const [addOrderItems, { data: orderItemsData, error: orderItemsError }] = useMutation(ADD_ORDER_ITEMS);
@@ -176,17 +176,17 @@ function NewOrder() {
 
     // lense type
     const GET_LENSE_TYPE = gql`
-    query getLenseType{
-      lense_typeCollection{
-        edges{
-          node{
-            id
-            type
-            price
-          }
+        query getLenseType{
+            lense_typeCollection{
+                edges{
+                    node{
+                        id
+                        type
+                        price
+                    }
+                }
+            }
         }
-      }
-    }
   `;
 
     const [getLenseType, { data: lenseTypeData, error: lenseTypeError }] = useLazyQuery(GET_LENSE_TYPE);
@@ -197,21 +197,21 @@ function NewOrder() {
 
     // frames
     const GET_FRAMES = gql`
-    query getFrames($frameTypeId: ID!){
-      frameCollection(filter:{frame_type_id:{eq:$frameTypeId}}){
-        edges{
-          node{
-            id
-            color
-            serial_no
-            product{
-              id
-              selling_price
+        query getFrames($frameTypeId: ID!){
+            frameCollection(filter:{frame_type_id:{eq:$frameTypeId}}){
+                edges{
+                    node{
+                        id
+                        color
+                        serial_no
+                        product{
+                            id
+                            selling_price
+                        }
+                    }
+                }
             }
-          }
         }
-      }
-    }
   `;
 
     const [getFrames, { data: framesData, error: framesError }] = useLazyQuery(GET_FRAMES);
@@ -228,16 +228,16 @@ function NewOrder() {
 
     // frame types
     const GET_FRAME_TYPES = gql`
-    query getFrameTypes{
-      frame_typeCollection{
-        edges{
-          node{
-            id
-            type
-          }
+        query getFrameTypes{
+            frame_typeCollection{
+                edges{
+                    node{
+                        id
+                        type
+                    }
+                }
+            }
         }
-      }
-    }
   `;
 
     const [getFrameTypes, { data: frameTypesData, error: frameTypesError }] = useLazyQuery(GET_FRAME_TYPES);
@@ -248,36 +248,36 @@ function NewOrder() {
 
     // prescription
     const GET_PRESCRIPTIONS = gql`
-    query getPrescription($customerId: ID!,$branchId: ID!,$clinicId: ID!){
-      customerCollection(filter: {id: {eq: $customerId}}) {
-        edges {
-          node {
-            id
-            customer_has_branchCollection(filter: {branch_id: {eq: $branchId}}) {
-              edges {
-                node {
-                  clinic_attend_customerCollection(filter: {clinic_id: {eq: $clinicId}}) {
-                    edges {
-                      node {
+        query getPrescription($customerId: ID!,$branchId: ID!,$clinicId: ID!){
+            customerCollection(filter: {id: {eq: $customerId}}) {
+                edges {
+                    node {
                         id
-                        prescriptionCollection {
-                          edges {
-                            node {
-                              id
-                              created_at
+                        customer_has_branchCollection(filter: {branch_id: {eq: $branchId}}) {
+                            edges {
+                                node {
+                                    clinic_attend_customerCollection(filter: {clinic_id: {eq: $clinicId}}) {
+                                        edges {
+                                            node {
+                                                id
+                                                prescriptionCollection {
+                                                    edges {
+                                                        node {
+                                                            id
+                                                            created_at
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                          }
                         }
-                      }
                     }
-                  }
                 }
-              }
             }
-          }
         }
-      }
-    }
   `;
 
     const [getPrescriptions, { data: prescriptionsData, error: prescriptionsError }] = useLazyQuery(GET_PRESCRIPTIONS);
