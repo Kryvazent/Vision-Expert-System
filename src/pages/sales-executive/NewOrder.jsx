@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Col, Collapse, Input, Radio, Row, Select, Steps, Tag } from "antd";
+import { Alert, Button, Card, Col, Collapse, Descriptions, Divider, Input, Radio, Row, Select, Steps, Tag } from "antd";
 import { Content } from "antd/es/layout/layout";
 import { useEffect, useMemo, useState } from "react";
 import DigitalSignature from "../../component/sales-executive/new-order/DigitalSignature";
@@ -12,12 +12,12 @@ import ProjectAndClinicSelect from "../../component/optimetrist/new-prescription
 function NewOrder() {
     const [current, setCurrent] = useState(0);
     const [position, setPosition] = useState("start");
-    
+
     const [selectedClinic, setSelectedClinic] = useState(null);
     const [selectedProject, setSelectedProject] = useState(null);
     const [isDisabled, setIsDisabled] = useState(true);
     const [selectedPatient, setSelectedPatient] = useState(null);
-    
+
     const [selectedPrescription, setSelectedPrescription] = useState(null);
 
     const [selectedFrameTypeId, setSelectedFrameTypeId] = useState(null);
@@ -202,8 +202,8 @@ function NewOrder() {
             }
         }
 
-        if(current == 3){
-            if(paidAmount > 0 && advancePayment >= 0 && selectedFramePrice > 0 && selectedLenseTypePrice > 0 && additionalPrice >= 0){
+        if (current == 3) {
+            if (paidAmount > 0 && advancePayment >= 0 && selectedFramePrice > 0 && selectedLenseTypePrice > 0 && additionalPrice >= 0) {
                 moveToNext = true;
             }
         }
@@ -325,14 +325,14 @@ function NewOrder() {
                                         value: f.id,
                                         label: `Serial No: ${f.serial_no} - Color: ${f.color}`,
                                     }))}
-                                    onSelect={(value)=>{
+                                    onSelect={(value) => {
                                         setSelectedFrameId(value);
                                         const frame = frames.find(f => f.id === value);
                                         console.log("Selected frame: ", frame);
                                         if (frame) {
                                             setSelectedFramePrice(frame.product.selling_price);
                                         }
-                                    }} 
+                                    }}
                                 />
                             </Col>
                         </Row>
@@ -352,7 +352,7 @@ function NewOrder() {
                                         value: lt.id,
                                         label: lt.type,
                                     }))}
-                                    onSelect={(value)=>{
+                                    onSelect={(value) => {
                                         setSelectedLenseTypeId(value);
                                         const lenseType = lenseTypes.find(lt => lt.id === value);
                                         console.log("Selected lense type: ", lenseType);
@@ -372,28 +372,28 @@ function NewOrder() {
                                 <p className="fs-5 font-semibold mt-5 mb-2">
                                     Frame & Lense Price
                                 </p>
-                                <Input type={"number"} prefix="Rs." value={selectedFramePrice+selectedLenseTypePrice} disabled/>
+                                <Input type={"number"} prefix="Rs." value={selectedFramePrice + selectedLenseTypePrice} disabled />
                             </Col>
 
                             <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
                                     Additional Amount
                                 </p>
-                                <Input autoFocus={true} type={"number"} prefix="Rs." value={additionalPrice} onChange={(e)=>setAdditionalPrice(Number(e.target.value))}/>
+                                <Input autoFocus={true} type={"number"} prefix="Rs." value={additionalPrice} onChange={(e) => setAdditionalPrice(Number(e.target.value))} />
                             </Col>
 
                             <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
                                     Advance Payment
                                 </p>
-                                <Input type={"number"} prefix="Rs." value={advancePayment} onChange={(e)=>setAdvancePayment(Number(e.target.value))}/>
+                                <Input type={"number"} prefix="Rs." value={advancePayment} onChange={(e) => setAdvancePayment(Number(e.target.value))} />
                             </Col>
 
                             <Col span={4}>
                                 <p className="fs-5 font-semibold mt-5 mb-2">
                                     Total Payment (Today)
                                 </p>
-                                <Input type={"number"} prefix="Rs." placeholder="Enter amount received" value={paidAmount} onChange={(e)=>setPaidAmount(Number(e.target.value))}/>
+                                <Input type={"number"} prefix="Rs." placeholder="Enter amount received" value={paidAmount} onChange={(e) => setPaidAmount(Number(e.target.value))} />
                             </Col>
 
                             <Col span={4}>
@@ -423,7 +423,7 @@ function NewOrder() {
 
                                         <Col>
                                             <p className="text-gray-600">Total Amount</p>
-                                            <p className="font-bold text-black text-2xl">Rs. {(selectedFramePrice+selectedLenseTypePrice+additionalPrice).toFixed(2)}</p>
+                                            <p className="font-bold text-black text-2xl">Rs. {(selectedFramePrice + selectedLenseTypePrice + additionalPrice).toFixed(2)}</p>
                                         </Col>
                                         <Col>
                                             <p className="text-gray-600">Advance Payment</p>
@@ -431,7 +431,7 @@ function NewOrder() {
                                         </Col>
                                         <Col>
                                             <p className="text-gray-600">Balance Due</p>
-                                            <p className="font-bold text-red-600 text-2xl">Rs. {((selectedFramePrice+selectedLenseTypePrice+additionalPrice) - paidAmount).toFixed(2)}</p>
+                                            <p className="font-bold text-red-600 text-2xl">Rs. {((selectedFramePrice + selectedLenseTypePrice + additionalPrice) - paidAmount).toFixed(2)}</p>
                                         </Col>
 
                                     </Row>
@@ -441,37 +441,183 @@ function NewOrder() {
                         </Row>
 
                         <Row className="gap-3 mt-5 ms-5">
-                            
+
                         </Row>
                     </Content>
 
-                    <Content hidden={current !== 4} className="mt-10">
+                    <Content hidden={current !== 4} className="mt-10 flex flex-col gap-5">
 
                         <Alert
-                            title="Customer Verification Required"
-                            description="Please collect customer's digital signature or fingerprint to complete the order."
+                            message="Order Details Verification"
+                            description="Please verify all customer, prescription, spectacles, and payment details before completing the order."
                             type="info"
                             showIcon
+                            className="mb-5"
                         />
 
-                        <p className="fs-5 font-semibold mb-2 mt-4">Verification Method</p>
+                        <Row gutter={[16, 16]}>
 
-                        <Radio.Group
-                            value={position}
-                            onChange={(e) => setPosition(e.target.value)}
-                        >
-                            <Radio.Button value="start">
-                                Digital Signature
-                            </Radio.Button>
-                            <Radio.Button value="end">
-                                Fingerprint
-                            </Radio.Button>
-                        </Radio.Group>
+                            {/* Customer Details */}
+                            <Col span={12}>
+                                <Card title="Customer Details">
+                                    <Descriptions column={1} bordered size="small">
 
-                        <Content className="mt-5">
-                            {position === "start" && <DigitalSignature />}
-                            {position === "end" && <Fingerprint />}
-                        </Content>
+                                        <Descriptions.Item label="Customer ID">
+                                            {selectedPatient?.id || "-"}
+                                        </Descriptions.Item>
+
+                                        <Descriptions.Item label="Customer Name">
+                                            {selectedPatient?.first_name} {selectedPatient?.last_name}
+                                        </Descriptions.Item>
+
+                                        <Descriptions.Item label="Project">
+                                            {selectedProject || "-"}
+                                        </Descriptions.Item>
+
+                                        <Descriptions.Item label="Clinic">
+                                            {selectedClinic || "-"}
+                                        </Descriptions.Item>
+
+                                    </Descriptions>
+                                </Card>
+                            </Col>
+
+                            {/* Prescription Details */}
+                            <Col span={12}>
+                                <Card title="Prescription Details">
+                                    <Descriptions column={1} bordered size="small">
+
+                                        <Descriptions.Item label="Prescription ID">
+                                            {selectedPrescription?.node?.id || "-"}
+                                        </Descriptions.Item>
+
+                                        <Descriptions.Item label="Created Date">
+                                            {
+                                                selectedPrescription?.node?.created_at
+                                                    ? new Date(selectedPrescription.node.created_at).toLocaleString()
+                                                    : "-"
+                                            }
+                                        </Descriptions.Item>
+
+                                    </Descriptions>
+                                </Card>
+                            </Col>
+
+                            {/* Spectacles Details */}
+                            <Col span={24}>
+                                <Row className="gap-3 w-full">
+
+                                    <Col span={12}>
+                                        <Card title="Spectacles Details">
+
+                                            <Descriptions column={1} bordered size="small">
+
+                                                <Descriptions.Item label="Frame Type">
+                                                    {
+                                                        frameTypes.find(ft => ft.id === selectedFrameTypeId)?.type || "-"
+                                                    }
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Frame">
+                                                    {
+                                                        (() => {
+                                                            const frame = frames.find(f => f.id === selectedFrameId);
+
+                                                            return frame
+                                                                ? `Serial No: ${frame.serial_no} - ${frame.color}`
+                                                                : "-";
+                                                        })()
+                                                    }
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Lense Type">
+                                                    {
+                                                        lenseTypes.find(lt => lt.id === selectedLenseTypeId)?.type || "-"
+                                                    }
+                                                </Descriptions.Item>
+
+                                            </Descriptions>
+
+                                        </Card>
+                                    </Col>
+
+                                    {/* Payment Details */}
+                                    <Col span={11}>
+                                        <Card title="Payment Details">
+
+                                            <Descriptions column={1} bordered size="small">
+
+                                                <Descriptions.Item label="Frame Price">
+                                                    <Tag color="blue">
+                                                        Rs. {selectedFramePrice.toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Lense Price">
+                                                    <Tag color="cyan">
+                                                        Rs. {selectedLenseTypePrice.toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Additional Amount">
+                                                    <Tag color="purple">
+                                                        Rs. {additionalPrice.toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Advance Payment">
+                                                    <Tag color="green">
+                                                        Rs. {advancePayment.toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Paid Today">
+                                                    <Tag color="gold">
+                                                        Rs. {paidAmount.toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                                <Descriptions.Item label="Balance Due">
+                                                    <Tag color="red">
+                                                        Rs. {(
+                                                            (selectedFramePrice + selectedLenseTypePrice + additionalPrice) - paidAmount
+                                                        ).toFixed(2)}
+                                                    </Tag>
+                                                </Descriptions.Item>
+
+                                            </Descriptions>
+
+                                        </Card>
+                                    </Col>
+
+                                </Row>
+                            </Col>
+
+
+
+                        </Row>
+
+                        <Divider />
+
+                        <Card>
+
+                            <Row justify="space-between" align="middle">
+
+                                <Col>
+                                    <h2 className="text-xl font-bold">
+                                        Final Total
+                                    </h2>
+                                </Col>
+
+                                <Col>
+                                    <Tag color="blue" className="text-lg px-5 py-2">
+                                        Rs. {(selectedFramePrice + selectedLenseTypePrice + additionalPrice).toFixed(2)}
+                                    </Tag>
+                                </Col>
+
+                            </Row>
+
+                        </Card>
 
                     </Content>
 
