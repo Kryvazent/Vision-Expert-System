@@ -1,5 +1,5 @@
 import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Input, Modal, Row } from "antd";
+import { Button, Card, Col, Input, Modal, Row, Space, Tag } from "antd";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 import { useEffect, useState } from "react";
 import { SpectacleVisualization } from "../../component/sales-executive/dashboard/SpectacleVisualization";
@@ -12,6 +12,7 @@ function Orders() {
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [selectedPrescription, setSelectedPrescription] = useState(null);
     const [searchText, setSearchText] = useState("");
+    const [filterStatus, setFilterStatus] = useState("All");
 
     const { staff } = useAuth();
 
@@ -40,6 +41,16 @@ function Orders() {
             title: 'Order Status',
             dataIndex: 'orderStatus',
             key: 'orderStatus',
+            render: (v) => {
+                const statusColors = {
+                    Active: "green",
+                    Hold: "orange",
+                    Cancelled: "red",
+                    Completed: "green",
+                    Pending: "blue",
+                };
+                return <Tag color={statusColors[v] || "blue"}>{v}</Tag>;
+            },
         },
         {
             title: 'Total Amount',
@@ -224,10 +235,8 @@ function Orders() {
 
     const mappedData = mapOrdersData(ordersData);
 
-
-
     // filtering data on search
-    const filteredData = searchText.trim() === ""
+    const searchFilteredData = searchText.trim() === ""
         ? mappedData
         : mappedData
             .filter((row) =>
@@ -238,20 +247,47 @@ function Orders() {
                 const row1Exact = row1.orderId?.toString().toLowerCase() === search;
                 const row2Exact = row2.orderId?.toString().toLowerCase() === search;
 
-                if (row1Exact && !row2Exact) return -1; // 1st row comes first
-                if (!row1Exact && row2Exact) return 1; // 2nd row comes first
+                if (row1Exact && !row2Exact) return -1;
+                if (!row1Exact && row2Exact) return 1;
 
-                // if not found a exact match, sort by closest match
                 const row1Index = row1.orderId?.toString().toLowerCase().indexOf(search);
                 const row2Index = row2.orderId?.toString().toLowerCase().indexOf(search);
 
                 return row1Index - row2Index;
             });
 
+    // filtering data on status
+    const filteredData = filterStatus === "All"
+        ? searchFilteredData
+        : searchFilteredData.filter(
+            (row) => row.orderStatus?.toLowerCase() === filterStatus.toLowerCase()
+        );
+
     return (
         <>
             <div className="m-5">
-                <Card title="Orders">
+                <Card
+                    title="Orders"
+                    extra={
+                        <Space wrap>
+                            {["All", "Active", "Pending", "Hold", "Cancelled"].map((status) => (
+                                <Button
+                                    key={status}
+                                    size="small"
+                                    type={filterStatus === status ? "primary" : "default"}
+                                    style={
+                                        filterStatus === status
+                                            ? { background: "#1677ff", borderColor: "#1677ff" }
+                                            : {}
+                                    }
+                                    onClick={() => setFilterStatus(status)}
+                                >
+                                    {status}
+                                </Button>
+                            ))}
+                        </Space>
+                    }
+                >
 
                     <Row>
                         <Col span={10} className="mb-4">
