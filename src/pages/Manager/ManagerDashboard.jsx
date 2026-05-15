@@ -37,13 +37,6 @@ const { Title } = Typography;
 function ManagerDashboard() {
   return (
     <div className=" bg-gray-100 p-10">
-      {/* Page Title */}
-      <div className="flex items-center justify-between mb-6">
-        <Title level={2} className="!mb-0 !text-gray-900">
-          Monthly Performance Overview
-        </Title>
-      </div>
- 
       {/* Card Container */}
       <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full">
  

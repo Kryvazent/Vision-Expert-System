@@ -1,245 +1,354 @@
-import React, {useState} from 'react'
-import { Typography, Button, Table, Select, Space} from 'antd';
-import { PlusOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react'
+import { Typography, Button, Table, DatePicker } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import dayjs from 'dayjs';
 import AddClinic from '../../component/Manager/AddClinic';
+import { gql } from "@apollo/client";
+import { useMutation, useLazyQuery } from "@apollo/client/react";
+import { useAuth } from '../../const/functions';
 
-const {  Title } = Typography;
-const { Option } = Select;
+const { Title } = Typography;
 
-function ClinicDetails()  {
+function ClinicDetails() {
 
-  const [selectedYear, setSelectedYear] = useState('all');
+  const { staff } = useAuth();
+
+  const INSERT_CLINIC = gql`
+    mutation InsertClinic(
+      $clinic_center: String!,
+      $date: Date!,
+      $from: Time!,
+      $to: Time!,
+      $responsible_person_01: String!,
+      $contact_number_01: String!,
+      $responsible_person_02: String!,
+      $contact_number_02: String!,
+      $project_id: ID!,
+      $branch_id: ID!
+    ) {
+      insertIntoclinicCollection(
+        objects: {
+          venue: $clinic_center,
+          date: $date,
+          from: $from,
+          to: $to,
+          responsible_person_01: $responsible_person_01,
+          responsible_person_01_contact_no: $contact_number_01,
+          responsible_person_02: $responsible_person_02,
+          responsible_person_02_contact_no: $contact_number_02,
+          project_id: $project_id,
+          clinic_status_id: 1,
+          branch_id: $branch_id
+        }
+      ) {
+        records { id }
+      }
+    }
+  `;
+
+  const GET_ALL_CLINICS = gql`
+    query GetAllClinics {
+      clinicCollection {
+        edges {
+          node {
+            id
+            venue
+            date
+            from
+            to
+            responsible_person_01
+            responsible_person_01_contact_no
+            responsible_person_02
+            responsible_person_02_contact_no
+          }
+        }
+      }
+    }
+  `;
+
+  const GET_CLINICS_BY_DATE = gql`
+    query GetClinicsByDate($date: Date!) {
+      clinicCollection(filter: { date: { eq: $date } }) {
+        edges {
+          node {
+            id
+            venue
+            date
+            from
+            to
+            responsible_person_01
+            responsible_person_01_contact_no
+            responsible_person_02
+            responsible_person_02_contact_no
+          }
+        }
+      }
+    }
+  `;
+
+  
+  const UPDATE_CLINIC = gql`
+    mutation UpdateClinic(
+      $id: ID!,
+      $clinic_center: String!,
+      $date: Date!,
+      $from: Time!,
+      $to: Time!,
+      $responsible_person_01: String!,
+      $contact_number_01: String!,
+      $responsible_person_02: String!,
+      $contact_number_02: String!,
+      $branch_id: ID!
+    ) {
+      updateclinicCollection(
+        filter: { id: { eq: $id } }
+        set: {
+          venue: $clinic_center,
+          date: $date,
+          from: $from,
+          to: $to,
+          responsible_person_01: $responsible_person_01,
+          responsible_person_01_contact_no: $contact_number_01,
+          responsible_person_02: $responsible_person_02,
+          responsible_person_02_contact_no: $contact_number_02,
+          branch_id: $branch_id
+        }
+      ) {
+        records { id }
+      }
+    }
+  `;
+
+  const [insertClinic] = useMutation(INSERT_CLINIC);
+  const [loadAllClinics, { data: allClinicsData }] = useLazyQuery(GET_ALL_CLINICS);
+  const [loadFilteredClinics, { data: filteredClinicsData }] = useLazyQuery(GET_CLINICS_BY_DATE);
+  const [updateClinic] = useMutation(UPDATE_CLINIC);
+
+  const [selectedDate, setSelectedDate] = useState(null);
   const [modelOpen, setModelOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [selectedClinic, setSelectedClinic] = useState(null);
 
-  const handleAdd = () => {
-    setModelOpen(true);
-};
+  useEffect(() => {
+    loadAllClinics();
+  }, []);
 
-const columns = [
-  {
-    title: 'Clinic ID',
-    dataIndex: 'clinicId',
-    key: 'clinicId',
-    width: 100,
-  },
-  {
-    title: 'Clinic Center',
-    dataIndex: 'clinicCenter',
-    key: 'clinicCenter',
-    width: 200,
-  },
-  {
-    title: 'Date',
-    dataIndex: 'date',
-    key: 'date',
-    width: 150,
-  },
-  {
-    title: 'Time',
-    dataIndex: 'time',
-    key: 'time',
-    width: 200,
-  },
-  {
-    title: 'Responsible Person 01',
-    dataIndex: 'responsiblePerson01',
-    key: 'responsiblePerson01',
-    width: 200,
-  },
-  {
-    title: 'Conact Number',
-    dataIndex: 'contactNumber1',
-    key: 'contactNumber1',
-    width: 150,
-  },
-  { 
-    title: 'Responsible Person 02',
-    dataIndex: 'responsiblePerson02',
-    key: 'responsiblePerson02',
-    width: 200,
-  },
-  {
-    title: 'Contact Number',
-    dataIndex: 'contactNumber2',
-    key: 'contactNumber2',
-    width: 150,
-  },
-  {
-    title: 'Actions',
-    key: 'actions',
-    render: (text, record) => (
-      <div className="flex space-x-2">
-        <Button type="primary" size="small" onClick={() => setModelOpen(true)}>
+  const handleAdd = async (values) => {
+    try {
+      const [fromTime, toTime] = values.time || [];
+      await insertClinic({
+        variables: {
+          clinic_center:         values.clinicCenter,
+          date:                  dayjs(values.date).format("YYYY-MM-DD"),
+          from:                  fromTime.format("HH:mm:ss"),
+          to:                    toTime.format("HH:mm:ss"),
+          responsible_person_01: values.responsiblePerson,
+          contact_number_01:     values.contactNumber,
+          responsible_person_02: values.responsiblePerson2,
+          contact_number_02:     values.contactNumber2,
+          project_id:            values.project,
+          branch_id:             staff.branch.id,
+        },
+      });
+      alert('Clinic added successfully!');
+      setModelOpen(false);
+      loadAllClinics();
+    } catch (error) {
+      console.error('Error adding clinic:', error);
+      alert('Failed to add clinic.');
+    }
+  };
+
+
+  const handleUpdate = async (values) => {
+    try {
+      const [fromTime, toTime] = values.time;
+      await updateClinic({
+        variables: {
+          id:                    selectedClinic.id,
+          clinic_center:         values.clinicCenter,
+          date:                  dayjs(values.date).format("YYYY-MM-DD"),
+          from:                  fromTime.format("HH:mm:ss"),
+          to:                    toTime.format("HH:mm:ss"),
+          responsible_person_01: values.responsiblePerson,
+          contact_number_01:     values.contactNumber,
+          responsible_person_02: values.responsiblePerson2,
+          contact_number_02:     values.contactNumber2,
+          branch_id:             staff.branch.id,
+        },
+      });
+      alert('Clinic updated successfully!');
+      setEditOpen(false);
+      loadAllClinics();
+    } catch (error) {
+      console.error('Error updating clinic:', error);
+      alert('Failed to update clinic. Please try again.');
+    }
+  };
+
+
+  const handleEditClick = (record) => {
+    setSelectedClinic({
+      id:               record.clinicId,
+      clinicCenter:     record.clinicCenter,
+      date:             dayjs(record.date),
+      time: [
+        dayjs(`1970-01-01T${record.rawFrom}`),
+        dayjs(`1970-01-01T${record.rawTo}`),
+      ],
+      responsiblePerson:  record.responsiblePerson01,  // ✅ was responsiblePerson01
+      contactNumber:      record.contactNumber1,        // ✅ was contactNumber1
+      responsiblePerson2: record.responsiblePerson02,  // ✅ was responsiblePerson02
+      contactNumber2:     record.contactNumber2,
+    });
+    setEditOpen(true);
+  };
+
+  const handleSearch = () => {
+    if (!selectedDate) {
+      alert('Please select a date to search.');
+      return;
+    }
+    loadFilteredClinics({
+      variables: { date: selectedDate.format("YYYY-MM-DD") },
+    });
+  };
+
+  const columns = [
+    { title: 'Clinic ID',             dataIndex: 'clinicId',           key: 'clinicId',           width: 100 },
+    { title: 'Clinic Center',         dataIndex: 'clinicCenter',       key: 'clinicCenter',        width: 200 },
+    { title: 'Date',                  dataIndex: 'date',               key: 'date',                width: 150 },
+    { title: 'Time',                  dataIndex: 'time',               key: 'time',                width: 200 },
+    { title: 'Responsible Person 01', dataIndex: 'responsiblePerson01',key: 'responsiblePerson01', width: 200 },
+    { title: 'Contact Number 01',     dataIndex: 'contactNumber1',     key: 'contactNumber1',      width: 150 },
+    { title: 'Responsible Person 02', dataIndex: 'responsiblePerson02',key: 'responsiblePerson02', width: 200 },
+    { title: 'Contact Number 02',     dataIndex: 'contactNumber2',     key: 'contactNumber2',      width: 150 },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_, record) => (
+        <Button type="primary" size="small" onClick={() => handleEditClick(record)}>
           Edit
         </Button>
-      </div>
-    ),
-  },
-];
+      ),
+    },
+  ];
 
-const data = [
-  {
-    key: '1',
-    clinicId: 'CL001',
-    clinicCenter: 'Colombo',
-    date: '2026-07-15',
-    time: '10:00 AM - 4:00 PM',
-    responsiblePerson01: 'Dr. Smith',
-    contactNumber1: '0788387458',
-    responsiblePerson02: 'Nurse Jane',
-    contactNumber2: '0761585847',
-  },
-  {
-    key: '2',
-    clinicId: 'CL002',
-    clinicCenter: 'Kandy',
-    date: '2026-07-20',
-    time: '9:00 AM - 3:00 PM',
-    responsiblePerson01: 'Dr. Lee',
-    contactNumber1: '0771234567',
-    responsiblePerson02: 'Nurse Amy',
-    contactNumber2: '0759876543',
-  },
-];
+  const mapData = (data) =>
+    data?.clinicCollection?.edges?.map((item) => ({
+      key:                 item.node.id,
+      clinicId:            item.node.id,
+      clinicCenter:        item.node.venue,
+      date:                item.node.date,
+      time:                `${item.node.from} - ${item.node.to}`,
+      rawFrom:             item.node.from,
+      rawTo:               item.node.to,
+      responsiblePerson01: item.node.responsible_person_01,
+      contactNumber1:      item.node.responsible_person_01_contact_no,
+      responsiblePerson02: item.node.responsible_person_02,
+      contactNumber2:      item.node.responsible_person_02_contact_no,
+    })) || [];
+
+  const allTableData      = mapData(allClinicsData);
+  const filteredTableData = mapData(filteredClinicsData);
 
   return (
-    <div className=' bg-gray-100 p-10'>
-      <div className="flex items-center justify-between mb-6">
-        <Title level={2} className="!mb-0 !text-gray-900">
-          Monthly Clinic Schedule
-        </Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          size="large"
-          onClick={() => setModelOpen(true)}
-          className="!bg-blue-600 !border-blue-600 hover:!bg-blue-700 hover:!border-blue-700 rounded-lg font-medium"
-        >
-          Add Clinic
-        </Button>
-      </div>
+    <div className='bg-gray-100 p-10'>
 
-      {/* Card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Filter */}
-        <div className="px-6 py-5 border-b border-gray-100">
-          <p className="text-sm font-medium text-gray-600 mb-2 ">
-            Filter by Year
-          </p>
-          <Select
-            value={selectedYear}
-            onChange={setSelectedYear}
-            className="w-48"
-            size="middle"
-          >
-            <Option value="all">All Years</Option>
-            <Option value="2023">2025</Option>
-            <Option value="2024">2026</Option>
-          </Select>
-        </div>
-
-        {/* Table */}
-        <div className="p-6">
-        <Table
-          columns={columns}
-          dataSource={data}
-          scroll={{ x: 'max-content'}}
-            pagination={{
-              pageSize: 10,
-              showTotal: (total) => (
-                <span className="text-gray-500 text-sm">
-                  Total {total} clinics
-                </span>
-              ),
-              position: ["bottomRight"],
-            }}
-          className="clinic-table"
-          rowClassName="hover:bg-gray-50 transition-colors"
-        />
-      </div>
-      </div>
-
-      <AddClinic 
+      {/* Add Modal */}
+      <AddClinic
         open={modelOpen}
         onClose={() => setModelOpen(false)}
         onAdd={handleAdd}
-      />  
-      
- 
-      {/* Ant Design Table Style Overrides */}
-      <style>{`
-        /* ── thead cells ── */
-        .clinic-table .ant-table-thead > tr > th {
-          background-color : #e9edf0;
-          color            : #535964;
-          font-size        : 13px;
-          font-weight      : 500;
-          padding          : 20px;
-          border-bottom    : 1px solid #d1d5db;
-          text-align       : center;
-          marginTop         : 10px;
-        }
- 
-        /* vertical divider between header columns */
-        .clinic-table .ant-table-thead > tr > th + th {
-          border-left : 1px solid #d1d5db;
-        }
- 
-        /* ── tbody cells ── */
-        .clinic-table .ant-table-tbody > tr > td {
-          padding       : 14px 16px;
-          border-bottom : 1px solid #f3f4f6;
-        }
- 
-        /* remove bottom border on last row */
-        .clinic-table .ant-table-tbody > tr:last-child > td {
-          border-bottom : none;
-        }
- 
-        /* flush table corners */
-        .clinic-table .ant-table {
-          border-radius : 0;
-        }
- 
-        /* ── pagination ── */
-        .clinic-table .ant-pagination {
-          padding    : 12px 16px;
-          margin     : 0 !important;
-          border-top : 1px solid #f3f4f6;
-        }
- 
-        .clinic-table .ant-pagination-item-active {
-          background-color : #2563eb;
-          border-color     : #2563eb;
-        }
- 
-        .clinic-table .ant-pagination-item-active a {
-          color : #fff;
-        }
+        mode="add"
+      />
 
-        /* ── horizontal scrollbar ── */
-        .clinic-table .ant-table-body::-webkit-scrollbar {
-          height        : 6px;
-        }
- 
-        .clinic-table .ant-table-body::-webkit-scrollbar-track {
-          background    : #f1f5f9;
-          border-radius : 4px;
-        }
- 
-        .clinic-table .ant-table-body::-webkit-scrollbar-thumb {
-          background    : #cbd5e1;
-          border-radius : 4px;
-        }
- 
-        .clinic-table .ant-table-body::-webkit-scrollbar-thumb:hover {
-          background    : #94a3b8;
-          border-radius : 4px;
-        }
-      `}</style>
-      
+      {/* Edit Modal */}
+      <AddClinic
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onAdd={handleUpdate}
+        mode="edit"
+        clinicData={selectedClinic}
+      />
+
+      {/* All Clinics Card */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <div className="grid grid-cols-2 items-center gap-4 mb-6">
+            <Title level={5} className="text-gray-600 whitespace-nowrap">
+              Monthly Clinic Details
+            </Title>
+            <div className="flex justify-end">
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                size="large"
+                onClick={() => setModelOpen(true)}
+              >
+                Add Clinic
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <Table
+            columns={columns}
+            dataSource={allTableData}
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => (
+                <span className="text-gray-500 text-sm">Total {total} clinics</span>
+              ),
+              position: ["bottomRight"],
+            }}
+            rowClassName="hover:bg-gray-50 transition-colors"
+          />
+        </div>
+      </div>
+
+      {/* Search Clinics Card */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-20">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <div className="grid grid-cols-2 items-center gap-4 mb-6">
+            <Title level={5} className="text-gray-600 whitespace-nowrap">
+              Search Clinic Details
+            </Title>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                Filter by Date
+              </span>
+              <DatePicker
+                value={selectedDate}
+                onChange={(date) => setSelectedDate(date)}
+                className="w-48"
+              />
+              <Button type="primary" onClick={handleSearch}>
+                Search
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <Table
+            columns={columns}
+            dataSource={filteredTableData}
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => (
+                <span className="text-gray-500 text-sm">Total {total} clinics</span>
+              ),
+              position: ["bottomRight"],
+            }}
+            rowClassName="hover:bg-gray-50 transition-colors"
+          />
+        </div>
+      </div>
+
     </div>
-  )
+  );
 }
 
-export default ClinicDetails
+export default ClinicDetails;
