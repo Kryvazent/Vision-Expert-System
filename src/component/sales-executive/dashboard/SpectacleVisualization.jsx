@@ -54,7 +54,7 @@ export const SpectacleVisualization = ({ prescription }) => {
           <span className="text-sm font-semibold">Prescription No.</span>
           <span className="border border-gray-400 px-3 py-1 font-mono font-bold">{prescription.id}</span>
         </div>
-        <p className="text-sm mb-1 font-medium">Optometrist: {prescription.optometrist}</p>
+        {/* <p className="text-sm mb-1 font-medium">Optometrist: {prescription.optometrist}</p> */}
         <h2 className="text-xl font-bold">THE PRESCRIPTION</h2>
       </div>
 

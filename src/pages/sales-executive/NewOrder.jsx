@@ -17,7 +17,7 @@ function NewOrder() {
     const [isDisabled, setIsDisabled] = useState(true);
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [selectedPrescription, setSelectedPrescription] = useState(null);
-    const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null); // added
+    const [selectedPrescriptionId, setSelectedPrescriptionId] = useState(null); 
     const [selectedFrameTypeId, setSelectedFrameTypeId] = useState(null);
     const [selectedFrameId, setSelectedFrameId] = useState(null);
     const [selectedFramePrice, setSelectedFramePrice] = useState(0);
@@ -53,7 +53,7 @@ function NewOrder() {
     // order submit
     const CREATE_ORDER = gql`
         mutation createOrder(
-            $agraharaApplied: Boolean,$advancePayment: Float!,
+            $agraharaApplied: Boolean,$advancePayment: Float!,$prescriptionId: ID!,
             $remarks: String!,$warrantyId: Int!,$totalPayment:Float!,$additionalPrice: Float!,$clinicAttendCustomerId:ID!
         ){
             insertIntoorderCollection(
@@ -64,7 +64,8 @@ function NewOrder() {
                     clinic_attend_customer_id: $clinicAttendCustomerId,
                     warranty_id: $warrantyId,
                     total_payment: $totalPayment,
-                    additional_fee: $additionalPrice
+                    additional_fee: $additionalPrice,
+                    prescription_id: $prescriptionId
                 }
             ){
                 records{
@@ -129,7 +130,8 @@ function NewOrder() {
                         warrantyId: warrantyId,
                         totalPayment: totalPayment,
                         additionalPrice: additionalPrice,
-                        clinicAttendCustomerId: clinicAttendCustomerId
+                        clinicAttendCustomerId: clinicAttendCustomerId,
+                        prescriptionId: selectedPrescriptionId,
                     }
                 });
                 const orderId = orderResult.data.insertIntoorderCollection.records[0].id;
