@@ -1,102 +1,230 @@
-import { Layout, Button, Row, Col, Card, Typography, Select, Modal } from 'antd'
-import React, {useState} from 'react'
+import { Layout, Button, Row, Col, Card, Typography, Select, DatePicker, message } from 'antd'
+import React, {useState, useEffect} from 'react'
 import { IssuesCloseOutlined, ClockCircleOutlined, CloseOutlined, CheckCircleOutlined, EditOutlined, PlusOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import StatCard from '../../component/Admin/StatCard'
 import ComplaintTable from '../../component/Admin/complaint-handling/ComplaintTable'
 import AddComplaint from '../../component/Admin/complaint-handling/AddComplaint'
 
-
+import {gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client/react/compiled';
+import { useAuth } from '../../const/functions'
 
 const {Title, Text} = Typography;
 const {Content} = Layout;
 const {Option} = Select;
+const {RangePicker} = DatePicker;
+
+const LOAD_COMPLAINTS = gql`
+    query LoadComplaints {
+        complaintCollection(orderBy: [{ created_at: DescNullsLast }]) {
+            edges {
+                node {
+                    id
+                    complaint
+                    created_at
+                    complaint_status {
+                        id
+                        status
+                    }
+                    order {
+                        id
+                        clinic_attend_customer {
+                            customer_has_branch {
+                                customer {
+                                    first_name
+                                    last_name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+`;
+
+const LOAD_COMPLAINT_STATUSES = gql`
+    query LoadComplaintStatuses {
+        complaint_statusCollection {
+            edges {
+                node {
+                    id
+                    status
+                }
+            }
+        }
+    }
+`;
+
+const INSERT_COMPLAINT = gql`
+    mutation InsertComplaint(
+        $complaint: String!,  
+        $order_id: BigInt!,
+        $complaint_status_id: BigInt!
+    ) {
+        insertIntocomplaintCollection(
+            objects: [{
+                complaint: $complaint,
+                order_id: $order_id,
+                complaint_status_id: $complaint_status_id
+            }]
+        ){
+            records {
+                order_id
+                complaint
+                created_at
+                complaint_status {
+                    status
+                
+                }
+            }
+        }
+    }
+`;
+
+const UPDATE_COMPLAINT_STATUS = gql`
+    mutation UpdateComplaintStatus($id: BigInt!, $status_id: BigInt!) {
+        updatecomplaintCollection(
+            filter: {id: {eq: $id}},
+            set: {complaint_status_id: $status_id}
+        ) {
+            records {
+                id
+                complaint_status{
+                    id
+                    status
+                }
+            }
+        }
+    }
+`;
+
+
 
 export default function ComplaintManagement() {
 
+const {staff} = useAuth();
+
+const {data:complaintsData, loading, error, refetch} = useQuery(LOAD_COMPLAINTS, { 
+    fetchPolicy: "network-only", 
+});
+const [insertComplaint] = useMutation(INSERT_COMPLAINT);
+const [updateComplaintStatus] = useMutation(UPDATE_COMPLAINT_STATUS);
+const {data:complaintStatusesData} = useQuery(LOAD_COMPLAINT_STATUSES);
+
+const [complaints, setComplaints] = useState([])
+const [isModalOpen, setIsModalOpen] = useState(false);    //controls add complaint modal visibility
 const [statusFilter, setStatusFilter] = useState("All");    //stores selected filter status
-const [isModalOpen, setIsModalOpen] = useState(false);
+const [dateRange, setDateRange] = useState([]);    //stores selected date filter
+const [statusUpdating, setStatusUpdating] = useState(false); //controls status dropdown disable state during update
 
-const data = [
-    {
-        key: '1',
-        complaintID: 'CMP-2501',
-        orderID: 'OD2501',
-        customer:'Kason Ratnayake',
-        complaint: 'Lens coating is peeling off after just one week of use. Expected better quality for the price paid.	',
-        date: '2026-04-28',
-        assignTo: 'Not Assigned',
-        status: 'Pending'
-    },
-    {
-        key: '2',
-        complaintID: 'CMP-2502',
-        orderID: 'OD2502',
-        customer:'Sarah Lee',
-        complaint: 'Staff was rude and unprofession',
-        date: '2026-04-27',
-        assignTo: 'Sarah Johnson',
-        status: 'In-Progress'
-    },
-    {
-        key: '3',
-        complaintID: 'CMP-2503',
-        orderID: 'OD2503',
-        customer:'John Silva',
-        complaint: 'Order was delayed by 2 weeks without any notification. Promised delivery date was not met.',
-        date: '2026-04-26',
-        assignTo: 'Sarah Johnson',
-        status: 'Resolved'
-    },
-    {
-        key: '4',
-        complaintID: 'CMP-2504',
-        orderID: 'OD2504',
-        customer:'Michael Brown',
-        complaint: 'Frame broke after minimal use. Quality seems substandard.',
-        date: '2026-04-25',
-        assignTo: 'Sarah Johnson',
-        status: 'Pending'
-    },
-    {
-        key: '5',
-        complaintID: 'CMP-2505',
-        orderID: 'OD2505',
-        customer:'Robert William',
-        complaint: 'Lens scratched within first few days despite careful handling.',
-        date: '2026-04-24',
-        assignTo: 'Sarah Johnson',
-        status: 'Closed'
-    },
-    {
-        key: '6',
-        complaintID: 'CMP-2506',
-        orderID: 'OD2506',
-        customer:'Lisa Fernando',
-        complaint: 'Received wrong order. Order was mixed up with another customer.',
-        date: '2026-04-28',
-        assignTo: 'Sarah Johnson',
-        status: 'Pending'
-    },
-];
 
-const [complaints, setComplaints] = useState(data)
+const statusMap = React.useMemo(() => {
+    const map = {};
+complaintStatusesData?.complaint_statusCollection?.edges.forEach((edge) => {
+    map[edge.node.status] = edge.node.id;
+});
+return map;
 
-const handleAddComplaints = (newComplaints) => {
-    setComplaints(prev => [newComplaints, ...prev])
-    setIsModalOpen(false)
-}
+}, [complaintStatusesData]);
 
-// Filter complaints based on status like pending, in-progress, resolved, closed or all
-const filteredData = 
-    statusFilter === "All" ? complaints : complaints.filter(item => item.status === statusFilter);
+//Transform GraphQL data to the table format with necessary fields like complaint, date, status, orderId and customerName. If no data, set to empty array
+    useEffect(() => {
+        if( complaintsData?.complaintCollection?.edges){
+            const formattedData = complaintsData.complaintCollection.edges.map((edge) => ({
+                key: edge.node.id,
+                complaint: edge.node.complaint,
+                date: new Date(edge.node.created_at)
+                            .toISOString()
+                            .split("T")[0], // Format date as YYYY-MM-DD
+                                                
+                status: edge.node.complaint_status?.status,
+                orderID: edge.node.order?.id,
+                customer: `${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.first_name || ""} 
+                                   ${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.last_name || ""}`.trim(),
+                assignTo: edge.node.complaint_status?.status === "Pending" 
+                                ? "Not Assign" 
+                                : "Owner"
+            }));
+            setComplaints(formattedData);
+        }
+    }, [complaintsData]);
+
+//Add new complaint to the list and close the modal after submission
+const handleAddComplaints = async (values) => {
+    try {
+        const pendingStatusId = statusMap["Pending"]; // Get from DB dynamically
+        if (!pendingStatusId) {
+            message.error("Pending status not found. Cannot add complaint.");
+            return;
+        }
+        await insertComplaint({
+            variables: {
+                complaint: values.complaint,
+                order_id: parseInt(values.orderID),
+                complaint_status_id: pendingStatusId, // Use the dynamically fetched status ID
+            }
+        });
+        await refetch(); // Refetch complaints to get the updated list with new complaint
+         message.success("Complaint added successfully!");
+        setIsModalOpen(false);
+        
+    } catch (error) {
+        console.error("Error adding complaint:", error);
+        message.error("Failed to add complaint.");
+    }
+};
+
+const handleStatusChange = async (key, newStatus) => {
+    setStatusUpdating(true);
+    try {
+        const statusId = statusMap[newStatus];
+        if (!statusId) {
+            message.error("Invalid status selected.");
+            return;
+        }
+        await updateComplaintStatus({
+            variables: {
+                id: key,
+                status_id: statusId,
+            }
+        });
+        await refetch(); // Refetch complaints to get the updated list with changed status
+        message.success(`Complaint status updated to ${newStatus}!`);
+    }catch (error) {
+        console.error("Error updating complaint status:", error);
+        message.error("Failed to update complaint status.");
+    }finally {
+        setStatusUpdating(false);
+    }
+};
+
+// Filter complaints based on status like pending, in-progress, resolved, closed or all and also filter by date range if selected
+const filteredData = complaints.filter ((item) => {
+        const statuesMatch = statusFilter === "All" || item.status === statusFilter;
+
+        let dateMatch = true;
+
+        if(dateRange.length === 2){
+            const itemDate = new Date(item.date);
+            const startDate = new Date(dateRange[0]);
+            const endDate = new Date(dateRange[1]);
+
+            dateMatch = itemDate >= startDate && itemDate <= endDate;
+        }
+        return statuesMatch && dateMatch;
+    });
 
 const count = {
     total: complaints.length,
     pending: complaints.filter(d => d.status==="Pending").length,
-    progress: complaints.filter(d => d.status==="In-Progress").length,
+    progress: complaints.filter(d => d.status==="In Progress").length,
     resolved: complaints.filter(d => d.status==="Resolved").length,
     closed: complaints.filter(d => d.status==="Closed").length,
 };
+
+if(loading && !complaintsData) return <p>Loading...</p>
+if(error) return <p>Error loading complaints.</p>
 
   return (
     <Layout>
@@ -153,16 +281,24 @@ const count = {
                 >
                     <Option value="All">All Status</Option>
                     <Option value="Pending">Pending</Option>
-                    <Option value="In-Progress">In-Progress</Option>
+                    <Option value="In Progress">In Progress</Option>
                     <Option value="Resolved">Resolved</Option>
                     <Option value="Closed">Closed</Option>
                 </Select>
+                <RangePicker 
+                    style={{ marginLeft: 10 }}
+                    onChange={(dates, dateStrings) => setDateRange(dateStrings || [])}
+                />
              </div>
 
               <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}}>
                 <Title level={5} className=".mb-0 " style={{fontWeight:"bold"}}>Complaints Details</Title>
 
-            <ComplaintTable data={filteredData}/>
+            <ComplaintTable 
+                data={filteredData}
+                onStatusChange={handleStatusChange}
+                statusUpdating={statusUpdating} 
+            />
             <AddComplaint
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
