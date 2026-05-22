@@ -67,7 +67,7 @@ export default function BatchManagementTable({data = [], onRefetch, onUpdateStat
       key: "updateStatus",
       width: 260,
       render: (value, record) => (
-        <Select defaultValue={value} style={{width: 220}} onChange={(newVal) => onUpdateStatus && onUpdateStatus(record.key, newVal)}>
+        <Select value={record.currentStatus} style={{width: 220}} onChange={(newVal) => onUpdateStatus && onUpdateStatus(record.key, newVal)}>
           <Option value="Delivered">Delivered</Option>
           <Option value="Received from the Lab">Received from the Lab</Option>
           <Option value="Delivered to the Lab">Delivered to the Lab</Option>

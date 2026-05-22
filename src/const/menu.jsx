@@ -1,4 +1,4 @@
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
 import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
@@ -32,6 +32,8 @@ export const MENU_BY_ROLE = {
     { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
+    { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
+
   ],
 
   

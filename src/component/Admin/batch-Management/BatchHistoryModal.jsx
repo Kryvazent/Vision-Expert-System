@@ -60,7 +60,7 @@ export default function BatchHistoryModal({open, onClose, batch}) {
           <Text strong style={{ fontSize: '12px' }}> Actual : </Text>
           <Text strong style={{fontSize: '12px', marginLeft: '4px',}}>{val.actual || '-'}</Text>
 
-          {renderDate( val.intended,val.actual)}
+          {renderDate( { intended: val.intended, actual: val.actual })}
         </div>
       </div>
     );
@@ -128,29 +128,7 @@ export default function BatchHistoryModal({open, onClose, batch}) {
       width: 220,
       render: renderStep
     },
-  ]
-
-
-
-  const orderData = [
-    { 
-      key: '1', 
-      id: 'ORD-2026-0789', 
-      customer: 'John Smith', 
-      placed: 'May 01, 2026', 
-      step1: { intended: '2026-05-02', actual: '2026-05-02' }, 
-      step2: { intended: '2026-05-04', actual: '2026-05-03' } // Shows -1d (Early)
-    },
-    { 
-      key: '2', 
-      id: 'ORD-2026-0790', 
-      customer: 'Sarah Williams', 
-      placed: 'May 01, 2026', 
-      step1: { intended: '2026-05-02', actual: '2026-05-04' }, // Shows +2d (Late)
-      step2: { intended: '2026-05-05', actual: '2026-05-05' } 
-    }
   ];
-
 
   return (
     <Modal 

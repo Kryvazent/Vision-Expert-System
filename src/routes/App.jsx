@@ -53,6 +53,7 @@ import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
 import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
+import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -423,6 +424,12 @@ function App() {
       <Route path="/complaint-management" element={
         <Page roles={["admin"]}>
           <ComplaintManagement />
+        </Page>
+      } />
+
+      <Route path="/lab-followup" element={
+        <Page roles={["admin"]}>
+          <LabFollowUp />
         </Page>
       } />
 
