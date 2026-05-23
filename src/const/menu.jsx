@@ -33,6 +33,7 @@ export const MENU_BY_ROLE = {
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
     { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
+    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' }
 
   ],
 

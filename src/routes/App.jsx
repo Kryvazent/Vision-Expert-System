@@ -54,6 +54,7 @@ import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
 import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
 import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
+import MainStockHandling from '../pages/owner/MainStockHandling';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -413,11 +414,16 @@ function App() {
       }/>
 
       {/* Admin */}
-
-
       <Route path="/reminder-calls" element={
         <Page roles={["admin"]}>
           <ReminderCalls />
+        </Page>
+      } />
+
+      {/* Admin */}
+      <Route path="/main-stock" element={
+        <Page roles={["admin"]}>
+          <MainStockHandling />
         </Page>
       } />
 

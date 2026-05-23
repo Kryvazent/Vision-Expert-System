@@ -445,28 +445,28 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
           <StatCard
             title="Available Stock"
             value={totalAvailable}
-            iconType="frames"
+            iconType="box"
             color="#00A854"
             bgColor="#E6F7F0"
           />
           <StatCard
             title="Low Stock"
             value={totalLowStock}
-            iconType="frames"
+            iconType="lowStock"
             color="#FAAD14"
             bgColor="#FFF7E6"
           />
           <StatCard
             title="Out of Stock"
             value={totalOutOfStock}
-            iconType="frames"
+            iconType="outStock"
             color="#F5222D"
             bgColor="#FFF1F0"
           />
           <StatCard
             title="Pending Damage"
             value={pendingDamaged}
-            iconType="frames"
+            iconType="closed"
             color="#722ED1"
             bgColor="#F9F0FF"
           />
