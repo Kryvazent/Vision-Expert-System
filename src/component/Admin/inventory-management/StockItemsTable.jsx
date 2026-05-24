@@ -186,7 +186,7 @@ export default function StockItemsTable({ data = [], updateStock, insertDamageSt
   ];
 
   //  Filter data by active tab 
-  const filteredData = data.filter((item) => item.category === activeTab);
+  const filteredData = activeTab ?  data.filter((item) => item.category === activeTab) : data;
 
   return (
     <div style={{ borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>

@@ -4,6 +4,19 @@ import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
 
 const { Option } = Select;
 
+const BRANCH_CODES = {
+    "Mahiyanganaya": "MAHI",
+    "Nuwara Eliya": "NELI",
+    "Kandy": "KAN",
+    "Dambulla": "DMB",
+  }
+
+  const addDays = (date, days) => {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
 export default function AddBatchModal({ open, onClose, onAddBatch }) {
 
   const [form] = Form.useForm();
@@ -14,28 +27,39 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
       setLoading(true);
       const values = await form.validateFields();
 
+      const today = new Date();
+      
+      const formattedDate = 
+        String(today.getDate()).padStart(2, '0') +
+        String(today.getMonth() + 1).padStart(2, '0') +
+        today.getFullYear();
+
+        const batchNumber =BRANCH_CODES[values.branch] + formattedDate;
+
       // Build batch object matching your batches state structure
       const newBatch = {
         key: Date.now().toString(),           // temporary unique key
-        batchNumber: values.batchNumber,
+        batchNumber: batchNumber,
+        branch: values.branch,
         orders: values.orderIDs?.length || 0,
-        currentStatus: 'Pending Customer Confirmation', // always starts here
+        currentStatus: 'Delivered to the Lab', // always starts here
         historyData: {
-          batchNumber: values.batchNumber,
+          batchNumber: batchNumber,
+          branch: values.branch,
           orders: values.orderIDs?.length || 0,
-          currentStatus: 'Pending Customer Confirmation',
-          currentStep: 0,                     // always starts at step 0
+          currentStatus: 'Delivered to the Lab',
+          currentStep: 2,                     // always starts at step 0
           orderData: values.orderIDs?.map((item, index) => ({
             key: String(index + 1),
             id: item.orderID,
             placed: item.placedDate,
             // all steps null on creation — not yet started
-            step1: { intended: values.intendedDates?.step1 || null, actual: null },
-            step2: { intended: values.intendedDates?.step2 || null, actual: null },
-            step3: { intended: values.intendedDates?.step3 || null, actual: null },
-            step4: { intended: values.intendedDates?.step4 || null, actual: null },
-            step5: { intended: values.intendedDates?.step5 || null, actual: null },
-            step6: { intended: values.intendedDates?.step6 || null, actual: null },
+            step1: { intended: addDays(today, 0).toISOString().split('T')[0],actual: null,},
+            step2: { intended: addDays(today, 1).toISOString().split('T')[0],actual: null  },
+            step3: { intended: addDays(today, 2).toISOString().split('T')[0],actual: null },
+            step4: { intended: addDays(today, 7).toISOString().split('T')[0],actual: null},
+            step5: { intended: addDays(today, 9).toISOString().split('T')[0],actual: null },
+            step6: { intended: addDays(today, 10).toISOString().split('T')[0],actual: null},
           })) || [],
           
           timeline: {
@@ -74,14 +98,18 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
     >
       <Form layout="vertical" form={form}>
 
-        {/* Batch Number */}
         <Form.Item
-          name="batchNumber"
-          label="Batch Number"
-          rules={[{ required: true, message: "Please enter batch number" }]}
-        >
-          <Input placeholder="e.g. BATCH-2026-003" />
-        </Form.Item>
+            name="branch"
+            label="Branch"
+            rules={[{required: true,message: "Please select branch"}]}
+          >
+            <Select placeholder="Select Branch">
+              <Option value="Mahiyanganaya">Mahiyanganaya</Option>
+              <Option value="Nuwara Eliya">Nuwara Eliya</Option>
+              <Option value="Kandy">Kandy</Option>
+              <Option value="Dambulla">Dambulla</Option>
+            </Select>
+          </Form.Item>
 
         {/* Dynamic Order List */}
         <Form.Item label="Orders in this Batch">
@@ -121,11 +149,7 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
                       <Input placeholder="e.g. 2026-05-01" style={{ width: 180 }} />
                     </Form.Item>
 
-                    {/* Remove button */}
-                    <MinusCircleOutlined
-                      onClick={() => remove(name)}
-                      style={{ color: 'red', fontSize: 16 }}
-                    />
+                  
                   </Space>
                 ))}
 
@@ -139,41 +163,13 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
                   >
                     Add Order
                   </Button>
-                  <Form.ErrorList errors={errors} />
-                </Form.Item>
+                </Form.Item>  
+                <Form.ErrorList errors={errors} />
+  
               </>
             )}
           </Form.List>
         </Form.Item>
-
-         {/* Intended Dates for Steps when created */}
-         <Form.Item label="Expected Step Dates (Intended)">
-
-            <Form.Item name={['intendedDates', 'step1']} label="Pending Confirmation Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item name={['expectedDates', 'step2']} label="Confirmations Completed Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item name={['expectedDates', 'step3']} label="deliver to Lab Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item name={['expectedDates', 'step4']} label="Received from Lab Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item name={['expectedDates', 'step5']} label="Out for Delivery Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-            <Form.Item name={['expectedDates', 'step6']} label="Delivered Date">
-                <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-
-         </Form.Item>
       </Form>
     </Modal>
   );

@@ -1,5 +1,5 @@
-import React from 'react'
-import {Modal, Space, Typography, Row, Col, Tag, Steps, Table} from 'antd'
+import React, {useState, useEffect}from 'react'
+import {Modal, Space, Typography, Row, Col, Tag, Steps, Table, DatePicker, Button,  message} from 'antd'
 import { 
   UserOutlined, 
   HistoryOutlined, 
@@ -14,18 +14,28 @@ import {
 const {Text, Title} = Typography
 
 export default function BatchHistoryModal({open, onClose, batch}) {
+  const [tableData, setTableData] = useState(
+    batch?.orderData || []
+  );
   
-    if(!batch) return null;
+  useEffect(() => {
+    setTableData(batch?.orderData || [])
+  }, [batch]);
+
+  if(!batch) return null;
 
   const parseDate = (str) => {
-  const [y, m, d] = str.split('-').map(Number);
-    return new Date(y, m - 1, d);
+    if (!str) return null;
+    const [y, m, d] = str.split('-').map(Number);
+      return new Date(y, m - 1, d);
   };
 
 
   //Calculate Date Differences
   const renderDate = ({intended, actual}) =>  {
+
     if( !intended || !actual ) return null;
+    
       const intendedDate = parseDate(intended);
       const actualDate = parseDate(actual);
 
@@ -45,8 +55,23 @@ export default function BatchHistoryModal({open, onClose, batch}) {
       );
   };
 
-  const renderStep = (val) => {
-    //When step data will missing
+  const handleActualDateChange  = (orderKey, stepKey, dateString) => {
+    const updated = tableData.map(order => {
+      if (order.key === orderKey) {
+        return { ...order,[stepKey]: { ...order[stepKey], actual: dateString,}};
+      }
+
+      return order;
+    });
+    setTableData(updated);
+
+    message.success(
+      "Actual date updated"
+    );
+  };
+
+
+  const renderStep = (val, record, stepKey) => {
     if( !val ){
       return <Text type='secondary'>-</Text>
     }
@@ -62,6 +87,14 @@ export default function BatchHistoryModal({open, onClose, batch}) {
 
           {renderDate( { intended: val.intended, actual: val.actual })}
         </div>
+        <Space direction="vertical">
+          <DatePicker
+            size="small"
+            onChange={( date,dateString) => {
+              handleActualDateChange(record.key,stepKey, dateString);
+            }}
+          />
+        </Space>
       </div>
     );
   };
@@ -94,39 +127,39 @@ export default function BatchHistoryModal({open, onClose, batch}) {
       title: <Tag icon={<ClockCircleOutlined />} color="orange" style={{ border: 'none' }}>Pending Customer Confirmation</Tag>,
       dataIndex: "step1",
       width: 220,
-      render: renderStep,
+      render: (val, record) => renderStep( val, record, "step1"),
   
     },
     {
       title:  <Tag icon={<CheckCircleOutlined />} color="blue" style={{ border: 'none' }}>Confirmations Completed</Tag>,
       dataIndex: "step2",
       width: 220,
-      render: renderStep,
+      render:  (val, record) => renderStep( val, record, "step2"),
     },
     {
       title: <Tag icon={<SendOutlined />} color="cyan" style={{ border: 'none' }}>Delivered to the Lab</Tag>,
       dataIndex: "step3",
       width: 220,
-      render: renderStep
+      render:  (val, record) => renderStep( val, record, "step3"),
     },
     {
       title: <Tag icon={<InboxOutlined />} color="blue" style={{ border: 'none' }}>Received from the Lab</Tag>,
       dataIndex: "step4",
       width: 220,
-      render: renderStep
+      render:  (val, record) => renderStep( val, record, "step4"),
     },
     {
       title: <Tag icon={<ShoppingOutlined />} color="purple" style={{ border: 'none' }}>Out for Delivery</Tag>,
       dataIndex: "step5",
       width: 220,
-      render: renderStep
+      render:  (val, record) => renderStep( val, record, "step5"),
   
     },
     {
       title: <Tag icon={<CheckCircleOutlined />} color="green" style={{ border: 'none' }}>Delivered</Tag>,
       dataIndex: "step6",
       width: 220,
-      render: renderStep
+      render:  (val, record) => renderStep( val, record, "step6"),
     },
   ];
 
@@ -184,9 +217,9 @@ export default function BatchHistoryModal({open, onClose, batch}) {
               <Title level={5} style={{ marginBottom: '16px', fontWeight: '600' }}>Order Status Details</Title>
               <Table 
                 columns={orderColumn} 
-                dataSource={batch.orderData || []}
+                dataSource={tableData}
                 pagination={false}
-                scroll={{x: 1000}}
+                scroll={{x: 1600}}
                 size='middle'
                 bordered
                 style={{marginBottom: '32px'}}

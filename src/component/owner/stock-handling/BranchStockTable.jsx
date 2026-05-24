@@ -25,8 +25,8 @@ export default function BranchStockTable({branches = [], selectedBranch, onBranc
     const filteredData = data.filter(item => item.category === activeCategory)
 
     const tabItems = productTypeList.map((pt) => ({
-        label: pt.type,
-        key: pt.type
+        key: pt.type.toLowerCase(),
+        label: pt.type
     }))
 
     const columns = [

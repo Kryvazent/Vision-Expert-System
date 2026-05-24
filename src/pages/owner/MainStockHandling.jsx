@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons'
 import {useAuth} from '../../const/functions'
 import { gql } from '@apollo/client'
-import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react/compiled'
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react'
 
 import StatCard from '../../component/owner/stock-handling/StatCard'
 import DamagedStockTable from '../../component/Admin/inventory-management/DamagedStockTable'
@@ -50,6 +50,7 @@ const LOAD_MAIN_STOCK = gql`
   query LoadMainStock($branch_id: Int!){
       stockCollection(
         filter: {branch_id: {eq: $branch_id}}
+        orderBy: [{ created_at: DescNullsLast }]
       ){
         edges{
           node{
@@ -57,6 +58,13 @@ const LOAD_MAIN_STOCK = gql`
             created_at
             available_quantity
             branch_id
+            supplier_id
+            supplier{
+              id
+              name
+              contact_no
+              email
+            }
             product{
               id
               name
@@ -66,12 +74,6 @@ const LOAD_MAIN_STOCK = gql`
                 product_type{
                   id
                   type
-              }
-                supplier{
-                  id
-                  name
-                  contact_no
-                  email
               }
             }
           }
@@ -133,12 +135,8 @@ const LOAD_MAIN_OUT_STOCK = gql `
 `;
 
 const LOAD_MAIN_DAMAGED_STOCK = gql `
-  query LoadMainDamagedStock($branch_id: Int!){
-    damaged_stockCollection(
-      filter: {
-        stock: {branch_id: {eq: $branch_id} }
-      }
-    ){
+  query LoadMainDamagedStock{
+    damaged_stockCollection{
       edges{
         node{
           id
@@ -149,6 +147,7 @@ const LOAD_MAIN_DAMAGED_STOCK = gql `
           status_bool
           stock{
             id
+            branch_id        
             product{
               id
               name
@@ -190,14 +189,13 @@ const LOAD_DISTRIBUTIONS = gql`
           quantity
           created_at
           status
-
+          notes
           stock {
             id
             product {
               name
             }
           }
-
           branch {
             id
             branch_name
@@ -270,15 +268,40 @@ const LOAD_PRODUCT_TYPES = gql`
 `;
 
 const LOAD_REORDERS = gql`
-  query LoadReOrders($branch_id: Int!) {
-    re_orderCollection(
-      filter: { branch_id: { eq: $branch_id } }
-    ) {
+  query LoadReOrders {
+    re_orderCollection{
       edges {
         node { 
           id 
           product_type_id 
           branch_id 
+          branch{
+            branch_name
+          }
+            product_type{
+              type
+          }
+        }
+      }
+    }
+  }
+`;
+
+// load all reorders with branch and product type info
+// So owner can see WHO needs WHAT
+const LOAD_ALL_REORDERS = gql`
+  query LoadAllReorders {
+    re_orderCollection(
+      orderBy: [{ created_at: DescNullsLast }]
+    ) {
+      edges {
+        node {
+          id
+          created_at
+          branch_id
+          product_type_id
+          branch { branch_name }
+          product_type { type }
         }
       }
     }
@@ -366,7 +389,8 @@ const INSERT_STOCK = gql `
     $product_id: BigInt!,
     $branch_id: Int!,
     $quantity: BigInt!,
-    $added_by: BigInt!
+    $added_by: BigInt!,
+    $supplier_id: BigInt
   ){
     insertIntostockCollection(
       objects: [{
@@ -374,11 +398,14 @@ const INSERT_STOCK = gql `
         branch_id: $branch_id
         available_quantity: $quantity
         added_by: $added_by
+        supplier_id: $supplier_id
+    
       }]
     ){
       records {
         id 
         available_quantity
+        supplier_id
       }
     } 
   }
@@ -390,6 +417,7 @@ const INSERT_DISTRIBUTION = gql`
     $branch_id: Int!
     $quantity: BigInt!
     $status: String!
+    $notes: String
   ) {
     insertIntostock_distributionCollection(
       objects: [{
@@ -397,6 +425,7 @@ const INSERT_DISTRIBUTION = gql`
         branch_id: $branch_id
         quantity: $quantity
         status: $status
+        notes: $notes
       }]
     ) {
       records {
@@ -441,6 +470,52 @@ const INSERT_SUPPLIER = gql`
     }
   }
 `;
+
+const INSERT_PRODUCT = gql`
+  mutation InsertProduct(
+    $name: String!
+    $product_type_id: BigInt!
+    $brand_id: BigInt!
+    $purchase_price: Float!
+    $selling_price: Float!
+    $purchased_quantity: BigInt!
+    $warranty_in_months: BigInt!
+  ) {
+    insertIntoproductCollection(
+      objects: [{
+        name: $name
+        product_type_id: $product_type_id
+        brand_id: $brand_id
+        purchase_price: $purchase_price
+        selling_price: $selling_price
+        purchased_quantity: $purchased_quantity
+        warranty_in_months: $warranty_in_months
+      }]
+    ) {
+      records { id name }
+    }
+  }
+`;
+
+const LOAD_BRANDS = gql`
+  query LoadBrands {
+    brandCollection(orderBy: [{ brand: AscNullsLast }]) {
+      edges {
+        node { id brand }
+      }
+    }
+  }
+`;
+
+const DELETE_REORDER = gql`
+  mutation DeleteReorder($id: BigInt!) {
+    deleteFromre_orderCollection(
+      filter: { id: { eq: $id } }
+    ) {
+      records { id }
+    }
+  }
+`
 
 //  Tab label with badge count 
 const TabLabel = ({ icon, text, count, color }) => (
@@ -491,18 +566,21 @@ export default function MainStockHandling() {
       type: e.node.type
     })) || []
 
-    const mapCategory = (type) => {
-      if(!type) return 'unknown'
-        return String(type).trim() 
-    }
+    const mapCategory = (type) => type ? String(type).trim() : 'Unknown'
+    
+    const { data: brandsData} = useQuery(LOAD_BRANDS, {fetchPolicy: 'network-only'})
+    const brandList = brandsData?.brandCollection?.edges.map(e => ({
+        id: e.node.id,
+        brand: e.node.brand,
+    })) || []
 
     const { data: suppliersData, refetch: refetchSuppliers } = useQuery(LOAD_SUPPLIERS)
-
     const supplierList = suppliersData?.supplierCollection?.edges.map(e => ({
       id: e.node.id,
       name: e.node.name,
       contact_no: e.node.contact_no,
       email: e.node.email,
+      address: e.node.address,
     })) || []
  
     const {data: mainStockData, refetch: refetchMain} = useQuery(LOAD_MAIN_STOCK,{
@@ -528,8 +606,6 @@ export default function MainStockHandling() {
     })
 
     const {data: damagedData, refetch: refetchDamaged} = useQuery(LOAD_MAIN_DAMAGED_STOCK,{
-      variables: { branch_id: headOfficeBranchId },
-      skip: !headOfficeBranchId,
       fetchPolicy: 'network-only',
       pollInterval: 5000,
     })
@@ -539,21 +615,23 @@ export default function MainStockHandling() {
       pollInterval: 5000,
     })
 
-    const [CheckBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
 
     const {data: branchesData} = useQuery(LOAD_BRANCHES, {fetchPolicy: 'network-only'})
 
-    const branches = branchesData?.branchCollection?.edges
+    const allBranches = branchesData?.branchCollection?.edges
       ?.map(e => ({ 
         id: Number(e.node.id), 
-        branch_name: e.node.branch_name }))
-      .filter(b => b.id !== headOfficeBranchId) || []
+        branch_name: e.node.branch_name })) || []
 
+    //branches for distribute modal — excludes head office
+    const distributionBranches = allBranches.filter(b => b.id !== headOfficeBranchId)
+    // branches for branch stock tab — includes all branches including head office
+    const allBranchesForStock = allBranches
       //  Branch stock
     const [loadBranchStock, {data: branchStockData}] = useLazyQuery(LOAD_BRANCH_STOCK,{fetchPolicy: 'network-only'})
 
     useEffect(() => {
-      if(selectedBranch) {
+      if(selectedBranch !== null && selectedBranch !== undefined) {
         loadBranchStock({
           variables: {
             branch_id: Number(selectedBranch)
@@ -561,23 +639,29 @@ export default function MainStockHandling() {
       }
     }, [selectedBranch, loadBranchStock])
 
-    const [loadReOrders, {data: reOrderData, refetch: refetchReOrders}] = useLazyQuery(LOAD_REORDERS,{
+    const [loadReOrders, {data: reOrderData}] = useLazyQuery(LOAD_REORDERS,{
       fetchPolicy: 'network-only',
       pollInterval: 5000,
     })
 
     useEffect(() => {
-      if(headOfficeBranchId) {
-        loadReOrders({
-          variables: {
-            branch_id: headOfficeBranchId
-          }})
-      }
-    }, [headOfficeBranchId])
+        loadReOrders()
+
+    }, [loadReOrders])
 
     const reOrderedTypeIds = new Set(
-      reOrderData?.re_orderCollection?.edges.map(e => String(e.node.product_type_id)) || []
+      reOrderData?.re_orderCollection?.edges
+      // only head office branch reorders affect owner's reorder badge
+        .filter(e => Number(e.node.branch_id) === headOfficeBranchId)
+        .map(e => String(e.node.product_type_id)) || []
     )
+
+    const allReOrderedTypeIds = new Set(
+      reOrderData?.re_orderCollection?.edges
+        .map(e => String(e.node.product_type_id)) || []
+    )
+
+    const[CheckBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
 
     const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
     const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK)
@@ -586,13 +670,13 @@ export default function MainStockHandling() {
     const [InsertDistribution] = useMutation(INSERT_DISTRIBUTION)
     const [InsertProductType] = useMutation(INSERT_PRODUCT_TYPE)
     const [InsertSupplier] = useMutation(INSERT_SUPPLIER)
+    const [InsertProduct] = useMutation(INSERT_PRODUCT)
 
     const refetchAll = () => {
       refetchMain()
       refetchLow()
       refetchOut()
       refetchDamaged()
-      refetchReOrders && refetchReOrders()
     }
 
     const stockList = mainStockData?.stockCollection?.edges.map((item, index) => ({
@@ -608,9 +692,9 @@ export default function MainStockHandling() {
       date: item.node.created_at?.split('T')[0],
       quantity: Number(item.node.available_quantity),
       stockQuantity: Number(item.node.available_quantity), //  keep for StockItemsTable
-      supplierName: item.node.product.supplier?.name || '',
-      supplierContact: item.node.product.supplier?.contact_no || '',
-      supplierEmail: item.node.product.supplier?.email || '',
+      supplierName: item.node.supplier?.name || '',
+      supplierContact: item.node.supplier?.contact_no || '',
+      supplierEmail: item.node.supplier?.email || '',
     })) || []
 
     const lowStockList = lowStockData?.stockCollection?.edges.map((item, index) => ({
@@ -629,16 +713,18 @@ export default function MainStockHandling() {
       quantity: Number(item.node.available_quantity),
     })) || []
 
-  const damagedStockList = damagedData?.damaged_stockCollection?.edges.map((item, index) => ({
-    key: index,
-    id: item.node.id,
-    stock_id: item.node.stock_id,
-    productName: item.node.stock?.product?.name || 'Unknown',
-    category: mapCategory(item.node.stock?.product?.product_type?.type),
-    damaged_quantity: Number(item.node.damaged_quantity),
-    reason: item.node.reason,
-    created_at: item.node.created_at,
-    status_bool: item.node.status_bool,
+  const damagedStockList = damagedData?.damaged_stockCollection?.edges
+    .filter(({ node }) => Number(node.stock?.branch_id) === headOfficeBranchId)
+    .map((item, index) => ({
+      key: index,
+      id: item.node.id,
+      stock_id: item.node.stock_id,
+      productName: item.node.stock?.product?.name || 'Unknown',
+      category: mapCategory(item.node.stock?.product?.product_type?.type),
+      damaged_quantity: Number(item.node.damaged_quantity),
+      reason: item.node.reason,
+      created_at: item.node.created_at,
+      status_bool: item.node.status_bool,
   })) || []
 
   const branchStockList = branchStockData?.stockCollection?.edges.map((item, index) => ({
@@ -660,9 +746,11 @@ export default function MainStockHandling() {
       branch:item.node.branch?.branch_name || 'Unknown Branch',
       quantity: Number(item.node.quantity),
       status: item.node.status || 'Pending Approval',
+      notes: item.node.notes || '',
     })
   ) || []
 
+  //STATCARDS
   const totalProducts = productTypeList.length
   const totalAvailable = stockList.reduce((sum, item) => sum+item.stockQuantity, 0)
   const lowStockItems = lowStockList.length
@@ -734,7 +822,6 @@ export default function MainStockHandling() {
               }
             })
 
-            
         }else{
           await insertStock({
             variables: {
@@ -742,6 +829,7 @@ export default function MainStockHandling() {
               branch_id: targetBranchId,
               quantity: qty,
               added_by: Number(staff?.id),
+              supplier_id: null,
             }
           })
         }
@@ -751,9 +839,25 @@ export default function MainStockHandling() {
             stock_id: product.id,
             branch_id: targetBranchId,
             quantity: qty,
-            status: 'Pending Approval'
+            status: 'Pending Approval',
+            notes: values.notes || '',
           }
         })
+
+        // Then in handleDistributeSubmit, after successful distribution:
+        // Find the matching reorder and delete it
+        const matchingReorder = reOrderData?.re_orderCollection?.edges?.find(
+          e => Number(e.node.branch_id) === targetBranchId
+            && Number(e.node.product_type_id) === product.productTypeId
+        )
+
+        if (matchingReorder) {
+          await deleteReorder({
+              variables: { 
+                id: matchingReorder.node.id 
+              }
+          })
+        }
 
         refetchDistribution()
         refetchAll()
@@ -768,14 +872,18 @@ export default function MainStockHandling() {
 
     const handleAddStock = async(values) => {
       try{
+        let finalProductTypeId = values.productTypeId
+
         if (values.newCategory) {
-          await InsertProductType({ variables: { type: values.newCategory } })
+          const catResult = await InsertProductType({ variables: { type: values.newCategory } })
+          finalProductTypeId = catResult.data?.insertIntoproduct_typeCollection?.records?.[0]?.id
           refetchProductTypes()  // refresh category tabs immediately
           message.success(`New category "${values.newCategory}" added.`)
         }
 
-        if (values.supplierName) {
-          await InsertSupplier({
+        let supplierId = values.supplierId || null
+        if (values.supplierName && !values.supplierId) {
+          const supResult = await InsertSupplier({
             variables: {
               name: values.supplierName,
               contact_no: values.supplierContact || null,
@@ -783,15 +891,39 @@ export default function MainStockHandling() {
               address: values.supplierAddress || null,
             }
           })
+          supplierId = supResult.data?.insertIntosupplierCollection?.records?.[0]?.id
           refetchSuppliers()
-        }
+         }
+        const productResult = await InsertProduct({
+                variables: {
+                    name: values.productName,
+                    product_type_id: Number(finalProductTypeId),
+                    brand_id: Number(values.brandId),
+                    purchase_price: Number(values.purchasePrice),
+                    selling_price: Number(values.sellingPrice || values.purchasePrice),
+                    purchased_quantity: Number(values.quantity),
+                    warranty_in_months: Number(values.warrantyMonths || 0),
+                }
+            })
+            const newProductId = productResult.data?.insertIntoproductCollection?.records?.[0]?.id
 
+            if (!newProductId) { message.error('Failed to create product'); return }
+
+            await insertStock({
+                variables: {
+                    product_id: Number (newProductId),
+                    branch_id: headOfficeBranchId,
+                    quantity: Number(values.quantity),
+                    added_by: Number(staff?.id),
+                    supplier_id: supplierId ? Number(supplierId) : null,
+                }
+            })
         setAddStockOpen(false)
-        message.success('Stock addition request submitted.')
         refetchAll()
-
+        message.success('Stock added to central warehouse successfully.')
+        
       }catch(err){
-        console.error(err)
+        console.error('Add stock failed:',err)
         message.error('Failed to add stock.')
       }
     }
@@ -831,7 +963,7 @@ export default function MainStockHandling() {
         ),
         children: (
           <BranchStockTable 
-            branches={branches} 
+            branches={allBranchesForStock} 
             selectedBranch={selectedBranch}
             onBranchChange={setSelectedBranch}
             data={branchStockList}
@@ -895,7 +1027,7 @@ export default function MainStockHandling() {
     ]
  
     if(!headOfficeBranchId){
-      return <div>Loading stock data...</div>
+      return <div style={{ padding: 40, textAlign: 'center' }}>Loading stock data...</div>
     }
 
   return (
@@ -1012,7 +1144,7 @@ export default function MainStockHandling() {
         <DistributionModal 
           open={!!distributeProduct}
           product={distributeProduct}
-          branches={branches}
+          branches={distributionBranches}
           onCancel={() => setDistributeProduct(null)}
           onSubmit={handleDistributeSubmit}
         />
@@ -1023,6 +1155,7 @@ export default function MainStockHandling() {
           onAdd={handleAddStock}
           productTypeList={productTypeList}
           supplierList={supplierList}
+          brandList = {brandList}
         />
       </Content>
     </Layout>

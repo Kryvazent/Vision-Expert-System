@@ -4,7 +4,7 @@ import { PlusOutlined, WarningOutlined } from '@ant-design/icons'
 
 const {Text} = Typography
 
-export default function AddStockModal({open, onCancel, onAdd, productTypeList=[], branches = [], branchList = [], supplierList = []}) {
+export default function AddStockModal({open, onCancel, onAdd, productTypeList=[],  branchList = [], supplierList = [],brandList=[]}) {
     const [form] = Form.useForm()
     const [addingNewCategory, setAddingNewCategory] = useState(false)
 
@@ -39,6 +39,7 @@ export default function AddStockModal({open, onCancel, onAdd, productTypeList=[]
             centered
         >
             <Form form={form} layout="vertical">
+                {/* Row 1: Product Name + Category */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <Form.Item 
                         label={<span style={{ fontWeight: 500 }}>Product Code <span style={{ color: '#DC2626' }}>*</span></span>}
@@ -80,7 +81,7 @@ export default function AddStockModal({open, onCancel, onAdd, productTypeList=[]
                                       form.setFieldValue('productTypeId', undefined)
                                     }}
                                   >
-                                    ＋ Add new category
+                                    +  Add new category
                                   </div>
                                 </>
                               )}
@@ -96,12 +97,20 @@ export default function AddStockModal({open, onCancel, onAdd, productTypeList=[]
                         )}
                     </Form.Item>
 
+                    {/* Row 2: Brand + Quantity */}
                     <Form.Item
                         label={<span style={{ fontWeight: 500 }}>Brand <span style={{ color: '#DC2626' }}>*</span></span>}
-                        name="brand"
-                        rules={[{ required: true, message: 'Please enter brand!' }]}
+                        name="brandId"
+                        rules={[{ required: true, message: 'Please select brand!' }]}
                     >
-                        <Input placeholder="e.g., Ray-Ban" style={{ borderRadius: 8 }} />
+                        <Select
+                            placeholder="Select brand"
+                            options={(brandList || []).map((b) => ({
+                                label: b.brand,
+                                value: b.id
+                            }))}
+                            style={{ borderRadius: 8 }}
+                        />
                     </Form.Item>
  
                     <Form.Item
@@ -115,6 +124,8 @@ export default function AddStockModal({open, onCancel, onAdd, productTypeList=[]
                             style={{ width: '100%', borderRadius: 8 }}
                         />
                     </Form.Item>
+                    
+                {/* Row 3: Purchase Price + Selling Price */}
                     <Form.Item
                         label={<span style={{ fontWeight: 500 }}>Purchase Price (Rs.) <span style={{ color: '#DC2626' }}>*</span></span>}
                         name="purchasePrice"
@@ -122,18 +133,35 @@ export default function AddStockModal({open, onCancel, onAdd, productTypeList=[]
                     >
                         <InputNumber placeholder="Enter price" min={0} style={{ width: '100%', borderRadius: 8 }} />
                     </Form.Item>
-                </div>    
+
+                     <Form.Item
+                        label={<span style={{ fontWeight: 500 }}>Selling Price (Rs.) <span style={{ color: '#DC2626' }}>*</span></span>}
+                        name="sellingPrice"
+                        rules={[{ required: true, message: 'Please enter selling price!' }]}
+                    >
+                        <InputNumber placeholder="e.g., 5000" min={0} style={{ width: '100%', borderRadius: 8 }} />
+                    </Form.Item>
+                </div> 
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <Form.Item
+                        label={<span style={{ fontWeight: 500 }}>Warranty (Months)</span>}
+                        name="warrantyMonths"
+                    >
+                        <InputNumber placeholder="e.g., 12 (0 if none)" min={0} style={{ width: '100%', borderRadius: 8 }} />
+                    </Form.Item>
+                </div>   
 
                      <Divider orientation="left" style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>
-                  Supplier Info (Optional)
-                </Divider>
+                        Supplier Info (Optional)
+                    </Divider>
  
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <Form.Item
                         label={<span style={{ fontWeight: 500 }}>Supplier Name</span>}
                         name="supplierName"
                     >
-                        {/* CHANGED: Select existing suppliers or type new name */}
+                        {/*  Select existing suppliers or type new name */}
                         <Select
                           placeholder="Select or type supplier name"
                           showSearch

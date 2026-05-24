@@ -54,7 +54,7 @@ const QuantityBadge = ({ qty }) => {
             display: 'inline-block',
             textAlign: 'center',
         }}>
-            {isHigh ? '99+' : qty}
+            { qty}
         </span>
     )
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import {Card, Table, Tag, Select, Button, Space, Badge, Typography } from "antd";
+import {Card, Table, Tag, Select, Button, Space, Badge, Typography, DatePicker } from "antd";
 import { icons } from '../../../assets/icons/AdminIcons';
 import { RightCircleOutlined, HistoryOutlined, ShoppingOutlined } from '@ant-design/icons';
 import { Content } from 'antd/es/layout/layout';
@@ -12,6 +12,7 @@ export default function BatchManagementTable({data = [], onRefetch, onUpdateStat
 
   const [historyOpen, setHistoryOpen] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [selectedStatus, setSelectedStatus] = useState({});
 
   // Open history popup
   const openHistory = (record) => {
@@ -21,16 +22,12 @@ export default function BatchManagementTable({data = [], onRefetch, onUpdateStat
 
   const getStatusTag = (status) => {
     const statusMap = {
-      "Delivered" : {color: "green", icon: icons.delivered},
-      "Received from the Lab": { color: "blue", icon: icons.received },
       "Delivered to the Lab": { color: "cyan", icon: icons.send },
-      "Confirmations Completed": { color: "geekblue", icon: icons.delivered },
-      "Pending Customer Confirmation": { color: "orange", icon: icons.clock },
-      "Out for Delivery": { color: "purple", icon: <ShoppingOutlined /> }
+      "Received from the Lab": { color: "blue", icon: icons.received },
     };
 
     const config = statusMap[status] || {color: "default", icon: null};
-    return <Tag color={config.color} icon={config.icon}>{status}</Tag>
+      return <Tag color={config.color} icon={config.icon}>{status}</Tag>
   };
 
   const columns = [
@@ -41,7 +38,7 @@ export default function BatchManagementTable({data = [], onRefetch, onUpdateStat
       fixed: 'left',
       width: 180,
       render : (text) => (
-        <a style={{fontWeight: 500}}>{text}</a>
+        <div style={{fontWeight: 500}}>{text}</div>
       ),
     },
     {
@@ -58,23 +55,91 @@ export default function BatchManagementTable({data = [], onRefetch, onUpdateStat
       title: "Current Status",
       dataIndex: "currentStatus",
       key: "currentStatus",
-      width: 260,
+      width: 220,
       render: (status) => getStatusTag(status),
     },
+   {
+      title: "Delivered To Lab",
+      width: 220,
+      render: (_, record) => {
+        const data = record.batchLevelTracking ?.deliveredToLab;
+
+        return (
+          <div>
+            <div>
+              <Text strong>Intended:</Text>
+              {" "}{data?.intended || '-'}
+            </div>
+
+            <div>
+              <Text strong>Actual:</Text>{" "}
+              {data?.actual || '-'}
+            </div>
+          </div>
+        );
+      }
+    },
     {
-      title: "Update Status",
+      title: "Received From Lab",
+      width: 220,
+      render: (_, record) => {
+        const data = record.batchLevelTracking ?.receivedFromLab;
+
+        return (
+          <div>
+            <div>
+              <Text strong>Intended:</Text>
+              {" "}{data?.intended || '-'}
+            </div>
+
+            <div>
+              <Text strong>Actual:</Text>{" "}
+              {data?.actual || '-'}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      title: "Update Batch Status",
       dataIndex: "updateStatus",
       key: "updateStatus",
-      width: 260,
-      render: (value, record) => (
-        <Select value={record.currentStatus} style={{width: 220}} onChange={(newVal) => onUpdateStatus && onUpdateStatus(record.key, newVal)}>
-          <Option value="Delivered">Delivered</Option>
-          <Option value="Received from the Lab">Received from the Lab</Option>
+      width: 320,
+      render: (_, record) => (
+        <Space direction="vertical">
+        <Select
+            placeholder="Select Status"
+            style={{ width: 220 }}
+            onChange={(value) => {
+              setSelectedStatus(prev => ({...prev, [record.key]: { ...prev[record.key], status: value}
+            }));
+            }}
+          >  
           <Option value="Delivered to the Lab">Delivered to the Lab</Option>
-          <Option value="Confirmations Completed">Confirmations Completed</Option>
-          <Option value="Pending Customer Confirmation">Pending Customer Confirmation</Option>
-          <Option value="Out for Delivery">Out for Delivery</Option>
+          <Option value="Received from the Lab">Received from the Lab</Option>
         </Select>
+        <DatePicker
+            style={{ width: 220 }}
+            onChange={(date, dateString) => {
+              setSelectedStatus(prev => ({ ...prev, [record.key]: { ...prev[record.key], actualDate: dateString}
+              }));
+            }}
+          />
+          <Button
+            type="primary"
+            onClick={() => {
+              const selected =selectedStatus[record.key];
+              if (!selected) return;
+               onUpdateStatus(
+                  record.key,
+                  selected.status,
+                  selected.actualDate
+               );
+            }}
+          >
+            Save
+          </Button>
+        </Space>
       )
     },
     {
