@@ -10,14 +10,8 @@ const BRANCH_CODES = {
     "Kandy": "KAN",
     "Dambulla": "DMB",
   }
-
-  const addDays = (date, days) => {
-    const result = new Date(date);
-    result.setDate(result.getDate() + days);
-    return result;
-  }
-
-export default function AddBatchModal({ open, onClose, onAddBatch }) {
+  
+export default function AddBatchModal({ open, onClose, onAddBatch, branchList = [] }) {
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
@@ -28,61 +22,29 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
       const values = await form.validateFields();
 
       const today = new Date();
-      
       const formattedDate = 
         String(today.getDate()).padStart(2, '0') +
         String(today.getMonth() + 1).padStart(2, '0') +
         today.getFullYear();
 
-        const batchNumber =BRANCH_CODES[values.branch] + formattedDate;
+        const branchName = branchList.find(b => b.id === values.branchId)?.branch_name || ''
+        const batchNumber =(BRANCH_CODES[branchName] || 'BR')  + formattedDate;      
 
-      // Build batch object matching your batches state structure
-      const newBatch = {
-        key: Date.now().toString(),           // temporary unique key
-        batchNumber: batchNumber,
-        branch: values.branch,
-        orders: values.orderIDs?.length || 0,
-        currentStatus: 'Delivered to the Lab', // always starts here
-        historyData: {
-          batchNumber: batchNumber,
-          branch: values.branch,
-          orders: values.orderIDs?.length || 0,
-          currentStatus: 'Delivered to the Lab',
-          currentStep: 2,                     // always starts at step 0
-          orderData: values.orderIDs?.map((item, index) => ({
-            key: String(index + 1),
-            id: item.orderID,
-            placed: item.placedDate,
-            // all steps null on creation — not yet started
-            step1: { intended: addDays(today, 0).toISOString().split('T')[0],actual: null,},
-            step2: { intended: addDays(today, 1).toISOString().split('T')[0],actual: null  },
-            step3: { intended: addDays(today, 2).toISOString().split('T')[0],actual: null },
-            step4: { intended: addDays(today, 7).toISOString().split('T')[0],actual: null},
-            step5: { intended: addDays(today, 9).toISOString().split('T')[0],actual: null },
-            step6: { intended: addDays(today, 10).toISOString().split('T')[0],actual: null},
-          })) || [],
-          
-          timeline: {
-            step1: null,
-            step2: null,
-            step3: null,
-            step4: null,
-            step5: null,
-            step6: null,
-          }
-        }
-      };
+        onAddBatch({
+          batchNumber,
+          branchId:  values.branchId,
+          orderData: values.orderIDs || [],
+        })
 
-      onAddBatch(newBatch);                        // pass to parent
-      message.success(`${values.batchNumber} added successfully!`);
-      form.resetFields();
-      onClose();
+    
+        form.resetFields()
+        onClose()
 
     } catch (error) {
       console.error("Validation or submit error:", error);
       message.error("Please fill in all required fields.");
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -99,15 +61,14 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
       <Form layout="vertical" form={form}>
 
         <Form.Item
-            name="branch"
+            name="branchId"
             label="Branch"
             rules={[{required: true,message: "Please select branch"}]}
           >
             <Select placeholder="Select Branch">
-              <Option value="Mahiyanganaya">Mahiyanganaya</Option>
-              <Option value="Nuwara Eliya">Nuwara Eliya</Option>
-              <Option value="Kandy">Kandy</Option>
-              <Option value="Dambulla">Dambulla</Option>
+              {branchList.map(b => (
+                <Option key={b.id} value={b.id}>{b.branch_name}</Option>
+              ))}
             </Select>
           </Form.Item>
 
@@ -144,12 +105,21 @@ export default function AddBatchModal({ open, onClose, onAddBatch }) {
                     <Form.Item
                       {...restField}
                       name={[name, 'placedDate']}
-                      rules={[{ required: true, message: "Enter Placed Date" }]}
+                      label={<Text style={{ fontSize: 12 }}>Placed Date</Text>}
+                      rules={[
+                        { required: true, message: "Enter Placed Date" },
+                      ]}
+                      style={{ margin: 0, flex: 1 }}
+                      getValueFromEvent={(date) => date ? date.format('YYYY-MM-DD') : null}
                     >
-                      <Input placeholder="e.g. 2026-05-01" style={{ width: 180 }} />
+                      <DatePicker
+                        style={{ width: '100%', borderRadius: 6 }}
+                        placeholder="Select date"
+                        format="YYYY-MM-DD"
+                      />
+                      
                     </Form.Item>
-
-                  
+                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
                   </Space>
                 ))}
 
