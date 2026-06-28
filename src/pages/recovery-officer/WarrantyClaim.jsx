@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   Table, Button, Tag, Badge, Typography, Space, Card,
   Modal, Input, Select, Alert, Tooltip, ConfigProvider, message, Form,
@@ -17,6 +17,16 @@ const { Option } = Select;
 const { TextArea } = Input;
 
 const descMax = 500;
+
+// ── Warranty source of truth ──
+// The `warranty` table (vision_expert.warranty) carries BOTH the issue
+// type ("Frame Damage", "Lens Damage", etc. via Issue_type) AND the
+// coverage period (month) together as one row. Each order points at
+// exactly one warranty row via order.warranty_id, so the issue type for
+// a claim is NOT something the user picks freely — it's whatever
+// warranty row is attached to that order. Frame Damage warranties are
+// configured with month=24, Lens Damage with month=12, etc. — that
+// configuration lives in the DB, not in this component.
 
 // GraphQL Queries
 
@@ -37,7 +47,10 @@ const GET_ORDERS = gql`
             }
           }
           warranty {
+            id
             month
+            Issue_type
+            description
           }
         }
       }
@@ -59,6 +72,10 @@ const GET_WARRANTY_CLAIMS = gql`
           }
           order {
             id
+            warranty {
+              Issue_type
+              month
+            }
             clinic_attend_customer {
               customer_has_branch {
                 customer {
@@ -88,7 +105,7 @@ const GET_COMPLAINT_STATUSES = gql`
   }
 `;
 
-//  Mutations 
+//  Mutations
 const INSERT_COMPLAINT = gql`
   mutation InsertComplaint(
     $orderId: BigInt!
@@ -131,7 +148,6 @@ const UPDATE_COMPLAINT_STATUS = gql`
   }
 `;
 
-
 const issueTagColor = {
   "Lens Damage": "cyan",
   "Frame Damage": "blue",
@@ -164,8 +180,13 @@ function parseOrderNode(node) {
     rawId:          node.id,
     customer:       `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim(),
     phone:          customer?.contact_no ?? "",
-    warrantyFor:    "—",
+    // The warranty row attached to this order is the single source of
+    // truth for issue type + coverage period. Not editable, not chosen
+    // by the user — it's whatever was configured when the order was placed.
+    warrantyId:     node?.warranty?.id ?? null,
+    issueType:      node?.warranty?.Issue_type ?? "—",
     warrantyMonths: node?.warranty?.month ?? 0,
+    warrantyDesc:   node?.warranty?.description ?? "",
     orderDate:      node.placed_at,
   };
 }
@@ -247,23 +268,20 @@ function UpdateStatusModal({ open, onClose, claim, statuses, onSuccess }) {
   );
 }
 
-
 export default function WarrantyClaim() {
   const [modalOpen, setModalOpen]             = useState(false);
   const [updateModal, setUpdateModal]         = useState({ open: false, claim: null });
-  const [issueType, setIssueType]             = useState(null);
   const [description, setDescription]         = useState("");
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [selectedOrder, setSelectedOrder]     = useState(null);
-  const [claimError, setClaimError]           = useState("");
-  const [canSubmit, setCanSubmit]             = useState(false);
+  const [orderError, setOrderError]           = useState(""); // existing claim OR expired warranty
   const [messageApi, contextHolder]           = message.useMessage();
 
   // ── Queries ──
-  const { data: orderData, loading: orderLoading, error: orderError } = useQuery(GET_ORDERS);
+  const { data: orderData, loading: orderLoading, error: orderQueryError } = useQuery(GET_ORDERS);
 
-  const {data: claimsData, loading: claimsLoading, error: claimsError,
-    refetch: refetchClaims,} = useQuery(GET_WARRANTY_CLAIMS, { fetchPolicy: "network-only" });
+  const { data: claimsData, loading: claimsLoading, error: claimsError,
+    refetch: refetchClaims } = useQuery(GET_WARRANTY_CLAIMS, { fetchPolicy: "network-only" });
 
   const { data: statusData } = useQuery(GET_COMPLAINT_STATUSES);
 
@@ -272,12 +290,10 @@ export default function WarrantyClaim() {
     (e) => e.node
   );
 
-  // Resolve the "Pending" status ID dynamically
   const pendingStatus = statuses.find((s) =>
     s.status?.toLowerCase().includes("pending")
   );
 
-  // Resolve "In Progress" status ID for the Start button
   const inProgressStatus = statuses.find((s) =>
     s.status?.toLowerCase().includes("progress")
   );
@@ -293,15 +309,39 @@ export default function WarrantyClaim() {
       orderId:     `OD${node.order?.id}`,
       customer:    `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim(),
       phone:       customer?.contact_no ?? "",
-      issueType:   node.complaint,
+      // Issue type comes from the order's warranty row, not the
+      // complaint text — complaint.complaint is the free-text description.
+      issueType:    node.order?.warranty?.Issue_type ?? "—",
+      description:  node.complaint,
       claimDate:   node.created_at?.split("T")[0] ?? "",
       status:      node.complaint_status?.status ?? "Pending",
     };
   });
 
+  // ALL previous claims for the selected order — used both for the
+  // "already claimed" lockout and for the on-screen history list.
   const previousClaims = selectedOrderId
     ? claims.filter((c) => c.orderId === selectedOrderId)
     : [];
+
+  // One claim per order, ever — no exceptions, regardless of status.
+  const hasExistingClaim = previousClaims.length > 0;
+
+  // Warranty expiry, read straight from the warranty row attached to the
+  // order (order.warranty.month), counted from order.placed_at.
+  const isExpired = useMemo(() => {
+    if (!selectedOrder) return false;
+    const expiry = new Date(selectedOrder.orderDate);
+    expiry.setMonth(expiry.getMonth() + (selectedOrder.warrantyMonths ?? 0));
+    return new Date() > expiry;
+  }, [selectedOrder]);
+
+  // Final gate for submission.
+  const canSubmit =
+    !!selectedOrder &&
+    !hasExistingClaim &&
+    !isExpired &&
+    description.trim().length > 0;
 
   // ── Mutations ──
   const [insertComplaint, { loading: submitting }] = useMutation(INSERT_COMPLAINT, {
@@ -331,8 +371,7 @@ export default function WarrantyClaim() {
   const handleOrderChange = (value) => {
     setSelectedOrderId(value);
     setSelectedOrder(null);
-    setClaimError("");
-    setCanSubmit(false);
+    setOrderError("");
 
     const node = orderData?.orderCollection?.edges?.find(
       ({ node }) => `OD${node.id}` === value
@@ -342,36 +381,37 @@ export default function WarrantyClaim() {
     const order = parseOrderNode(node);
     setSelectedOrder(order);
 
-    // Active claim check
-    const activeClaim = claims.find(
-      (c) =>
-        c.orderId === value &&
-        !c.status?.toLowerCase().includes("resolv")
-    );
-    if (activeClaim) {
-      setClaimError(
-        `This order already has a ${activeClaim.status} warranty claim (${activeClaim.id}).`
+    // One-claim-per-order lockout — ANY existing claim blocks a new one,
+    // regardless of its status (pending / in progress / resolved).
+    const existing = claims.filter((c) => c.orderId === value);
+    if (existing.length > 0) {
+      setOrderError(
+        `This order already has a warranty claim (${existing[0].id}). Only one claim is allowed per order.`
       );
       return;
     }
 
-    // Warranty expiry check
-    const today  = new Date();
+    // Expiry check, based on the warranty row attached to this order.
     const expiry = new Date(order.orderDate);
-    expiry.setMonth(expiry.getMonth() + order.warrantyMonths);
-    if (today > expiry) {
-      setClaimError(
-        `Warranty expired (${order.warrantyFor}, ${order.warrantyMonths} month${order.warrantyMonths !== 1 ? "s" : ""}).`
+    expiry.setMonth(expiry.getMonth() + (order.warrantyMonths ?? 0));
+    if (new Date() > expiry) {
+      setOrderError(
+        `Warranty for "${order.issueType}" has expired. Coverage was ${order.warrantyMonths} month${order.warrantyMonths !== 1 ? "s" : ""}, ending ${expiry.toLocaleDateString()}.`
       );
-      return;
     }
-
-    setCanSubmit(true);
   };
 
   const handleSubmitClaim = async () => {
-    if (!selectedOrder || !issueType || !description.trim()) {
+    if (!selectedOrder || !description.trim()) {
       messageApi.error("Please fill all required fields");
+      return;
+    }
+    if (hasExistingClaim) {
+      messageApi.error("This order already has a warranty claim on file.");
+      return;
+    }
+    if (isExpired) {
+      messageApi.error("Warranty period has expired for this issue type.");
       return;
     }
     if (!pendingStatus) {
@@ -379,8 +419,10 @@ export default function WarrantyClaim() {
       return;
     }
 
-    // Combine issueType + description into the complaint text
-    const complaintText = `[${issueType}] ${description.trim()}`;
+    // complaint.complaint is now purely the free-text description.
+    // Issue type lives on order.warranty.Issue_type, looked up via
+    // order_id whenever the claim is displayed — not duplicated here.
+    const complaintText = description.trim();
 
     await insertComplaint({
       variables: {
@@ -405,10 +447,8 @@ export default function WarrantyClaim() {
     setModalOpen(false);
     setSelectedOrder(null);
     setSelectedOrderId(null);
-    setIssueType(null);
     setDescription("");
-    setClaimError("");
-    setCanSubmit(false);
+    setOrderError("");
   };
 
   // ── Table columns ──
@@ -439,11 +479,8 @@ export default function WarrantyClaim() {
       title: "Issue Type",
       dataIndex: "issueType",
       width: 200,
-      render: (text) => {
-        // Extract the issue tag from "[Lens Damage] description…" format
-        const match = text?.match(/^\[(.+?)\]/);
-        const tag   = match ? match[1] : text;
-        const rest  = match ? text.slice(match[0].length).trim() : null;
+      render: (tag, record) => {
+        const rest = record.description;
         return (
           <Space direction="vertical" size={2}>
             <Tag
@@ -527,14 +564,14 @@ export default function WarrantyClaim() {
     },
   ];
 
-  if (orderError) {
+  if (orderQueryError) {
     return (
       <div style={{ padding: 24 }}>
         <Alert
           type="error"
           showIcon
           message="Failed to load orders"
-          description={orderError.message}
+          description={orderQueryError.message}
         />
       </div>
     );
@@ -569,7 +606,7 @@ export default function WarrantyClaim() {
           {/* Policy */}
           <Alert
             message="Warranty Policy"
-            description="Warranty period is determined by the warranty configuration attached to each order."
+            description="Each order's warranty terms (issue type and coverage period) are set when the order is placed. Only one warranty claim is allowed per order."
             type="info"
             showIcon
             icon={<InfoCircleFilled />}
@@ -651,7 +688,7 @@ export default function WarrantyClaim() {
             </Select>
           </div>
 
-          {/* Previous claims */}
+          {/* Previous claims (always shown if any exist — this order is locked) */}
           {previousClaims.length > 0 && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-4">
               <div className="flex items-start gap-3">
@@ -660,7 +697,7 @@ export default function WarrantyClaim() {
                   <div className="flex items-center gap-2 mb-3">
                     <HistoryOutlined className="text-gray-500 text-sm" />
                     <span className="text-sm font-semibold text-gray-700">
-                      Previous Warranty Claims Found ({previousClaims.length})
+                      Existing Warranty Claim — New claims not allowed for this order
                     </span>
                   </div>
                   <div className="space-y-3">
@@ -699,14 +736,9 @@ export default function WarrantyClaim() {
             </div>
           )}
 
-          {/* Error banner */}
-          {claimError && (
-            <Alert
-              type="error"
-              showIcon
-              message={claimError}
-              style={{ borderRadius: 8 }}
-            />
+          {/* Order-level error (existing claim lockout) */}
+          {orderError && (
+            <Alert type="error" showIcon message={orderError} style={{ borderRadius: 8 }} />
           )}
 
           {/* Customer info (auto-filled) */}
@@ -725,14 +757,32 @@ export default function WarrantyClaim() {
             </div>
           </div>
 
-          {/* Warranty info (auto-filled) */}
+          {/* Issue type — read-only, sourced from order.warranty.Issue_type.
+              Not a user choice: each order has exactly one warranty row,
+              which already fixes the issue type and coverage period. */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <span className="text-red-500 mr-0.5">*</span> Issue Type (from order warranty)
+            </label>
+            <Input
+              value={selectedOrder?.issueType ?? ""}
+              readOnly
+              size="large"
+            />
+          </div>
+
+          {/* Warranty info, read straight from the order's warranty row */}
           {selectedOrder && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Warranty For
+                  Order Date
                 </label>
-                <Input value={selectedOrder.warrantyFor} readOnly size="large" />
+                <Input
+                  value={new Date(selectedOrder.orderDate).toLocaleDateString()}
+                  readOnly
+                  size="large"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -747,26 +797,6 @@ export default function WarrantyClaim() {
             </div>
           )}
 
-          {/* Issue type */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              <span className="text-red-500 mr-0.5">*</span> Issue Type
-            </label>
-            <Select
-              placeholder="Select issue type"
-              value={issueType}
-              onChange={setIssueType}
-              className="w-full"
-              size="large"
-              disabled={!canSubmit}
-            >
-              <Option value="Lens Damage">Lens Damage</Option>
-              <Option value="Frame Damage">Frame Damage</Option>
-              <Option value="Prescription Error">Prescription Error</Option>
-              <Option value="Other">Other</Option>
-            </Select>
-          </div>
-
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -778,7 +808,7 @@ export default function WarrantyClaim() {
                 value={description}
                 placeholder="Describe the defect or problem in detail..."
                 onChange={(e) => setDescription(e.target.value.slice(0, descMax))}
-                disabled={!canSubmit}
+                disabled={!selectedOrder || hasExistingClaim || isExpired}
                 style={{ paddingBottom: "28px" }}
               />
               <span className="absolute bottom-2 right-3 text-xs text-gray-400 select-none">
@@ -796,7 +826,7 @@ export default function WarrantyClaim() {
           <Button
             type="primary"
             size="large"
-            disabled={!canSubmit || !issueType || !description.trim()}
+            disabled={!canSubmit}
             loading={submitting}
             onClick={handleSubmitClaim}
           >
