@@ -1,6 +1,39 @@
 
 import React from 'react'
-import {FileDoneOutlined,TeamOutlined,StockOutlined, InboxOutlined, SearchOutlined, FileTextOutlined,ShoppingOutlined, ExperimentOutlined, BgColorsOutlined, ScanOutlined, WarningOutlined, InfoCircleOutlined, PlusOutlined, ProjectOutlined, CalendarOutlined, EyeOutlined, EditOutlined, DeleteOutlined, ShoppingCartOutlined, ClockCircleOutlined, CheckCircleOutlined, SendOutlined, SafetyCertificateOutlined, ArrowRightOutlined, HistoryOutlined, MoreOutlined, PhoneOutlined,IssuesCloseOutlined ,CloseCircleOutlined, CreditCardOutlined, ArrowDownOutlined, ArrowUpOutlined,DollarOutlined } from "@ant-design/icons";
+import {
+  FileDoneOutlined,
+  TeamOutlined,
+  StockOutlined, 
+  InboxOutlined, 
+  SearchOutlined, 
+  FileTextOutlined,
+  ShoppingOutlined, 
+  ExperimentOutlined, 
+  BgColorsOutlined, 
+  ScanOutlined, 
+  WarningOutlined, 
+  InfoCircleOutlined, 
+  PlusOutlined, 
+  ProjectOutlined, 
+  CalendarOutlined, 
+  EyeOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  ShoppingCartOutlined, 
+  ClockCircleOutlined, 
+  CheckCircleOutlined, 
+  SendOutlined, 
+  SafetyCertificateOutlined, 
+  ArrowRightOutlined, 
+  HistoryOutlined, 
+  MoreOutlined, 
+  PhoneOutlined,
+  IssuesCloseOutlined ,
+  CloseCircleOutlined, 
+  CreditCardOutlined, 
+  ArrowDownOutlined, 
+  ArrowUpOutlined,
+  DollarOutlined } from "@ant-design/icons";
 
 const iconStyle = { color: "#3B82F6", fontSize: 22, fontWeight: "bold" };
 
@@ -37,6 +70,7 @@ export const icons = {
   expense: <ArrowDownOutlined  style={iconStyle} />,
   replenishment: <ArrowUpOutlined  style={iconStyle} />,
   total: <DollarOutlined  style={iconStyle} />,
+ 
 
   shopping: (
     <ShoppingOutlined
