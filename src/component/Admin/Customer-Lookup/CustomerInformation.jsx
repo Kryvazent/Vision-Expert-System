@@ -1,10 +1,15 @@
 import React from 'react'
 import { UserOutlined } from '@ant-design/icons'
-import { Card, Row, Col, Typography } from 'antd'
+import { Card, Row, Col, Typography, Descriptions } from 'antd'
 
 const {Text} = Typography;
 
-export default function CustomerInformation() {
+export default function CustomerInformation({customer}) {
+
+  if ( !customer ) {
+    return <p>No customer data available</p>
+  }
+
   return (
     <Card style = {{borderRadius: "12px", background: "#f9fafb", border:  "1px solid #e5e7eb"}}>
       {/*Header*/}
@@ -16,56 +21,33 @@ export default function CustomerInformation() {
         </Text>
       </div>
 
-      {/*Row 1*/}
-      <Row gutter={16} style={{marginBottom: "10px", background: "#ffffff",  padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb"}}>
-        <Col span={6} style={{background: ""}}>
-          <Text type="secondary"> Full Name</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong>Kasun Rathnayake</Text>
-        </Col>
+      {/* Descriptions */}
+    <Descriptions>
+      <Descriptions.Item label="Full Name">
+        <strong>{customer?.name}</strong>
+      </Descriptions.Item>
 
-        <Col span={6}>
-          <Text type="secondary">NIC</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong>199012345678</Text>
-        </Col>
-      </Row>
+      <Descriptions.Item label="NIC">
+        {customer?.nic}
+      </Descriptions.Item>
 
-      {/*Row 2*/}
-      <Row gutter={16} style={{ marginBottom: "10px", background: "#ffffff",  padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb" }}>
-        <Col span={6}>
-          <Text type="secondary">Branch</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong>Kadawatha</Text>
-        </Col>
+      <Descriptions.Item label="Mobile">
+        {customer?.mobile}
+      </Descriptions.Item>
 
-        <Col span={6}>
-          <Text type="secondary">Address</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong>10 Lake Rd, Colombo 5</Text>
-        </Col>
-      </Row>
+      <Descriptions.Item label="Address" span={2}>
+        {customer?.address}
+      </Descriptions.Item>
 
-       {/*Row 3*/}
-      <Row gutter={16} style={{background: "#ffffff",  padding: "10px", borderRadius: "8px", border: "1px solid #e5e7eb"}}>
-        <Col span={6}>
-          <Text type="secondary">Registered Date</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong>2024-02-10</Text>
-        </Col>
+      <Descriptions.Item label="Registered Data">
+        {customer?.registerDate}
+      </Descriptions.Item>
 
-        <Col span={6}>
-          <Text type="secondary">Customer ID</Text>
-        </Col>
-        <Col span={6}>
-          <Text strong style={{color: "#2563eb"}}>C001</Text>
-        </Col>
-      </Row>
+      <Descriptions.Item label="Customer ID" span={2}>
+        {customer?.customerId}
+      </Descriptions.Item>
+  </Descriptions>  
+
     </Card>
   )
 }

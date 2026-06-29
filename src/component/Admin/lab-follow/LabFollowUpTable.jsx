@@ -1,0 +1,196 @@
+import React, {useState} from 'react'
+import {Table, Tag, Button, Select, DatePicker, Space, Typography, Tooltip} from 'antd'
+import dayjs from 'dayjs'
+import { CheckCircleOutlined, EditFilled, SendOutlined, ClockCircleOutlined, WarningOutlined, EditOutlined } from '@ant-design/icons'
+
+const {Text} = Typography
+const {RangePicker} = DatePicker
+
+const STATUSES = {
+  'Sent to Lab':{
+    color: 'blue',
+    icon: <SendOutlined />,
+    label: 'Sent to Lab',
+    bg: '#EFF6FF',
+    border: '#BFDBFE',
+    text: '#1D4ED8',
+  
+  },
+  'In Progress': {
+    color: 'processing',
+    icon: <ClockCircleOutlined />,
+    label: 'In Progress',
+    bg: '#EFF6FF',
+    border: '#BFDBFE',
+    text: '#2563EB',
+  },
+  Received: {
+    color: 'success',
+    icon: <CheckCircleOutlined />,
+    label: 'Received',
+    bg: '#F0FDF4',
+    border: '#BBF7D0',
+    text: '#16A34A',
+  },
+  Delayed: {
+    color: 'error',
+    icon: <WarningOutlined />,
+    label: 'Delayed',
+    bg: '#FEF2F2',
+    border: '#FECACA',
+    text: '#DC2626',
+  },
+}
+
+
+const StatusBadge = ({status}) => {
+  const config = STATUSES[status] || STATUSES['Sent to Lab'];
+  return (
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '2px 10px',
+        borderRadius: 20,
+        background: config.bg,
+        border: `1px solid ${config.border}`,
+        color: config.text,
+        fontSize: 13,
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {config.icon}
+      {config.label}
+    </span>
+  );
+};
+
+const CHANGEABLE_STATUSES = [
+    { label: 'Sent to Lab', value: 'Sent to Lab' },
+    { label: 'In Progress', value: 'In Progress' },
+]
+
+export default function LabFollowUpTable({orders,onStatusChange, onMarkReceived, onEditNote }) {
+  const columns = [
+    {
+      title: 'Order ID',
+      dataIndex: 'orderId',
+      key: 'orderId',
+      render: (val) => <Text strong>{val}</Text>,
+      width: 120,
+    },
+    {
+      title: 'Clinic Center',
+      dataIndex: 'clinicCenter',
+      key: 'clinicCenter',
+      width: 200,
+    },
+    {
+      title: 'Sent to Lab',
+      dataIndex: 'sentToLab',
+      key: 'sentToLab',
+      width: 130,
+    },
+    {
+      title: 'Expected Return',
+      dataIndex: 'expectedReturn',
+      key: 'expectedReturn',
+      width: 150,
+    },
+    {
+      title: 'Received Date',
+      dataIndex: 'receivedDate',
+      key: 'receivedDate',
+      width: 140,
+      render: (val) => val || <Text type="secondary">-</Text>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 140,
+      render: (val) => <StatusBadge status={val} />,
+    },
+    {
+      title: "Update Status",
+      key: "updateStatus",
+      render: (_, record) => {
+
+        //no dropdown, no button, status is final
+        if (record.status === 'Received') {
+          return <Text type="secondary" style={{ fontSize: 12 }}>—</Text>
+        }
+        const isDelayed = record.status === 'Delayed'
+
+          return (
+            <Select
+                value={isDelayed ? undefined : record.status}
+                placeholder={isDelayed ? 'Change status' : undefined}
+                style={{ width: 155 }}
+                onChange={(value) => onStatusChange(record, value)}
+                options={CHANGEABLE_STATUSES}
+            />
+        );
+      }
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 220,
+      render: (_, record) => {
+        if (record.status === 'Received') return null;
+        return (
+          <Space size={8}>
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckCircleOutlined />}
+              onClick={() => onMarkReceived(record)}
+              style={{ background: '#2563EB', borderColor: '#2563EB', borderRadius: 6 }}
+            >
+              Mark Received
+            </Button>
+            {record.status === 'Delayed' && (
+              <Button
+                size="small"
+                icon={<EditOutlined />}
+                onClick={() => onEditNote(record)}
+                style={{ borderRadius: 6 }}
+              >
+                Edit Note
+              </Button>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
+ 
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20}}>
+      <Table
+        columns={columns}
+        dataSource={orders}
+        rowKey={(record) => record.id}
+        pagination={{
+          pageSize: 10,
+          showTotal: (total) => `Total ${total} orders`,
+          style: { marginTop: 16 },
+        }}
+        scroll={{x: 900}}
+        rowClassName={(record) =>
+          record.status === 'Delayed' ? 'delayed-row' : ''
+        }
+        style={{fontSize: 14}}
+      />
+
+      <style>{`
+                .delayed-row td { background: #FFF7ED !important; }
+                .delayed-row:hover td { background: #FEF3C7 !important; }
+            `}</style>
+            
+    </div>
+  )
+}

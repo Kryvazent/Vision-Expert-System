@@ -53,6 +53,8 @@ import Reports from "../pages/owner/Reports";
 import SystemActivity from "../pages/owner/SystemActivity";
 import UserManagement from "../pages/owner/UserManagment";
 import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
+import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
+import MainStockHandling from '../pages/owner/MainStockHandling';
 import CashTransferToAdmin from '../pages/sales-executive/CashTransferToAdmin';
 
 // Wrap page in both layout + role guard
@@ -420,17 +422,28 @@ function App() {
       }/>
 
       {/* Admin */}
-
-
       <Route path="/reminder-calls" element={
         <Page roles={["admin"]}>
           <ReminderCalls />
         </Page>
       } />
 
+      {/* Admin */}
+      <Route path="/main-stock" element={
+        <Page roles={["admin"]}>
+          <MainStockHandling />
+        </Page>
+      } />
+
       <Route path="/complaint-management" element={
         <Page roles={["admin"]}>
           <ComplaintManagement />
+        </Page>
+      } />
+
+      <Route path="/lab-followup" element={
+        <Page roles={["admin"]}>
+          <LabFollowUp />
         </Page>
       } />
 
