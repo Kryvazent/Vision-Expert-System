@@ -15,11 +15,16 @@ const basecolumns = [
     { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 150 },
     { title: 'Customer Address', dataIndex: 'customerAddress', key: 'customerAddress', width: 200 },
     { title: 'Total Amount', dataIndex: 'totalAmount', key: 'totalAmount', width: 150 },
-    { title: 'Paid Amount', dataIndex: 'paidAmount', key: 'paidAmount', width: 150 },
+    { title: 'Advance Amount', dataIndex: 'advanceAmount', key: 'advanceAmount', width: 150 },
+    { title: 'Balance Amount', dataIndex: 'balanceAmount', key: 'balanceAmount', width: 180 },
     { title: 'Remarks', dataIndex: 'remarks', key: 'remarks', width: 150 },
-    { title: 'Remaining Amount', dataIndex: 'remainingAmount', key: 'remainingAmount', width: 180 },
-    { title: 'Payment Received', dataIndex: 'paymentReceived', key: 'paymentReceived', width: 170 },
+    { title: 'Received Payment', dataIndex: 'paymentReceived', key: 'paymentReceived', width: 170 },
     { title: 'Delivered', dataIndex: 'delivered', key: 'delivered', width: 120 },
+    { title: 'Actions', dataIndex: 'actions', key: 'actions', width: 150, render: (_, record) => (
+        <Button type="primary" onClick={() => handleAction(record)}>
+            Print Bill
+        </Button>
+    ) },
     
 ];
 
