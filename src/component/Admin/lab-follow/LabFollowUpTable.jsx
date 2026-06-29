@@ -70,6 +70,7 @@ const StatusBadge = ({status}) => {
 const CHANGEABLE_STATUSES = [
     { label: 'Sent to Lab', value: 'Sent to Lab' },
     { label: 'In Progress', value: 'In Progress' },
+    
 ]
 
 export default function LabFollowUpTable({orders,onStatusChange, onMarkReceived, onEditNote }) {
