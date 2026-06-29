@@ -55,6 +55,7 @@ import UserManagement from "../pages/owner/UserManagment";
 import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandling';
 import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
 import MainStockHandling from '../pages/owner/MainStockHandling';
+import CashTransferToAdmin from '../pages/sales-executive/CashTransferToAdmin';
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -82,9 +83,7 @@ function App() {
       <Route
         path="/track"
         element={
-          // <CommonPageStructure>
             <Track />
-          // </CommonPageStructure>
         }
       />
 
@@ -140,6 +139,15 @@ function App() {
         element={
           <Page roles={["sales-executive"]}>
             <Orders />
+          </Page>
+        }
+      />
+
+      <Route
+        path="/cash-transfer"
+        element={
+          <Page roles={["sales-executive"]}>
+            <CashTransferToAdmin />
           </Page>
         }
       />
