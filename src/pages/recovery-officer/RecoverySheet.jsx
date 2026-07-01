@@ -31,6 +31,9 @@ const GET_CENTERS = gql`
   }
 `;
 
+// NOTE: added order.delivery_orderCollection so we can detect if this order
+// already has a payment/delivery record saved — this is the key fix.
+// Also pull discount + additional_fee so the balance calculation is accurate.
 const GET_RECOVERY_ORDERS = gql`
   query GetRecoveryOrders($clinicId: BigInt!) {
     lab_follow_upCollection(
@@ -54,6 +57,8 @@ const GET_RECOVERY_ORDERS = gql`
                 node {
                   total_payment
                   advance
+                  discount
+                  additional_fee
                 }
               }
             }
@@ -64,6 +69,18 @@ const GET_RECOVERY_ORDERS = gql`
                   last_name
                   contact_no
                   address
+                }
+              }
+            }
+            delivery_orderCollection {
+              edges {
+                node {
+                  id
+                  payment_type
+                  paid_amount
+                  balance_amount
+                  status
+                  payment_received
                 }
               }
             }
@@ -122,7 +139,8 @@ function ReceivedPaymentCell({
   const paidAmount    = state.paidAmount    ?? 0;
   const balanceAmount = state.balanceAmount ?? record.balanceAmount ?? 0;
 
-  // When saved, show a locked summary instead of editable controls
+  // When saved (either just now, or already saved before refresh), show a
+  // locked summary instead of editable controls
   if (saved) {
     return (
       <Space direction="vertical" size={4} style={{ width: "100%" }}>
@@ -182,7 +200,7 @@ function ReceivedPaymentCell({
           <InputNumber
             size="small"
             min={0}
-            max={record.totalAmount}
+            max={record.balanceAmount}
             value={paidAmount}
             placeholder="Enter amount paid"
             style={{ width: "100%" }}
@@ -251,11 +269,26 @@ function RecoverySheet() {
 
       if (delivery.format("YYYY-MM-DD") !== selectedDate.format("YYYY-MM-DD")) return;
 
-      const customer      = order.clinic_attend_customer?.customer_has_branch?.customer;
-      const payment       = order.paymentCollection?.edges?.[0]?.node;
-      const totalAmount   = payment?.total_payment ?? 0;
-      const advanceAmount = payment?.advance ?? 0;
-      const balanceAmount = totalAmount - advanceAmount;
+      const customer     = order.clinic_attend_customer?.customer_has_branch?.customer;
+      const payment      = order.paymentCollection?.edges?.[0]?.node;
+
+      // Raw figures from the payment record
+      const rawTotal      = payment?.total_payment  ?? 0;
+      const discount      = payment?.discount       ?? 0;
+      const additionalFee = payment?.additional_fee ?? 0;
+      const advanceAmount = payment?.advance        ?? 0;
+
+      // Net total actually owed for this order, after discount / additional fee.
+      const totalAmount = rawTotal - discount + additionalFee;
+
+      // What's left after the advance already paid — this is the real
+      // outstanding balance a partial payment should be deducted from.
+      const balanceAmount = Math.max(totalAmount - advanceAmount, 0);
+
+      // If a delivery_order already exists for this order, it means
+      // payment/delivery was already recorded — this row must be locked.
+      const existingDeliveryOrder =
+        order.delivery_orderCollection?.edges?.[0]?.node ?? null;
 
       rows.push({
         id:              order.id,
@@ -265,10 +298,11 @@ function RecoverySheet() {
         customerName:    `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim(),
         phone:           customer?.contact_no ?? "",
         customerAddress: customer?.address ?? "",
-        totalAmount,
+        totalAmount,     // net total after discount/fee
         advanceAmount,
-        balanceAmount,   // the pre-existing balance from DB (total - advance)
+        balanceAmount,   // net total - advance (original / DB value)
         remarks:         order.remarks ?? "",
+        existingDeliveryOrder,
       });
     });
 
@@ -276,19 +310,31 @@ function RecoverySheet() {
   }, [orderData, selectedDate]);
 
   // ── Init rowState per row ──
+  // If the order already has a delivery_order record (from a previous save),
+  // initialize the row as locked ("saved: true") using the real stored values
+  // instead of the blank defaults. This is what prevents re-payment after refresh.
   useEffect(() => {
     if (!data.length) return;
 
     setRowState((prev) => {
       const next = { ...prev };
       data.forEach((record) => {
-        if (!next[record.id]) {
+        if (next[record.id]) return; // already initialized this session
+
+        const existing = record.existingDeliveryOrder;
+
+        if (existing) {
+          next[record.id] = {
+            paymentType:    existing.payment_type ?? PAYMENT_FULL,
+            paidAmount:     existing.paid_amount    ?? 0,
+            balanceAmount:  existing.balance_amount ?? 0,
+            deliveryStatus: existing.status ?? STATUS_NOT_DELIVERED,
+            saved:          true, // lock it — payment already recorded
+          };
+        } else {
           next[record.id] = {
             paymentType:    PAYMENT_FULL,
-            // For partial: starts at 0 paid, full balance outstanding
             paidAmount:     0,
-            // balanceAmount shown in partial mode = totalAmount - paidAmount
-            // starts equal to totalAmount since nothing paid yet
             balanceAmount:  record.balanceAmount,
             deliveryStatus: STATUS_NOT_DELIVERED,
             saved:          false,
@@ -308,10 +354,10 @@ function RecoverySheet() {
   };
 
   const handleChangePaymentType = (id, paymentType) => {
-    if (rowState[id]?.saved) return; // locked after Print Bill
+    if (rowState[id]?.saved) return; // locked after Print Bill / already paid
     const record        = data.find((r) => r.id === id);
-    const totalAmount   = record?.totalAmount   ?? 0;
-    const dbBalance     = record?.balanceAmount ?? 0; // total - advance from DB
+    const totalAmount   = record?.totalAmount   ?? 0; // net total (after discount/fee)
+    const dbBalance     = record?.balanceAmount ?? 0; // net total - advance
     const isFull        = paymentType === PAYMENT_FULL;
 
     setRowState((prev) => {
@@ -330,19 +376,23 @@ function RecoverySheet() {
     });
   };
 
-  // Live: balance = record.balanceAmount (DB: total - advance) minus what user enters
+  // Live: balance = record.balanceAmount (net total - advance) minus what user enters.
+  // This is the single source of truth that both the payment cell AND the
+  // "Balance Amount" table column now read from via rowState.
   const handleChangeAmount = (id, amount) => {
-    if (rowState[id]?.saved) return; // locked after Print Bill
-    const record        = data.find((r) => r.id === id);
-    const dbBalance     = record?.balanceAmount ?? 0;
-    const paidAmount    = amount ?? 0;
-    const balanceAmount = Math.max(dbBalance - paidAmount, 0);
+    if (rowState[id]?.saved) return; // locked after Print Bill / already paid
+    const record         = data.find((r) => r.id === id);
+    const dbBalance       = record?.balanceAmount ?? 0;
+
+    // Don't let the entered amount exceed what's actually owed
+    const cappedAmount    = Math.min(Math.max(amount ?? 0, 0), dbBalance);
+    const balanceAmount   = Math.max(dbBalance - cappedAmount, 0);
 
     setRowState((prev) => ({
       ...prev,
       [id]: {
         ...(prev[id] ?? {}),
-        paidAmount,
+        paidAmount: cappedAmount,
         balanceAmount,
         saved: false,
       },
@@ -350,7 +400,7 @@ function RecoverySheet() {
   };
 
   const handleChangeDeliveryStatus = (id, deliveryStatus) => {
-    if (rowState[id]?.saved) return; // locked after Print Bill
+    if (rowState[id]?.saved) return; // locked after Print Bill / already paid
     setRowState((prev) => ({
       ...prev,
       [id]: { ...(prev[id] ?? {}), deliveryStatus, saved: false },
@@ -358,6 +408,13 @@ function RecoverySheet() {
   };
 
   const handlePrintBill = async (record) => {
+    // Extra safety net: never insert twice for the same order, even if
+    // something stale slipped through the UI state.
+    if (rowState[record.id]?.saved || record.existingDeliveryOrder) {
+      messageApi.warning("Payment for this order has already been recorded.");
+      return;
+    }
+
     const state          = rowState[record.id] ?? {};
     const paymentType    = state.paymentType   ?? PAYMENT_FULL;
     const isFull         = paymentType === PAYMENT_FULL;
@@ -381,7 +438,14 @@ function RecoverySheet() {
 
       setRowState((prev) => ({
         ...prev,
-        [record.id]: { ...(prev[record.id] ?? {}), saved: true },
+        [record.id]: {
+          ...(prev[record.id] ?? {}),
+          paymentType,
+          paidAmount,
+          balanceAmount,
+          deliveryStatus,
+          saved: true,
+        },
       }));
 
       messageApi.success(`Saved & printing bill for Order #${record.orderId}`);
@@ -394,8 +458,10 @@ function RecoverySheet() {
   };
 
   const canPrintBill = (record) => {
-    const state       = rowState[record.id] ?? {};
-    if (state.saved) return false; // already confirmed — button disabled permanently
+    const state = rowState[record.id] ?? {};
+    // Locked if already saved this session OR a delivery_order already
+    // existed for this order when it was loaded (i.e. after a refresh).
+    if (state.saved || record.existingDeliveryOrder) return false;
     const paymentType = state.paymentType ?? PAYMENT_FULL;
     // Partial: must have paid > 0
     if (paymentType === PAYMENT_PARTIAL) return (state.paidAmount ?? 0) > 0;
@@ -425,11 +491,17 @@ function RecoverySheet() {
     },
     {
       title: "Balance Amount", dataIndex: "balanceAmount", key: "balanceAmount", width: 130,
-      render: (val) => (
-        <Text style={{ color: val > 0 ? "#cf1322" : "#389e0d" }}>
-          Rs. {val.toLocaleString()}
-        </Text>
-      ),
+      render: (val, record) => {
+        // Read the LIVE balance from rowState so this column stays in sync
+        // with what the user is typing in the "Received Payment" cell.
+        // Falls back to the original DB value if the row hasn't been touched.
+        const liveBalance = rowState[record.id]?.balanceAmount ?? val;
+        return (
+          <Text style={{ color: liveBalance > 0 ? "#cf1322" : "#389e0d" }}>
+            Rs. {liveBalance.toLocaleString()}
+          </Text>
+        );
+      },
     },
     { title: "Remarks", dataIndex: "remarks", key: "remarks", width: 130 },
     {

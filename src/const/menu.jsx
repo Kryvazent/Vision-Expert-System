@@ -6,8 +6,9 @@ export const MENU_BY_ROLE = {
   "recovery-officer": [
     { key: '/recovery-dashboard',  icon: <DashboardOutlined />,    label: 'Dashboard' },
     { key: '/recovery-sheet',      icon: <FileTextOutlined />,      label: 'Recovery Sheet' },
-    { key: '/cash-transfer',       icon: <TransactionOutlined />,   label: 'Cash Transfer' },
+    { key: '/cash-transfer-to-admin',       icon: <TransactionOutlined />,   label: 'Cash Transfer to Admin' },
     { key: '/recovery-followup',   icon: <SyncOutlined />,   label: 'Recovery Follow-Up' },
+    { key: '/customer-lookup',   icon: <UserOutlined />,   label: 'Customer Lookup' },
     { key: '/warranty-claim',     icon: <ToolOutlined />,   label: 'Warranty Claims' },
   ],
 

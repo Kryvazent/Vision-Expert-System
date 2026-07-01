@@ -30,7 +30,10 @@ const GET_CENTERS = gql`
   }
 `;
 
-// No variable — fetch all follow-up orders, filter by clinic in JS
+// No variable — fetch all follow-up orders, filter by clinic in JS.
+// This filter already returns exactly what we need:
+//   - payment_type = "partial"  (any partial payment order)
+//   - OR payment_type = "full" AND status = "Not Delivered" (full payment, not yet delivered)
 const GET_FOLLOWUP_ORDERS = gql`
   query GetFollowUpOrders {
     delivery_orderCollection(
@@ -237,22 +240,18 @@ function RecoveryFollowUp() {
     value: Number(node.id),
   }));
 
-  // ── Build rows — filter by selected center in JS ──
+  // ── Build rows — filter by selected center only.
+  //    (Payment/delivery condition is already applied by the GraphQL query.)
   useEffect(() => {
     if (!followUpData || !selectedCenter) return;
 
-    const now  = dayjs();
     const rows = [];
 
     followUpData.delivery_orderCollection.edges.forEach(({ node }) => {
       const order = node.order;
       if (!order) return;
 
-      const clinic   = order.clinic_attend_customer?.clinic;
-      const delivery = dayjs(order.estimated_delivery);
-
-      // Only past estimated delivery date
-      if (!delivery.isBefore(now, "day")) return;
+      const clinic = order.clinic_attend_customer?.clinic;
 
       // Filter by selected center
       if (Number(clinic?.id) !== Number(selectedCenter)) return;
@@ -266,7 +265,9 @@ function RecoveryFollowUp() {
       rows.push({
         deliveryOrderId:     node.id,
         orderId:             order.id,
-        estimatedDelivery:   delivery.format("DD/MM/YYYY"),
+        estimatedDelivery:   order.estimated_delivery
+          ? dayjs(order.estimated_delivery).format("DD/MM/YYYY")
+          : "-",
         customerName:        `${customer?.first_name ?? ""} ${customer?.last_name ?? ""}`.trim(),
         phone:               customer?.contact_no ?? "",
         customerAddress:     customer?.address    ?? "",
