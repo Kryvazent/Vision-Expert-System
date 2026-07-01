@@ -22,10 +22,16 @@ export default function BranchStockTable({branches = [], selectedBranch, onBranc
     }, [productTypeList, activeCategory])
 
     const selectedBranchName = branches.find(b => b.id === selectedBranch)?.branch_name || ''
-    const filteredData = data.filter(item => item.category === activeCategory)
+
+    const filteredData = data.filter((item) => {
+    return (
+        item.category?.trim().toLowerCase() ===
+        activeCategory?.trim().toLowerCase()
+    )
+})
 
     const tabItems = productTypeList.map((pt) => ({
-        key: pt.type.toLowerCase(),
+        key: pt.type,
         label: pt.type
     }))
 

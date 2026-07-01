@@ -29,10 +29,11 @@ export const MENU_BY_ROLE = {
     { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
     { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
     { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
-    {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
+    { key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
     { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
+    { key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
     { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
     { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' }
 

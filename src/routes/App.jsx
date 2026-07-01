@@ -28,6 +28,7 @@ import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
 import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
 import ComplaintManagement from '../pages/AdministrativeOfficer/ComplaintManagement';
+import AdminCashHandling from '../pages/AdministrativeOfficer/AdminCashHandling';
 
 
 import ManagerDashboard from './../pages/Manager/ManagerDashboard';
@@ -304,6 +305,16 @@ function App() {
         element={
           <Page roles={["admin"]}>
             <PettyCashHandling />
+          </Page>
+        }
+      />
+
+       {/* Admin */}
+      <Route
+        path="/admin-cash-handling"
+        element={
+          <Page roles={["admin"]}>
+            <AdminCashHandling />
           </Page>
         }
       />
