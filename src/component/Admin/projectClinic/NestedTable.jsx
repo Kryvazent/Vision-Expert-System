@@ -1,24 +1,10 @@
 import React from 'react';
-import { Table, Tag, Space, Button, message, Popconfirm } from 'antd';
+import { Table, Tag, Button, message,  } from 'antd';
 import {icons} from '../../../assets/icons/AdminIcons';
 import { DeleteOutlined } from '@ant-design/icons';
 
-
-
-
 export default function NestedTable() {
         const [messageApi, holder] = message.useMessage();
-
-        const confirm = (e) => {
-            console.log(e);
-            messageApi.success('Clinic deleted successfully!');  
-        };
-
-        const cancel = (e) => {
-            console.log(e);
-            messageApi.error('Deletion cancelled');
-        };
-
 
     const data = [
         {
@@ -90,8 +76,8 @@ export default function NestedTable() {
     //Nested table columns
     const expandedRowRender = (record) => {
         const columns = [
-            { title: 'Clinic ID', dataIndex: 'clinicID' ,onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } })},
-            {title:"Date & Time", onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_, row)  => (
+            { title: 'Clinic ID', dataIndex: 'clinicID' },
+            {title:"Date & Time", render: (_, row)  => (
                 <>
                 <div>
                     <div>{row.date}</div>
@@ -101,36 +87,10 @@ export default function NestedTable() {
                 </>
             ),
         },
-        {title : "Expected", dataIndex: 'expectedPatients', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } })},
-        {title : "Actual", dataIndex: 'actualPatients', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } })},
-        {title : "Status", onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_, row) => getStatusTag(row.status)},
-        {title: "Actions", onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_) => (
-            <Space>
-                <Button type="primary" 
-                    style={{
-                        background: "#ffffff",
-                        borderColor: "#ffffff",
-                        color: "#1a73e8",
-                        fontWeight: "500",
-                        borderRadius: "8px",
-                        padding: "5px 15px",
-             }}>
-                {icons.edit}
-                </Button>
-                <Popconfirm
-                    title="Delete Clinic"
-                    description="Are you sure you want to delete this clinic?"
-                    onConfirm={confirm}
-                    onCancel={cancel}
-                    okText="Yes"
-                    cancelText="No"
-                >
-                    <Button danger>
-                        <DeleteOutlined />
-                    </Button>
-                </Popconfirm>
-            </Space>
-        )}
+        {title : "Expected", dataIndex: 'expectedPatients'},
+        {title : "Actual", dataIndex: 'actualPatients'},
+        {title : "Status",  render: (_, row) => getStatusTag(row.status)},
+       
     ];
 
     return (
@@ -140,31 +100,17 @@ export default function NestedTable() {
 
 //Main table columns
 const columns = [
-    { title: 'Project ID', dataIndex: 'projectID', key: 'projectID', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }) },
-    { title: 'Project Name', dataIndex: 'projectName', key: 'projectName' , onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }),render: (_, row) => (
+    { title: 'Project ID', dataIndex: 'projectID', key: 'projectID'},
+    { title: 'Project Name', dataIndex: 'projectName', key: 'projectName' , render: (_, row) => (
         <div>
             <div style={{ fontWeight: "450"}}>{row.projectName}</div>
             <div style={{ fontSize: 12, color: "#888" }}>{row.location}</div>
         </div>
     )},
-    { title: 'Duration', dataIndex: 'duration', key: 'duration', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }) },
-    { title: 'Clinics', dataIndex: 'clinics', key: 'clinics', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }) },
-    { title: 'Status', dataIndex: 'status', key: 'status', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_, row) => getStatusTag(row.status) },
-    { title: 'Actions', key: 'actions', onHeaderCell: () => ({ style: { backgroundColor: "#092258",color:"white", fontWeight: 600 } }), render: (_) => (
-        <Space>
-            <Button type="primary" 
-             style={{
-              background: "#ffffff",
-              borderColor: "#ffffff",
-              color: "#1a73e8",
-              fontWeight: "500",
-              borderRadius: "8px",
-              padding: "5px 15px",
-            }}>
-                {icons.viewDetails}
-            </Button>
-        </Space>
-    )},
+    { title: 'Duration', dataIndex: 'duration', key: 'duration'},
+    { title: 'Clinics', dataIndex: 'clinics', key: 'clinics',},
+    { title: 'Status', dataIndex: 'status', key: 'status', render: (_, row) => getStatusTag(row.status) },
+    
 ];
 
 return (

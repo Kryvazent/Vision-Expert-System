@@ -86,7 +86,27 @@ function ClinicDetails() {
     }
   `;
 
-  
+
+  const GET_CLINICS_BY_CENTER = gql`
+    query GetClinicsByCenter($center: String!) {
+      clinicCollection(filter: { venue: { eq: $center } }) {
+        edges {
+          node {
+            id
+            venue
+            date
+            from
+            to
+            responsible_person_01
+            responsible_person_01_contact_no
+            responsible_person_02
+            responsible_person_02_contact_no
+          }
+        }
+      }
+    }
+  `;
+
   const UPDATE_CLINIC = gql`
     mutation UpdateClinic(
       $id: ID!,
@@ -123,11 +143,13 @@ function ClinicDetails() {
   const [loadAllClinics, { data: allClinicsData }] = useLazyQuery(GET_ALL_CLINICS);
   const [loadFilteredClinics, { data: filteredClinicsData }] = useLazyQuery(GET_CLINICS_BY_DATE);
   const [updateClinic] = useMutation(UPDATE_CLINIC);
+  const [loadClinicsByCenter, { data: clinicsByCenterData }] = useLazyQuery(GET_CLINICS_BY_CENTER);
 
   const [selectedDate, setSelectedDate] = useState(null);
   const [modelOpen, setModelOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
+  const [searchCenter, setSearchCenter] = useState('');
 
   useEffect(() => {
     loadAllClinics();
@@ -196,9 +218,9 @@ function ClinicDetails() {
         dayjs(`1970-01-01T${record.rawFrom}`),
         dayjs(`1970-01-01T${record.rawTo}`),
       ],
-      responsiblePerson:  record.responsiblePerson01,  // ✅ was responsiblePerson01
-      contactNumber:      record.contactNumber1,        // ✅ was contactNumber1
-      responsiblePerson2: record.responsiblePerson02,  // ✅ was responsiblePerson02
+      responsiblePerson:  record.responsiblePerson01,
+      contactNumber:      record.contactNumber1,
+      responsiblePerson2: record.responsiblePerson02,
       contactNumber2:     record.contactNumber2,
     });
     setEditOpen(true);
@@ -211,6 +233,17 @@ function ClinicDetails() {
     }
     loadFilteredClinics({
       variables: { date: selectedDate.format("YYYY-MM-DD") },
+    });
+  };
+
+
+  const handleCenterSearch = () => {
+    if (!searchCenter.trim()) {
+      alert('Please enter a clinic center name to search.');
+      return;
+    }
+    loadClinicsByCenter({
+      variables: { center: searchCenter.trim() },
     });
   };
 
@@ -251,6 +284,7 @@ function ClinicDetails() {
 
   const allTableData      = mapData(allClinicsData);
   const filteredTableData = mapData(filteredClinicsData);
+  const centerTableData   = mapData(clinicsByCenterData); // ── NEW
 
   return (
     <div className='bg-gray-100 p-10'>
@@ -346,6 +380,49 @@ function ClinicDetails() {
           />
         </div>
       </div>
+
+      {/* Search by Center Card */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-20">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <div className="grid grid-cols-2 items-center gap-4 mb-6">
+            <Title level={5} className="text-gray-600 whitespace-nowrap">
+              Search Clinic Details
+            </Title>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+                Filter by center
+              </span>
+              <input
+                type="text"
+                placeholder="Enter clinic center"
+                value={searchCenter}
+                onChange={(e) => setSearchCenter(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCenterSearch()}
+                className="border border-gray-300 rounded-md px-3 py-2 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <Button type="primary" onClick={handleCenterSearch}>
+                Search
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className="p-6">
+          <Table
+            columns={columns}
+            dataSource={centerTableData}
+            scroll={{ x: 'max-content' }}
+            pagination={{
+              pageSize: 10,
+              showTotal: (total) => (
+                <span className="text-gray-500 text-sm">Total {total} clinics</span>
+              ),
+              position: ["bottomRight"],
+            }}
+            rowClassName="hover:bg-gray-50 transition-colors"
+          />
+        </div>
+      </div>
+
 
     </div>
   );

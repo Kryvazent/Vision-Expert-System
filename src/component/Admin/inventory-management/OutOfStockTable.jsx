@@ -33,6 +33,10 @@ export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(
       key: 'actions',
       onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
       render: (_, record) => {
+
+        if (record.quantity >= 100) 
+          return null; // No action for items that are not out of stock
+        
         // ─── Check if this product type is already reordered ──────────────
         const alreadyOrdered = reOrderedTypeIds.has(String(record.productTypeId));
 

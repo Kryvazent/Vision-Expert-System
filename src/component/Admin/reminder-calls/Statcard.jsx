@@ -8,7 +8,7 @@ const {Text, Title} = Typography;
 export default function Statcard({title, icon, items}) {
   return (
     <Card
-        bordered={false}
+        variant="borderless"
         style={{
             borderRadius: 12, 
             boxShadow: "0 2px 8px rgba(0,0,0,0.05)",

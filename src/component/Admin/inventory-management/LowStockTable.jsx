@@ -33,13 +33,16 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
       key: 'action',
       onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
       render: (_, record) => {
-        // ─── Check if this product type is already reordered ──────────────
+    
+        if (record.quantity >= 100) {
+          return null; // No action for items that are not low stock
+        }
         const alreadyOrdered = reOrderedTypeIds.has(String(record.productTypeId));
 
         return (
           <Space size="middle">
             {alreadyOrdered ? (
-              // ─── Already Reordered Badge ──────────────────────────────────
+              // ─── Already Reordered Badge
               <Tag
                 icon={<CheckCircleOutlined />}
                 color="success"
@@ -48,7 +51,7 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
                 Already Ordered
               </Tag>
             ) : (
-              // ─── Reorder Button ───────────────────────────────────────────
+              // ─── Reorder Button
               <Button
                 type="primary"
                 size="small"
