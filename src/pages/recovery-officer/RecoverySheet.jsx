@@ -117,11 +117,37 @@ function ReceivedPaymentCell({
   const state          = rowState[record.id] ?? {};
   const paymentType    = state.paymentType    ?? PAYMENT_FULL;
   const deliveryStatus = state.deliveryStatus ?? STATUS_NOT_DELIVERED;
+  const saved          = state.saved          ?? false; // once saved, lock all inputs
 
-  // For partial: paidAmount starts at 0 when switching to partial
-  // balanceAmount is always recomputed: totalAmount - paidAmount
   const paidAmount    = state.paidAmount    ?? 0;
   const balanceAmount = state.balanceAmount ?? record.balanceAmount ?? 0;
+
+  // When saved, show a locked summary instead of editable controls
+  if (saved) {
+    return (
+      <Space direction="vertical" size={4} style={{ width: "100%" }}>
+        <Tag color={paymentType === PAYMENT_FULL ? "blue" : "orange"} style={{ borderRadius: 20 }}>
+          {paymentType === PAYMENT_FULL ? "Full Payment" : "Partial Payment"}
+        </Tag>
+        {paymentType === PAYMENT_PARTIAL && (
+          <>
+            <Text style={{ fontSize: 12 }}>Paid: <Text strong>Rs. {paidAmount.toLocaleString()}</Text></Text>
+            <Text style={{ fontSize: 12, color: balanceAmount > 0 ? "#cf1322" : "#389e0d" }}>
+              Balance: <Text strong style={{ color: balanceAmount > 0 ? "#cf1322" : "#389e0d" }}>
+                Rs. {balanceAmount.toLocaleString()}
+              </Text>
+            </Text>
+          </>
+        )}
+        {paymentType === PAYMENT_FULL && (
+          <Tag color={deliveryStatus === STATUS_DELIVERED ? "green" : "red"} style={{ borderRadius: 20 }}>
+            {deliveryStatus}
+          </Tag>
+        )}
+        <Tag color="success" style={{ borderRadius: 20, fontSize: 10 }}>✓ Confirmed</Tag>
+      </Space>
+    );
+  }
 
   return (
     <Space direction="vertical" size={6} style={{ width: "100%" }}>
@@ -263,7 +289,7 @@ function RecoverySheet() {
             paidAmount:     0,
             // balanceAmount shown in partial mode = totalAmount - paidAmount
             // starts equal to totalAmount since nothing paid yet
-            balanceAmount:  record.totalAmount,
+            balanceAmount:  record.balanceAmount,
             deliveryStatus: STATUS_NOT_DELIVERED,
             saved:          false,
           };
@@ -282,9 +308,11 @@ function RecoverySheet() {
   };
 
   const handleChangePaymentType = (id, paymentType) => {
-    const record      = data.find((r) => r.id === id);
-    const totalAmount = record?.totalAmount ?? 0;
-    const isFull      = paymentType === PAYMENT_FULL;
+    if (rowState[id]?.saved) return; // locked after Print Bill
+    const record        = data.find((r) => r.id === id);
+    const totalAmount   = record?.totalAmount   ?? 0;
+    const dbBalance     = record?.balanceAmount ?? 0; // total - advance from DB
+    const isFull        = paymentType === PAYMENT_FULL;
 
     setRowState((prev) => {
       const current = prev[id] ?? {};
@@ -293,10 +321,8 @@ function RecoverySheet() {
         [id]: {
           ...current,
           paymentType,
-          // When switching to partial: reset paid to 0 → balance = totalAmount
-          // When switching to full: paidAmount irrelevant, balanceAmount = 0
           paidAmount:     isFull ? totalAmount : 0,
-          balanceAmount:  isFull ? 0 : totalAmount,
+          balanceAmount:  isFull ? 0 : dbBalance,
           deliveryStatus: isFull ? STATUS_NOT_DELIVERED : null,
           saved:          false,
         },
@@ -304,25 +330,27 @@ function RecoverySheet() {
     });
   };
 
-  // Live recalculation: as the user types, balance = total - paid
+  // Live: balance = record.balanceAmount (DB: total - advance) minus what user enters
   const handleChangeAmount = (id, amount) => {
-    const record      = data.find((r) => r.id === id);
-    const totalAmount = record?.totalAmount ?? 0;
-    const paidAmount  = amount ?? 0;
-    const balanceAmount = Math.max(totalAmount - paidAmount, 0);
+    if (rowState[id]?.saved) return; // locked after Print Bill
+    const record        = data.find((r) => r.id === id);
+    const dbBalance     = record?.balanceAmount ?? 0;
+    const paidAmount    = amount ?? 0;
+    const balanceAmount = Math.max(dbBalance - paidAmount, 0);
 
     setRowState((prev) => ({
       ...prev,
       [id]: {
         ...(prev[id] ?? {}),
         paidAmount,
-        balanceAmount,  // ← recomputed live so ReceivedPaymentCell shows it instantly
+        balanceAmount,
         saved: false,
       },
     }));
   };
 
   const handleChangeDeliveryStatus = (id, deliveryStatus) => {
+    if (rowState[id]?.saved) return; // locked after Print Bill
     setRowState((prev) => ({
       ...prev,
       [id]: { ...(prev[id] ?? {}), deliveryStatus, saved: false },
@@ -334,7 +362,7 @@ function RecoverySheet() {
     const paymentType    = state.paymentType   ?? PAYMENT_FULL;
     const isFull         = paymentType === PAYMENT_FULL;
     const paidAmount     = isFull ? record.totalAmount : (state.paidAmount ?? 0);
-    const balanceAmount  = isFull ? 0 : Math.max(record.totalAmount - paidAmount, 0);
+    const balanceAmount  = isFull ? 0 : Math.max((record.balanceAmount ?? 0) - paidAmount, 0);
     const deliveryStatus = isFull ? (state.deliveryStatus ?? STATUS_NOT_DELIVERED) : STATUS_NOT_DELIVERED;
     const paymentReceived = isFull && deliveryStatus === STATUS_DELIVERED;
 
@@ -367,6 +395,7 @@ function RecoverySheet() {
 
   const canPrintBill = (record) => {
     const state       = rowState[record.id] ?? {};
+    if (state.saved) return false; // already confirmed — button disabled permanently
     const paymentType = state.paymentType ?? PAYMENT_FULL;
     // Partial: must have paid > 0
     if (paymentType === PAYMENT_PARTIAL) return (state.paidAmount ?? 0) > 0;
