@@ -42,7 +42,8 @@ export const MENU_BY_ROLE = {
     { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
     { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
     { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
-    { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+    // { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+    { key: '/Acreports', icon: <BarChartOutlined />,   label: 'Reports' },
 
 
     

@@ -5,9 +5,8 @@ import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 
 export default function OrderFilter() {
-
   const [searchValue, setSearchValue] = useState("");
-  const [filteredData, setFilteredData] = useState(null);
+  const [filteredData, setFilteredData] = useState([]);
 
   // 🔹 GraphQL Query
   const GET_ORDERS = gql`
@@ -18,8 +17,15 @@ export default function OrderFilter() {
             id
             placed_at
             estimated_delivery
-            total_payment
-            advance
+            total_price
+
+            paymentCollection {
+              edges {
+                node {
+                  total_payment
+                }
+              }
+            }
 
             order_status {
               status
@@ -27,7 +33,6 @@ export default function OrderFilter() {
 
             clinic_attend_customer {
               customer_has_branch {
-
                 customer {
                   first_name
                   last_name
@@ -36,7 +41,6 @@ export default function OrderFilter() {
                 branch {
                   branch_name
                 }
-
               }
             }
           }
@@ -51,89 +55,63 @@ export default function OrderFilter() {
   // 🔹 Map Database Data
   const orders =
     data?.orderCollection?.edges?.map((item) => {
-
       const order = item.node;
 
       // 🔹 Relations
-      const relation =
-        order?.clinic_attend_customer
-          ?.customer_has_branch;
+      const relation = order?.clinic_attend_customer?.customer_has_branch;
 
-      const customer =
-        relation?.customer;
+      const customer = relation?.customer;
 
-      const branch =
-        relation?.branch;
+      const branch = relation?.branch;
 
       // 🔹 Payments
-      const paidAmount =
-        order?.advance || 0;
 
-      const remaining =
-        (order?.total_payment || 0) -
-        paidAmount;
+      const payment = order?.paymentCollection?.edges?.[0]?.node;
+
+      const totalAmount = Number(order?.total_price) || 0;
+
+      const paidAmount = Number(payment?.total_payment) || 0;
+
+      const remaining = totalAmount - paidAmount;
 
       return {
-
         key: order?.id,
 
         orderId: `OD${order?.id}`,
 
-        trackingId: `TR-${order?.id}`,
+       
 
-        customer:
-          `${customer?.first_name || ""} ${
-            customer?.last_name || ""
-          }`,
+        customer: `${customer?.first_name || ""} ${customer?.last_name || ""}`,
 
-        branch:
-          branch?.branch_name || "No Branch",
+        branch: branch?.branch_name || "No Branch",
 
-        orderDate:
-          order?.placed_at
-            ? new Date(
-                order.placed_at
-              ).toLocaleDateString()
-            : "-",
+        orderDate: order?.placed_at
+          ? new Date(order.placed_at).toLocaleDateString()
+          : "-",
 
-        deliveryDate:
-          order?.estimated_delivery
-            ? new Date(
-                order.estimated_delivery
-              ).toLocaleDateString()
-            : "-",
+        deliveryDate: order?.estimated_delivery
+          ? new Date(order.estimated_delivery).toLocaleDateString()
+          : "-",
 
-        total:
-          order?.total_payment || 0,
+        total: totalAmount,
 
-        paid:
-          paidAmount,
+        paid: paidAmount,
 
-        remaining:
-          remaining,
+        remaining: remaining,
 
-        status:
-          order?.order_status?.status ||
-          "Pending",
+        status: order?.order_status?.status || "Pending",
 
-        payment:
-          remaining <= 0
-            ? "Completed"
-            : "Pending",
+        payment: remaining <= 0 ? "Completed" : "Pending",
       };
-
     }) || [];
 
   // 🔹 Search Function
   const handleSearch = () => {
-
     // 🔹 Clean input
-    const search =
-      searchValue.trim().toLowerCase();
+    const search = searchValue.trim().toLowerCase();
 
     // 🔹 Empty input = show all orders
     if (!search) {
-
       setFilteredData(orders);
 
       return;
@@ -141,31 +119,20 @@ export default function OrderFilter() {
 
     // 🔹 Filter orders
     const result = orders.filter((item) => {
-
       // 🔹 Raw order id
-      const rawOrderId =
-        String(item.orderId || "")
-          .replace("OD", "")
-          .toLowerCase();
+      const rawOrderId = String(item.orderId || "")
+        .replace("OD", "")
+        .toLowerCase();
 
       // 🔹 Formatted order id
-      const formattedOrderId =
-        String(item.orderId || "")
-          .toLowerCase();
+      const formattedOrderId = String(item.orderId || "").toLowerCase();
 
-      // 🔹 Tracking id
-      const trackingId =
-        String(item.trackingId || "")
-          .toLowerCase();
+      
 
       return (
-
         rawOrderId.includes(search) ||
-
-        formattedOrderId.includes(search) ||
-
-        trackingId.includes(search)
-
+        formattedOrderId.includes(search) 
+        
       );
     });
 
@@ -174,16 +141,12 @@ export default function OrderFilter() {
 
   // 🔹 Table Columns
   const columns = [
-
     {
       title: "Order ID",
       dataIndex: "orderId",
     },
 
-    {
-      title: "Tracking ID",
-      dataIndex: "trackingId",
-    },
+   
 
     {
       title: "Customer Name",
@@ -210,11 +173,9 @@ export default function OrderFilter() {
       dataIndex: "total",
 
       render: (val) => (
-
         <span className="text-blue-500 font-medium">
           LKR {val.toLocaleString()}
         </span>
-
       ),
     },
 
@@ -223,11 +184,9 @@ export default function OrderFilter() {
       dataIndex: "paid",
 
       render: (val) => (
-
         <span className="text-green-500 font-medium">
           LKR {val.toLocaleString()}
         </span>
-
       ),
     },
 
@@ -236,11 +195,9 @@ export default function OrderFilter() {
       dataIndex: "remaining",
 
       render: (val) => (
-
         <span className="text-red-500 font-medium">
           LKR {val.toLocaleString()}
         </span>
-
       ),
     },
 
@@ -248,13 +205,37 @@ export default function OrderFilter() {
       title: "Order Status",
       dataIndex: "status",
 
-      render: (val) => (
+      render: (status) => {
+        let style = "bg-gray-100 text-gray-700";
 
-        <span className="bg-blue-100 px-3 py-1 rounded text-blue-600">
-          {val}
-        </span>
+        switch (status?.toLowerCase()) {
+          case "completed":
+            style = "bg-green-100 text-green-700";
+            break;
 
-      ),
+          case "pending":
+            style = "bg-yellow-100 text-yellow-700";
+            break;
+
+          case "active":
+            style = "bg-blue-100 text-blue-700";
+            break;
+
+          case "hold":
+            style = "bg-orange-100 text-orange-700";
+            break;
+
+          case "canceled":
+            style = "bg-red-100 text-red-700";
+            break;
+        }
+
+        return (
+          <span className={`${style} px-3 py-1 rounded font-medium`}>
+            {status}
+          </span>
+        );
+      },
     },
 
     {
@@ -262,7 +243,6 @@ export default function OrderFilter() {
       dataIndex: "payment",
 
       render: (val) => (
-
         <span
           className={
             val === "Completed"
@@ -272,33 +252,22 @@ export default function OrderFilter() {
         >
           {val}
         </span>
-
       ),
     },
-
   ];
 
   return (
-
     <div className="p-6 space-y-6">
-
       {/* 🔹 Search */}
       <Card>
-
         <div className="space-y-3">
-
-          <p className="font-medium">
-            Search by Order ID or Tracking ID
-          </p>
+          <p className="font-medium">Search by Order ID</p>
 
           <div className="flex gap-3">
-
             <Input
-              placeholder="Enter ID"
+              placeholder="Enter Order ID (e.g. 31 or OD31)"
               value={searchValue}
-              onChange={(e) =>
-                setSearchValue(e.target.value)
-              }
+              onChange={(e) => setSearchValue(e.target.value)}
               className="max-w-md"
             />
 
@@ -309,16 +278,12 @@ export default function OrderFilter() {
             >
               Search
             </Button>
-
           </div>
-
         </div>
-
       </Card>
 
       {/* 🔹 Results */}
       <Card>
-
         <p className="mb-4 font-medium">
           Found {(filteredData || orders).length} order(s)
         </p>
@@ -330,9 +295,7 @@ export default function OrderFilter() {
           pagination={false}
           scroll={{ x: true }}
         />
-
       </Card>
-
     </div>
   );
 }

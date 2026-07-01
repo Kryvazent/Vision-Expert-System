@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 const { Option } = Select;
 
 // ================= GET BRANCHES =================
-
 const GET_BRANCHES = gql`
   query {
     branchCollection {
@@ -19,9 +18,6 @@ const GET_BRANCHES = gql`
     }
   }
 `;
-
-// ================= GET RECOVERY DETAILS =================
-
 const GET_RECOVERY_DETAILS = gql`
   query {
     orderCollection {
@@ -30,15 +26,22 @@ const GET_RECOVERY_DETAILS = gql`
           id
           placed_at
           estimated_delivery
-          advance
-          total_payment
+          total_price
+
+          paymentCollection {
+            edges {
+              node {
+                total_payment
+              }
+            }
+          }
+
+          order_status {
+            status
+          }
 
           clinic_attend_customer {
-            id
-
             customer_has_branch {
-              id
-
               branch {
                 id
                 branch_name
@@ -59,187 +62,158 @@ const GET_RECOVERY_DETAILS = gql`
 `;
 
 function RecoveryDetails() {
-
   // ================= STATES =================
 
-  const [selectedBranch, setSelectedBranch] =
-    useState("all");
+  const [selectedBranch, setSelectedBranch] = useState("all");
 
-  const [customerSearch, setCustomerSearch] =
-    useState("");
+  const [customerSearch, setCustomerSearch] = useState("");
 
-  const [branchSearch, setBranchSearch] =
-    useState("");
+  const [branchSearch, setBranchSearch] = useState("");
 
   // ================= BRANCH QUERY =================
 
-  const { data: branchData } =
-    useQuery(GET_BRANCHES);
+  const { data: branchData } = useQuery(GET_BRANCHES);
 
   // ================= RECOVERY QUERY =================
 
-  const {
-    data: recoveryData,
-    loading,
-    error,
-  } = useQuery(GET_RECOVERY_DETAILS);
+  const { data: recoveryData, loading, error } = useQuery(GET_RECOVERY_DETAILS);
 
   // ================= BRANCHES =================
 
   const branches =
-    branchData?.branchCollection?.edges?.map(
-      (item) => item.node
-    ) || [];
+    branchData?.branchCollection?.edges?.map((item) => item.node) || [];
 
   // ================= OVERDUE ORDERS =================
 
-  const overdueOrders = useMemo(() => {
-
-    if (!recoveryData?.orderCollection?.edges)
-      return [];
+  const recoveryOrders = useMemo(() => {
+    if (!recoveryData?.orderCollection?.edges) return [];
 
     const today = new Date();
 
-    return recoveryData.orderCollection.edges
+    return (
+      recoveryData.orderCollection.edges
 
-      .map((edge) => {
+        .map((edge) => {
+          const order = edge.node;
 
-        const order = edge.node;
+          // ================= RELATIONS =================
 
-        // ================= RELATIONS =================
+          const customerBranch =
+            order?.clinic_attend_customer?.customer_has_branch;
 
-        const customerBranch =
-          order?.clinic_attend_customer
-            ?.customer_has_branch;
+          const customer = customerBranch?.customer;
 
-        const customer =
-          customerBranch?.customer;
+          const branch = customerBranch?.branch;
 
-        const branch =
-          customerBranch?.branch;
+          // ================= CUSTOMER NAME =================
 
-        // ================= CUSTOMER NAME =================
-
-        const customerName = `
+          const customerName = `
           ${customer?.first_name || ""}
           ${customer?.last_name || ""}
         `.trim();
 
-        // ================= BRANCH NAME =================
+          // ================= BRANCH NAME =================
 
-        const branchName =
-          branch?.branch_name || "Unknown";
+          const branchName = branch?.branch_name || "Unknown";
 
-        // ================= PAYMENT =================
+          // ================= PAYMENT =================
 
-        const totalAmount =
-          order?.total_payment || 0;
+          const payment = order?.paymentCollection?.edges?.[0]?.node;
 
-        const paidAmount =
-          order?.advance || 0;
+          const totalAmount = Number(order?.total_price) || 0;
 
-        const remaining =
-          totalAmount - paidAmount;
+          const paidAmount = Number(payment?.total_payment) || 0;
 
-        // ================= DATE CHECK =================
+          const remaining = totalAmount - paidAmount;
 
-        const estimatedDate =
-          new Date(order.estimated_delivery);
+          const paymentCompleted = paidAmount >= totalAmount;
 
-        const isOverdue =
-          estimatedDate < today &&
-          remaining > 0;
+          // ================= ORDER STATUS =================
 
-        return {
+          const orderCompleted =
+            order?.order_status?.status?.toLowerCase() === "completed";
 
-          key: order.id,
+          // ================= DATE CHECK =================
 
-          orderId: `OD${order.id}`,
+          const estimatedDate = new Date(order.estimated_delivery);
 
-          customer:
-            customerName || "Unknown",
+          const isOverdue = estimatedDate < today;
 
-          branch: branchName,
+          // ================= STATUS =================
 
-          orderDate: new Date(
-            order.placed_at
-          ).toLocaleDateString(),
+          const status = isOverdue ? "OVERDUE" : "PENDING";
+          return {
+            key: order.id,
 
-          estimatedDelivery: new Date(
-            order.estimated_delivery
-          ).toLocaleDateString(),
+            orderId: `OD${order.id}`,
 
-          totalAmount,
+            customer: customerName || "Unknown",
 
-          paidAmount,
+            branch: branchName,
 
-          remaining,
+            orderDate: new Date(order.placed_at).toLocaleDateString(),
 
-          status: isOverdue
-            ? "OVERDUE"
-            : "OK",
-        };
-      })
+            estimatedDelivery: new Date(
+              order.estimated_delivery,
+            ).toLocaleDateString(),
 
-      // ================= ONLY OVERDUE =================
+            totalAmount,
 
-      .filter(
-        (item) => item.status === "OVERDUE"
-      )
+            paidAmount,
 
-      // ================= FILTERS =================
+            remaining,
 
-      .filter((item) => {
+            status,
 
-        // branch dropdown filter
-        const branchFilter =
-          selectedBranch === "all"
-            ? true
-            : item.branch === selectedBranch;
+            paymentCompleted,
 
-        // customer search
-        const customerFilter =
-          item.customer
+            orderCompleted,
+          };
+        })
+
+        // ================= RECOVERY FILTER =================
+
+        .filter((item) => {
+          // Hide only completed & delivered orders
+          const recoveryFilter = !(
+            item.paymentCompleted && item.orderCompleted
+          );
+
+          return recoveryFilter;
+        })
+
+        // ================= FILTERS =================
+
+        .filter((item) => {
+          // branch dropdown filter
+          const branchFilter =
+            selectedBranch === "all" ? true : item.branch === selectedBranch;
+
+          // customer search
+          const customerFilter = item.customer
             .toLowerCase()
-            .includes(
-              customerSearch.toLowerCase()
-            );
+            .includes(customerSearch.toLowerCase());
 
-        // branch search
-        const branchSearchFilter =
-          item.branch
+          // branch search
+          const branchSearchFilter = item.branch
             .toLowerCase()
-            .includes(
-              branchSearch.toLowerCase()
-            );
+            .includes(branchSearch.toLowerCase());
 
-        return (
-          branchFilter &&
-          customerFilter &&
-          branchSearchFilter
-        );
-      });
-
-  }, [
-    recoveryData,
-    selectedBranch,
-    customerSearch,
-    branchSearch,
-  ]);
+          return branchFilter && customerFilter && branchSearchFilter;
+        })
+    );
+  }, [recoveryData, selectedBranch, customerSearch, branchSearch]);
 
   // ================= TOTAL RECOVERY =================
 
-  const totalRecovery =
-    overdueOrders.reduce(
-      (sum, item) =>
-        sum + item.remaining,
-      0
-    );
+  const totalRecovery = recoveryOrders.reduce(
+    (sum, item) => sum + item.remaining,
+    0,
+  );
 
   // ================= TABLE COLUMNS =================
 
   const columns = [
-
     {
       title: "Order ID",
       dataIndex: "orderId",
@@ -266,97 +240,72 @@ function RecoveryDetails() {
     },
 
     {
-      title: "Total Amount",
+      title: "Order Total",
       dataIndex: "totalAmount",
 
       render: (value) => (
-
         <span className="text-blue-600 font-semibold">
-
           LKR {value.toLocaleString()}
-
         </span>
-
       ),
     },
 
     {
-      title: "Paid Amount",
+      title: "Amount Received",
       dataIndex: "paidAmount",
 
       render: (value) => (
-
         <span className="text-green-600 font-semibold">
-
           LKR {value.toLocaleString()}
-
         </span>
-
       ),
     },
 
     {
-      title: "Remaining",
+      title: "Outstanding Balance",
       dataIndex: "remaining",
 
       render: (value) => (
-
         <span className="text-red-500 font-semibold">
-
           LKR {value.toLocaleString()}
-
         </span>
-
       ),
     },
 
     {
-      title: "Recovery Status",
+      title: "Status",
+      dataIndex: "status",
 
-      render: () => (
-
-        <span className="bg-red-100 text-red-500 px-3 py-1 rounded">
-
-          OVERDUE
-
+      render: (status) => (
+        <span
+          className={
+            status === "OVERDUE"
+              ? "bg-red-100 text-red-600 px-3 py-1 rounded font-medium"
+              : "bg-yellow-100 text-yellow-700 px-3 py-1 rounded font-medium"
+          }
+        >
+          {status}
         </span>
-
       ),
     },
-
   ];
 
   return (
-
     <div className="p-6 space-y-6">
-
       {/* ================= TITLE ================= */}
 
-      <h1 className="text-3xl font-bold">
-
-        Recovery Details
-
-      </h1>
+      <h1 className="text-3xl font-bold">Recovery Details</h1>
 
       {/* ================= FILTER CARD ================= */}
 
       <Card>
-
         <div className="flex flex-wrap gap-4 items-center">
-
           {/* CUSTOMER SEARCH */}
 
           <Input
             placeholder="Search Customer Name"
-
             value={customerSearch}
-
-            onChange={(e) =>
-              setCustomerSearch(
-                e.target.value
-              )
-            }
-
+            onChange={(e) => setCustomerSearch(e.target.value)}
             className="w-52"
           />
 
@@ -364,15 +313,8 @@ function RecoveryDetails() {
 
           <Input
             placeholder="Search Branch Name"
-
             value={branchSearch}
-
-            onChange={(e) =>
-              setBranchSearch(
-                e.target.value
-              )
-            }
-
+            onChange={(e) => setBranchSearch(e.target.value)}
             className="w-52"
           />
 
@@ -380,89 +322,46 @@ function RecoveryDetails() {
 
           <Select
             value={selectedBranch}
-
-            onChange={(value) =>
-              setSelectedBranch(value)
-            }
-
+            onChange={(value) => setSelectedBranch(value)}
             className="w-52"
           >
-
-            <Option value="all">
-
-              All Branches
-
-            </Option>
+            <Option value="all">All Branches</Option>
 
             {branches
-              ?.filter(
-                (branch) =>
-                  branch.branch_name !==
-                  "Main Branch"
-              )
+              ?.filter((branch) => branch.branch_name !== "Main Branch")
               ?.map((branch) => (
-
-                <Option
-                  key={branch.id}
-
-                  value={branch.branch_name}
-                >
-
+                <Option key={branch.id} value={branch.branch_name}>
                   {branch.branch_name}
-
                 </Option>
-
-            ))}
+              ))}
           </Select>
-
         </div>
       </Card>
 
       {/* ================= TABLE CARD ================= */}
 
       <Card>
-
         <div className="flex justify-between items-center mb-5">
-
-          <h2 className="text-2xl font-semibold">
-
-            Overdue Orders
-
-          </h2>
+          <h2 className="text-2xl font-semibold">Recovery Orders</h2>
 
           <div className="text-2xl font-bold">
-
             Grand Recovery Total:{" "}
-
             <span className="text-red-500">
-
               LKR {totalRecovery.toLocaleString()}
-
             </span>
-
           </div>
         </div>
 
         <Table
           columns={columns}
-
-          dataSource={overdueOrders}
-
+          dataSource={recoveryOrders}
           loading={loading}
-
           pagination={{ pageSize: 5 }}
-
           scroll={{ x: true }}
         />
 
         {error && (
-
-          <p className="text-red-500 mt-4">
-
-            Failed to load recovery data
-
-          </p>
-
+          <p className="text-red-500 mt-4">Failed to load recovery data</p>
         )}
       </Card>
     </div>
