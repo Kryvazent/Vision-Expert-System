@@ -207,6 +207,16 @@ function App() {
           </Page>
         }
       />
+
+
+      <Route
+        path="/Acreports"
+        element={
+          <Page roles={["accountant"]}>
+            <Reports/>
+          </Page>
+        }
+      />
       
       
 
