@@ -1,134 +1,904 @@
-import React, { useState } from 'react'
 import {
-  Layout,
-  Card,
-  Typography,
-  Button,
-  Select,
-  Input,
-  Upload,
-  Space,
-  Table,
+    Button,
+    Card,
+    Col,
+    Form,
+    Input,
+    InputNumber,
+    Modal,
+    Row,
+    Space,
+    Table,
+    Tag,
+    DatePicker,
+    Typography,
+    message,
 } from "antd";
+import {
+    CheckCircleOutlined,
+    ClockCircleOutlined,
+    CloseCircleOutlined,
+    DollarOutlined,
+    SendOutlined,
+    ExclamationCircleOutlined,
+    ReloadOutlined,
+} from "@ant-design/icons";
+import { useEffect, useMemo, useState } from "react";
+import dayjs from "dayjs";
+import { useAuth } from "../../const/functions";
+import { gql } from "@apollo/client";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
+
 const { Text } = Typography;
-const { Dragger } = Upload;
-import { InboxOutlined } from "@ant-design/icons";
-import HandOverDetails from '../../component/recoveryOfficer/HandOverDetails';
 
-const columns = [
-  {
-    title: 'Handover ID',
-    dataIndex: 'handoverId',
-    key: 'handoverId',
-    render: text => <a>{text}</a>,
-  },
-  {
-    title: 'date',
-    dataIndex: 'date',
-    key: 'date',
-  },
-  {
-    title: 'Amount',
-    dataIndex: 'amount',
-    key: 'amount',
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    render: (_, record) => (
-      <Space size="medium">
-        <Button type="primary" size="small" style={{ borderRadius: 6 }}  onClick={() => onHandOver(record)}>
-        Hand Over
-      </Button>
-      </Space>
-    ),
-  },
-];
-const data = [
-  {
-    key: '1',
-    handoverId: 'HO12',
-    date: '2023-10-25',
-    amount: 1000,
-  },
-  {
-    key: '2',
-    handoverId: 'HO13',
-    date: '2023-10-26',
-    amount: 1500,
-  },
-];
+const statusColors = {
+    Pending: "orange",
+    Accepted: "green",
+    Rejected: "red",
+};
 
+const statusIcons = {
+    Pending: <ClockCircleOutlined />,
+    Accepted: <CheckCircleOutlined />,
+    Rejected: <CloseCircleOutlined />,
+};
 
+// cash_type.id = 2 -> "Recovery Cash" (this screen is only for recovery officers)
+const RECOVERY_CASH_TYPE_ID = 2;
 
-function CashTransfer() {
-  const [selectedRecord, setSelectedRecord] = useState(null);
+const adminProofColors = {
+    Awaiting: "orange",
+    Accepted: "green",
+    Verified: "green",
+    Rejected: "red",
+};
 
-   const columns = [
-    {
-      title: "Handover ID",
-      dataIndex: "handoverId",
-      key: "handoverId",
-      render: (text) => <a>{text}</a>,
-    },
-    { title: "date", dataIndex: "date", key: "date" },
-    { title: "Amount", dataIndex: "amount", key: "amount" },
-    {
-      title: "Action",
-      key: "action",
-      render: (_, record) => (
-        <Space size="medium">
-          <Button
-            type="primary"
-            size="small"
-            style={{ borderRadius: 6 }}
-            onClick={() => setSelectedRecord(record)}
-          >
-            Hand Over
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+// ── Queries & Mutations ──
 
-  // If button clicked -> show details component
-  if (selectedRecord) {
+// Daily recovery collection = payments collected today by this recovery
+// officer on delivery (delivery_order.delivered_by = staff.id).
+// This is the cash currently sitting in the officer's hand.
+const LOAD_DAILY_RECOVERY_COLLECTION = gql`
+    query getDailyRecovery(
+        $staffId: ID!
+        $startOfDay: Datetime!
+        $endOfDay: Datetime!
+    ) {
+        delivery_orderCollection(
+            filter: {
+                delivered_by: { eq: $staffId }
+                payment_received: { eq: true }
+                updated_date: { gte: $startOfDay, lte: $endOfDay }
+            }
+        ) {
+            edges {
+                node {
+                    id
+                    order_id
+                    paid_amount
+                    balance_amount
+                    payment_type
+                    status
+                    updated_date
+                }
+            }
+        }
+    }
+`;
+
+const LOAD_CASH_TRANSFERS = gql`
+    query getCashTransfers($staffId: ID!) {
+        cash_transfers_to_adminCollection(
+            filter: { by: { eq: $staffId } }
+            orderBy: { created_at: DescNullsLast }
+        ) {
+            edges {
+                node {
+                    id
+                    amount
+                    note
+                    created_at
+                    admin_proof_status
+                    admin_proof_at
+                    cash_transfer_status {
+                        id
+                        status
+                    }
+                }
+            }
+        }
+    }
+`;
+
+// cash_type_id: 2 = Recovery Cash (fixed for this recovery-officer screen)
+// NOTE: admin_proof_status has NO default value in the DB (only
+// manager_proof_status defaults to 'Awaiting'), so we must set it
+// explicitly here or it will be inserted as NULL.
+const NEW_MONEY_TRANSFER = gql`
+    mutation addMoneyTransfer(
+        $staffId: ID!
+        $amount: Float!
+        $note: String
+        $branchId: Int
+        $cashTypeId: BigInt!
+        $adminProofStatus: String!
+    ) {
+        insertIntocash_transfers_to_adminCollection(
+            objects: {
+                by: $staffId
+                amount: $amount
+                note: $note
+                branch_id: $branchId
+                cash_type_id: $cashTypeId
+                admin_proof_status: $adminProofStatus
+            }
+        ) {
+            records {
+                id
+                amount
+                note
+                created_at
+                branch_id
+                cash_type_id
+                admin_proof_status
+                admin_proof_at
+                cash_transfer_status {
+                    id
+                    status
+                }
+            }
+        }
+    }
+`;
+
+const CANCEL_TRANSFER = gql`
+    mutation cancelTransfer($transferId: ID!) {
+        deleteFromcash_transfers_to_adminCollection(
+            filter: { id: { eq: $transferId } }
+            atMost: 1
+        ) {
+            records {
+                id
+            }
+        }
+    }
+`;
+
+function CashTransferToAdmin() {
+    const { staff } = useAuth();
+
+    const [transfers, setTransfers] = useState([]);
+    const [showModal, setShowModal] = useState(false);
+    const [filterStatus, setFilterStatus] = useState("All");
+    const [submitting, setSubmitting] = useState(false);
+    const [cancellingId, setCancellingId] = useState(null);
+    const [form] = Form.useForm();
+
+    // ── Today's date range (used for daily recovery collection) ──
+    const startOfDay = useMemo(() => dayjs().startOf("day").toISOString(), []);
+    const endOfDay = useMemo(() => dayjs().endOf("day").toISOString(), []);
+
+    // ── Load Today's Recovery Collection ──
+    const [
+        loadRecovery,
+        { data: recoveryData, loading: recoveryLoading, error: recoveryError },
+    ] = useLazyQuery(LOAD_DAILY_RECOVERY_COLLECTION, {
+        fetchPolicy: "network-only",
+    });
+
+    // ── Load Cash Transfers ──
+    const [
+        loadTransfers,
+        { data: transferData, loading: transfersLoading, error: transferError },
+    ] = useLazyQuery(LOAD_CASH_TRANSFERS, {
+        fetchPolicy: "network-only",
+        onCompleted: (data) => {
+            mapAndSetTransfers(data);
+        },
+        onError: (err) => {
+            console.error("❌ Transfer query error:", err);
+            message.error("Failed to load transfers: " + err.message);
+        },
+    });
+
+    // ── Add Transfer Mutation ──
+    const [addMoneyTransfer] = useMutation(NEW_MONEY_TRANSFER);
+
+    // ── Cancel Transfer Mutation ──
+    const [cancelTransfer] = useMutation(CANCEL_TRANSFER, {
+        onCompleted: () => {
+            message.success("Transfer cancelled successfully.");
+            // ── Reload transfers after cancel ──
+            if (staff?.id) {
+                loadTransfers({ variables: { staffId: staff.id } });
+            }
+        },
+        onError: (err) => {
+            console.error("❌ Cancel mutation error:", err);
+            message.error("Failed to cancel transfer: " + err.message);
+        },
+    });
+
+    // ── Helper: map raw GQL data → table rows ──
+    const mapAndSetTransfers = (data) => {
+        const edges = data?.cash_transfers_to_adminCollection?.edges;
+
+        if (!edges) {
+            console.warn("⚠️ No edges found in transfer data:", data);
+            return;
+        }
+
+        const mapped = edges.map(({ node }) => ({
+            key: node.id,
+            id: node.id,
+            amount: node.amount ?? 0,
+            date: node.created_at
+                ? dayjs(node.created_at).format("YYYY-MM-DD")
+                : "—",
+            note: node.note ?? "—",
+            status: node.cash_transfer_status?.status ?? "Pending",
+            adminProofStatus: node.admin_proof_status ?? "Awaiting",
+            adminProofAt: node.admin_proof_at
+                ? dayjs(node.admin_proof_at).format("YYYY-MM-DD HH:mm")
+                : "—",
+        }));
+
+        setTransfers(mapped);
+    };
+
+    // ── Initial Data Load ──
+    useEffect(() => {
+        if (staff?.id) {
+            loadRecovery({
+                variables: { staffId: staff.id, startOfDay, endOfDay },
+            });
+        }
+    }, [loadRecovery, staff?.id, startOfDay, endOfDay]);
+
+    useEffect(() => {
+        if (staff?.id) {
+            loadTransfers({ variables: { staffId: staff.id } });
+        }
+    }, [loadTransfers, staff?.id]);
+
+    // ── Fallback: handle transferData change ──
+    useEffect(() => {
+        if (transferData) {
+            mapAndSetTransfers(transferData);
+        }
+    }, [transferData]);
+
+    // ── Flatten Today's Deliveries ──
+    const deliveries = useMemo(() => {
+        if (!recoveryData?.delivery_orderCollection?.edges) return [];
+        return recoveryData.delivery_orderCollection.edges.map(
+            ({ node }) => ({
+                orderId: node.order_id,
+                paidAmount: node.paid_amount ?? 0,
+                balanceAmount: node.balance_amount ?? 0,
+                status: node.status ?? "Unknown",
+            })
+        );
+    }, [recoveryData]);
+
+    // ── Daily Recovery Collection (cash currently on hand) ──
+    const dailyRecoveryCollection = useMemo(() => {
+        return deliveries.reduce((sum, d) => sum + d.paidAmount, 0);
+    }, [deliveries]);
+
+    // ── Refresh All Data ──
+    const refreshData = () => {
+        if (staff?.id) {
+            loadRecovery({
+                variables: { staffId: staff.id, startOfDay, endOfDay },
+            });
+            loadTransfers({ variables: { staffId: staff.id } });
+        }
+    };
+
+    // ── Format Currency ──
+    const formatCurrency = (value) =>
+        new Intl.NumberFormat("en-LK", {
+            style: "currency",
+            currency: "LKR",
+            maximumFractionDigits: 0,
+        }).format(value);
+
+    // ── Transfer Totals ──
+    const totalPending = transfers
+        .filter((t) => t.status === "Pending")
+        .reduce((s, t) => s + t.amount, 0);
+
+    const totalRejected = transfers
+        .filter((t) => t.status === "Rejected")
+        .reduce((s, t) => s + t.amount, 0);
+
+    // ── Stat Cards ──
+    const statCards = [
+        {
+            title: "Cash on Hand",
+            value: recoveryLoading
+                ? "Loading..."
+                : formatCurrency(dailyRecoveryCollection),
+            accent: "#1677ff",
+            subtitle: "Today's recovery collection",
+            customIcon: (
+                <DollarOutlined style={{ color: "#1677ff", fontSize: 22 }} />
+            ),
+        },
+        {
+            title: "Pending Transfers",
+            value: formatCurrency(totalPending),
+            accent: "#faad14",
+            subtitle: "Awaiting admin acceptance",
+            customIcon: (
+                <ClockCircleOutlined style={{ color: "#faad14", fontSize: 22 }} />
+            ),
+        },
+        {
+            title: "Rejected Transfers",
+            value: formatCurrency(totalRejected),
+            accent: "#ff4d4f",
+            subtitle: "Returned to your responsibility",
+            customIcon: (
+                <CloseCircleOutlined style={{ color: "#ff4d4f", fontSize: 22 }} />
+            ),
+        },
+    ];
+
+    // ── Filtered Table Data ──
+    const filteredTransfers = useMemo(() => {
+        if (filterStatus === "All") return transfers;
+        return transfers.filter((t) => t.status === filterStatus);
+    }, [filterStatus, transfers]);
+
+    // ── Submit New Transfer ──
+    const handleSubmit = async (values) => {
+        setSubmitting(true);
+        try {
+            await addMoneyTransfer({
+                variables: {
+                    staffId: staff.id,
+                    amount: values.amount,
+                    note: values.note || "",
+                    branchId: staff.branch?.id ?? null,
+                    cashTypeId: RECOVERY_CASH_TYPE_ID,
+                    adminProofStatus: "Awaiting",
+                },
+            });
+
+            // ── Close modal and reset form ──
+            setShowModal(false);
+            form.resetFields();
+
+            // ── Reload transfers ──
+            await loadTransfers({ variables: { staffId: staff.id } });
+
+            Modal.success({
+                title: "Transfer Submitted!",
+                content: (
+                    <div>
+                        <p style={{ color: "#595959" }}>
+                            Your cash transfer request has been sent to the admin.
+                        </p>
+                        <div
+                            style={{
+                                background: "#fffbe6",
+                                border: "1px solid #ffe58f",
+                                borderRadius: 8,
+                                padding: "8px 12px",
+                                marginTop: 10,
+                            }}
+                        >
+                            <ExclamationCircleOutlined
+                                style={{ color: "#faad14", marginRight: 6 }}
+                            />
+                            <Text style={{ color: "#875800", fontSize: 12 }}>
+                                This amount remains your responsibility until the admin
+                                accepts it.
+                            </Text>
+                        </div>
+                    </div>
+                ),
+                okButtonProps: {
+                    style: { background: "#1677ff", borderColor: "#1677ff" },
+                },
+            });
+        } catch (error) {
+            console.error("❌ Error submitting transfer:", error);
+            message.error("Failed to submit transfer: " + error.message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // ── Cancel Pending Transfer (calls GraphQL mutation) ──
+    const handleCancel = (record) => {
+        Modal.confirm({
+            title: "Cancel Transfer?",
+            icon: <ExclamationCircleOutlined style={{ color: "#ff4d4f" }} />,
+            content: (
+                <div>
+                    <p>Are you sure you want to cancel transfer <strong>#{record.id}</strong>?</p>
+                    <p style={{ color: "#8c8c8c", fontSize: 12 }}>
+                        Amount: {formatCurrency(record.amount)}
+                    </p>
+                    <p style={{ color: "#ff4d4f", fontSize: 12 }}>
+                        ⚠ This action cannot be undone.
+                    </p>
+                </div>
+            ),
+            okText: "Yes, Cancel Transfer",
+            cancelText: "No, Keep It",
+            okButtonProps: { danger: true },
+            // ── Call the GraphQL mutation on confirm ──
+            onOk: async () => {
+                setCancellingId(record.id);
+                try {
+                    await cancelTransfer({
+                        variables: { transferId: record.id },
+                    });
+                } catch (err) {
+                    // error handled in onError above
+                    console.log("❌ Cancel transfer error:", err);
+                } finally {
+                    setCancellingId(null);
+                }
+            },
+        });
+    };
+
+    // ── Table Columns ──
+    const columns = [
+        {
+            title: "Transfer ID",
+            dataIndex: "id",
+            key: "id",
+            render: (v) => (
+                <span style={{ fontWeight: 700, color: "#1677ff" }}>#{v}</span>
+            ),
+        },
+        {
+            title: "Amount",
+            dataIndex: "amount",
+            key: "amount",
+            render: (v) => (
+                <span style={{ fontWeight: 600 }}>{formatCurrency(v)}</span>
+            ),
+            sorter: (a, b) => a.amount - b.amount,
+        },
+        {
+            title: "Date",
+            dataIndex: "date",
+            key: "date",
+            render: (v) => <span style={{ color: "#8c8c8c" }}>{v}</span>,
+        },
+        {
+            title: "Note",
+            dataIndex: "note",
+            key: "note",
+            render: (v) => <span style={{ color: "#595959" }}>{v}</span>,
+        },
+        {
+            title: "Status",
+            dataIndex: "status",
+            key: "status",
+            render: (v) => (
+                <Tag
+                    icon={statusIcons[v]}
+                    color={statusColors[v] || "blue"}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 4 }}
+                >
+                    {v}
+                </Tag>
+            ),
+        },
+        {
+            title: "Admin Proof",
+            key: "adminProof",
+            render: (_, record) => (
+                <Space direction="vertical" size={0}>
+                    <Tag color={adminProofColors[record.adminProofStatus] || "blue"}>
+                        {record.adminProofStatus}
+                    </Tag>
+                    <span style={{ fontSize: 11, color: "#8c8c8c" }}>
+                        {record.adminProofAt}
+                    </span>
+                </Space>
+            ),
+        },
+        {
+            title: "Responsibility",
+            key: "responsibility",
+            render: (_, record) => {
+                if (record.status === "Pending") {
+                    return (
+                        <Tag color="orange" style={{ fontSize: 11 }}>
+                            ⚠ Still Your Responsibility
+                        </Tag>
+                    );
+                }
+                if (record.status === "Accepted") {
+                    return (
+                        <Tag color="green" style={{ fontSize: 11 }}>
+                            ✓ No Longer Responsible
+                        </Tag>
+                    );
+                }
+                return (
+                    <Tag color="red" style={{ fontSize: 11 }}>
+                        ✕ Returned to You
+                    </Tag>
+                );
+            },
+        },
+        {
+            title: "Action",
+            key: "action",
+            render: (_, record) => {
+                if (record.status.toLowerCase() === "pending") {
+                    return (
+                        <Button
+                            size="small"
+                            danger
+                            loading={cancellingId === record.id}
+                            onClick={() => handleCancel(record)}
+                            style={{
+                                background: "#fff1f0",
+                                borderColor: "#ffccc7",
+                                color: "#ff4d4f",
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                    );
+                }
+                return (
+                    <Button size="small" disabled>
+                        —
+                    </Button>
+                );
+            },
+        },
+    ];
+
     return (
-      <Layout style={{ minHeight: "100vh", background: "#f0f4ff", padding: 20 }}>
-        <HandOverDetails
-          record={selectedRecord}
-          onCancel={() => setSelectedRecord(null)}
-        />
-      </Layout>
-    );
-  }
+        <div className="m-5">
+            {/* ── Stat Cards ── */}
+            <Row gutter={[16, 16]} align="stretch">
+                {statCards.map((item) => (
+                    <Col xs={24} sm={12} md={8} lg={8} xl={8} key={item.title}>
+                        <Card
+                            bordered={false}
+                            style={{
+                                borderRadius: 16,
+                                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                                borderLeft: `5px solid ${item.accent}`,
+                                height: "100%",
+                            }}
+                            bodyStyle={{ padding: 20, height: "100%" }}
+                        >
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    height: "100%",
+                                }}
+                            >
+                                <div>
+                                    <div
+                                        style={{
+                                            color: "#8c8c8c",
+                                            fontSize: 13,
+                                            marginBottom: 6,
+                                        }}
+                                    >
+                                        {item.title}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 22,
+                                            fontWeight: 700,
+                                            color: "#1f1f1f",
+                                        }}
+                                    >
+                                        {item.value}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            color: "#8c8c8c",
+                                            marginTop: 4,
+                                        }}
+                                    >
+                                        {item.subtitle}
+                                    </div>
+                                </div>
+                                <div
+                                    style={{
+                                        width: 48,
+                                        height: 48,
+                                        borderRadius: 12,
+                                        background: `${item.accent}15`,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    {item.customIcon}
+                                </div>
+                            </div>
+                        </Card>
+                    </Col>
+                ))}
+            </Row>
 
-  // If user clicked Hand Over, show the details page
-  if (selectedRecord) {
-    return (
-      <Layout style={{ minHeight: "100vh", background: "#f0f4ff", padding: 20 }}>
-        <HandOverDetails
-          record={selectedRecord}
-          onCancel={() => setSelectedRecord(null)}
-        />
-      </Layout>
+            {/* ── Transfer Table ── */}
+            <Row className="mt-5">
+                <Col span={24}>
+                    <Card
+                        title={
+                            <Space>
+                                <DollarOutlined style={{ color: "#1677ff" }} />
+                                <span>Cash Transfer History</span>
+                                <Tag color="blue">{transfers.length} records</Tag>
+                            </Space>
+                        }
+                        bordered={false}
+                        style={{
+                            borderRadius: 16,
+                            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                        }}
+                        extra={
+                            <Space wrap>
+                                {["All", "Pending", "Accepted", "Rejected"].map((status) => (
+                                    <Button
+                                        key={status}
+                                        size="small"
+                                        type={filterStatus === status ? "primary" : "default"}
+                                        style={
+                                            filterStatus === status
+                                                ? {
+                                                    background: "#1677ff",
+                                                    borderColor: "#1677ff",
+                                                }
+                                                : {}
+                                        }
+                                        onClick={() => setFilterStatus(status)}
+                                    >
+                                        {status}
+                                    </Button>
+                                ))}
+                                <Button
+                                    size="small"
+                                    icon={<ReloadOutlined />}
+                                    onClick={refreshData}
+                                    loading={transfersLoading || recoveryLoading}
+                                >
+                                    Refresh
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<SendOutlined />}
+                                    onClick={() => setShowModal(true)}
+                                    style={{
+                                        background: "#1677ff",
+                                        borderColor: "#1677ff",
+                                        marginLeft: 8,
+                                    }}
+                                >
+                                    New Transfer
+                                </Button>
+                            </Space>
+                        }
+                    >
+                        {/* ── Responsibility Notice ── */}
+                        <div
+                            style={{
+                                background: "#fffbe6",
+                                border: "1px solid #ffe58f",
+                                borderRadius: 8,
+                                padding: "8px 14px",
+                                marginBottom: 16,
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                            }}
+                        >
+                            <ExclamationCircleOutlined style={{ color: "#faad14" }} />
+                            <Text style={{ color: "#875800", fontSize: 12 }}>
+                                Pending transfers are still{" "}
+                                <strong>your responsibility</strong> until the admin accepts
+                                them. Once accepted, you are no longer accountable for that
+                                amount.
+                            </Text>
+                        </div>
+
+                        {/* ── Error States ── */}
+                        {recoveryError && (
+                            <div
+                                style={{
+                                    background: "#fff2f0",
+                                    border: "1px solid #ffccc7",
+                                    borderRadius: 8,
+                                    padding: "8px 14px",
+                                    marginBottom: 16,
+                                    color: "#ff4d4f",
+                                    fontSize: 12,
+                                }}
+                            >
+                                ❌ Error loading today's recovery collection:{" "}
+                                {recoveryError.message}
+                            </div>
+                        )}
+
+                        {transferError && (
+                            <div
+                                style={{
+                                    background: "#fff2f0",
+                                    border: "1px solid #ffccc7",
+                                    borderRadius: 8,
+                                    padding: "8px 14px",
+                                    marginBottom: 16,
+                                    color: "#ff4d4f",
+                                    fontSize: 12,
+                                }}
+                            >
+                                ❌ Error loading transfers: {transferError.message}
+                            </div>
+                        )}
+
+                        <Table
+                            dataSource={filteredTransfers}
+                            columns={columns}
+                            loading={transfersLoading}
+                            pagination={{ pageSize: 5, size: "small" }}
+                            size="middle"
+                            scroll={{ x: 900 }}
+                            locale={{
+                                emptyText: transfersLoading
+                                    ? "Loading..."
+                                    : transferError
+                                        ? "Failed to load data"
+                                        : "No transfers found",
+                            }}
+                        />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* ── New Transfer Modal ── */}
+            <Modal
+                title={
+                    <Space>
+                        <SendOutlined style={{ color: "#1677ff" }} />
+                        <span>New Cash Transfer to Admin</span>
+                    </Space>
+                }
+                open={showModal}
+                onCancel={() => {
+                    setShowModal(false);
+                    form.resetFields();
+                }}
+                footer={null}
+                width={480}
+                centered
+                destroyOnClose
+            >
+                <div
+                    style={{
+                        background: "#fffbe6",
+                        border: "1px solid #ffe58f",
+                        borderRadius: 8,
+                        padding: "8px 14px",
+                        marginBottom: 20,
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                    }}
+                >
+                    <ExclamationCircleOutlined
+                        style={{ color: "#faad14", marginTop: 2 }}
+                    />
+                    <Text style={{ color: "#875800", fontSize: 12 }}>
+                        You remain responsible for this amount until the admin{" "}
+                        <strong>accepts</strong> the transfer.
+                    </Text>
+                </div>
+
+                <Form form={form} layout="vertical" onFinish={handleSubmit}>
+                    <Form.Item
+                        label="Transfer Amount (LKR)"
+                        name="amount"
+                        rules={[
+                            { required: true, message: "Please enter the amount" },
+                            {
+                                type: "number",
+                                min: 1,
+                                message: "Amount must be greater than 0",
+                            },
+                        ]}
+                    >
+                        <InputNumber
+                            prefix={<DollarOutlined style={{ color: "#8c8c8c" }} />}
+                            placeholder="Enter amount"
+                            style={{ width: "100%" }}
+                            formatter={(v) =>
+                                `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+                            }
+                            parser={(v) => v.replace(/,/g, "")}
+                            min={1}
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label="Transfer Date"
+                        name="date"
+                        initialValue={dayjs()}
+                        rules={[{ required: true, message: "Please select a date" }]}
+                    >
+                        <DatePicker
+                            style={{ width: "100%" }}
+                            disabledDate={(d) => d && d > dayjs().endOf("day")}
+                        />
+                    </Form.Item>
+
+                    <Form.Item
+                        label={
+                            <span>
+                                Note{" "}
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                    (Optional)
+                                </Text>
+                            </span>
+                        }
+                        name="note"
+                        rules={[
+                            {
+                                max: 200,
+                                message: "Note cannot exceed 200 characters",
+                            },
+                        ]}
+                    >
+                        <Input.TextArea
+                            rows={3}
+                            placeholder="e.g. Weekly sales collection, client payments..."
+                            showCount
+                            maxLength={200}
+                        />
+                    </Form.Item>
+
+                    <Form.Item style={{ marginBottom: 0 }}>
+                        <Space style={{ width: "100%", justifyContent: "flex-end" }}>
+                            <Button
+                                onClick={() => {
+                                    setShowModal(false);
+                                    form.resetFields();
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={submitting}
+                                icon={<SendOutlined />}
+                                style={{
+                                    background: "#1677ff",
+                                    borderColor: "#1677ff",
+                                }}
+                            >
+                                Submit Transfer
+                            </Button>
+                        </Space>
+                    </Form.Item>
+                </Form>
+            </Modal>
+        </div>
+
     );
-  }
-  return (
-     <Layout style={{ background: "#f0f4ff" }}>
-      <Card        title={<Typography.Title level={3}>Cash Transfer</Typography.Title>}
-        bordered={false}
-        style={{ margin: "20px" }}
-      >
-        <Typography.Paragraph>
-          Submit today's collected cash to an administrative officer
-        </Typography.Paragraph>
-      </Card>
-      
-      <Table columns={columns} dataSource={data} style={{ padding: 20 }}/>
-      
-    </Layout>
-  )
 }
 
-export default CashTransfer
+export default CashTransferToAdmin;
