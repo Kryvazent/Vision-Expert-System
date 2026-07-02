@@ -8,7 +8,6 @@ import { useState } from "react";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 
-
 const GET_BRANCHES = gql`
   query GetBranches {
     branchCollection {
@@ -89,9 +88,13 @@ function AccountantDashboard() {
       let dateMatch = true;
 
       // if user selected date range
-      if (selectedDates.length === 2 && selectedDates[0] && selectedDates[1]) {
+      if (
+        Array.isArray(selectedDates) &&
+        selectedDates.length === 2 &&
+        selectedDates[0] &&
+        selectedDates[1]
+      ) {
         const startDate = new Date(selectedDates[0]);
-
         const endDate = new Date(selectedDates[1]);
 
         dateMatch = orderDate >= startDate && orderDate <= endDate;
@@ -129,39 +132,6 @@ function AccountantDashboard() {
 
   // total orders
   const totalOrders = filteredOrders.length;
-
-  // previous values
-  const previousRevenue = 100000;
-  const previousReceived = 80000;
-  const previousPending = 20000;
-  const previousOrders = 15;
-
-  // percentage calculations
-  const revenuePercentage =
-    previousRevenue === 0
-      ? 0
-      : (((totalRevenue - previousRevenue) / previousRevenue) * 100).toFixed(1);
-
-  const receivedPercentage =
-    previousReceived === 0
-      ? 0
-      : (
-          ((amountReceived - previousReceived) / previousReceived) *
-          100
-        ).toFixed(1);
-
-  const pendingPercentage =
-    previousPending === 0
-      ? 0
-      : (
-          ((pendingCollections - previousPending) / previousPending) *
-          100
-        ).toFixed(1);
-
-  const ordersPercentage =
-    previousOrders === 0
-      ? 0
-      : (((totalOrders - previousOrders) / previousOrders) * 100).toFixed(1);
 
   // average delivery time
   const averageDeliveryTime =
@@ -230,19 +200,23 @@ function AccountantDashboard() {
         >
           <Option value="all">All Branches</Option>
 
-          {data?.branchCollection?.edges
-            ?.filter((b) => b.node.branch_name !== "Main Branch")
-            ?.map((b) => (
-              <Option key={b.node.branch_name} value={b.node.branch_name}>
-                {b.node.branch_name}
-              </Option>
-            ))}
+          {data?.branchCollection?.edges?.map((b) => (
+            <Option key={b.node.id} value={b.node.branch_name}>
+              {b.node.branch_name}
+            </Option>
+          ))}
         </Select>
 
         {/* Date Filter */}
         <RangePicker
           className="w-64"
+          allowClear
           onChange={(dates, dateStrings) => {
+            if (!dates) {
+              setSelectedDates([]);
+              return;
+            }
+
             setSelectedDates(dateStrings);
           }}
         />
@@ -259,15 +233,6 @@ function AccountantDashboard() {
           </h2>
 
           <AcStatCard iconType="dollar" className="absolute top-4 right-4" />
-
-          <p
-            className={`font-medium ${
-              revenuePercentage >= 0 ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {revenuePercentage >= 0 ? "+" : ""}
-            {revenuePercentage}%
-          </p>
         </Card>
 
         {/* Card 2 */}
@@ -279,22 +244,11 @@ function AccountantDashboard() {
           </h2>
 
           <AcStatCard iconType="wallet" className="absolute top-4 right-4" />
-
-          <p
-            className={`font-medium ${
-              receivedPercentage >= 0 ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {receivedPercentage >= 0 ? "+" : ""}
-            {receivedPercentage}%
-          </p>
         </Card>
 
         {/* Card 3 */}
         <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">
-  Outstanding Balance
-</p>
+          <p className="text-gray-500">Outstanding Balance</p>
 
           <h2 className="text-2xl font-bold">
             Rs. {pendingCollections.toLocaleString()}
@@ -304,15 +258,6 @@ function AccountantDashboard() {
             iconType="creditcard"
             className="absolute top-4 right-4"
           />
-
-          <p
-            className={`font-medium ${
-              pendingPercentage >= 0 ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {pendingPercentage >= 0 ? "+" : ""}
-            {pendingPercentage}%
-          </p>
         </Card>
 
         {/* Card 4 */}
@@ -322,15 +267,6 @@ function AccountantDashboard() {
           <h2 className="text-2xl font-bold">{totalOrders}</h2>
 
           <AcStatCard iconType="shopping" className="absolute top-4 right-4" />
-
-          <p
-            className={`font-medium ${
-              ordersPercentage >= 0 ? "text-green-500" : "text-red-500"
-            }`}
-          >
-            {ordersPercentage >= 0 ? "+" : ""}
-            {ordersPercentage}%
-          </p>
         </Card>
       </div>
 
