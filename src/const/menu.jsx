@@ -1,5 +1,4 @@
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
-import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, MoneyCollectOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
 import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
@@ -10,7 +9,6 @@ export const MENU_BY_ROLE = {
     { key: '/recovery-followup',   icon: <SyncOutlined />,   label: 'Recovery Follow-Up' },
     { key: '/customer-lookup',   icon: <UserOutlined />,   label: 'Customer Lookup' },
     { key: '/warranty-claim',     icon: <ToolOutlined />,   label: 'Warranty Claims' },
-    {key: '/cash-approval-admin', icon: <TransactionOutlined />,   label: 'Cash Approval' }
   ],
 
   "optometrist": [

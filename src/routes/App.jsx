@@ -211,14 +211,6 @@ function App() {
         }
       />
 
-      <Route
-        path="/cash-approval-admin"
-        element={
-          <Page roles={["recovery-officer"]}>
-            <AdminCashTransferApproval />
-          </Page>
-        }
-      />
 
       {/* Accountant */}
       <Route
