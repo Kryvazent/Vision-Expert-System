@@ -57,6 +57,8 @@ import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
 import MainStockHandling from '../pages/owner/MainStockHandling';
 import CashTransferToAdmin from '../pages/sales-executive/CashTransferToAdmin';
 import CustomerDetails from '../pages/recovery-officer/CustomerDetails';
+import AdminCashTransferApproval from '../pages/AdministrativeOfficer/AdminCashTransferApproval';
+
 
 
 // Wrap page in both layout + role guard
@@ -205,6 +207,15 @@ function App() {
         element={
           <Page roles={["recovery-officer"]}>
             <CustomerDetails />
+          </Page>
+        }
+      />
+
+      <Route
+        path="/cash-approval-admin"
+        element={
+          <Page roles={["recovery-officer"]}>
+            <AdminCashTransferApproval />
           </Page>
         }
       />
