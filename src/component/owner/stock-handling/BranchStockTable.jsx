@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { Table, Select, Typography, Tag, Tabs } from 'antd'
+import { Table, Select, Typography, Tag, Tabs, Button, DatePicker } from 'antd'
 
 const { Text, Title } = Typography
 
-export default function BranchStockTable({branches = [], selectedBranch, onBranchChange,  data=[], productTypeList=[]}) {
+export default function BranchStockTable({branches = [], selectedBranch, onBranchChange,  data=[], productTypeList=[], reOrderedKeys = new Set(), onReOrder}) {
 
     const [activeCategory, setActiveCategory] = useState('')
  
@@ -77,6 +77,26 @@ export default function BranchStockTable({branches = [], selectedBranch, onBranc
                 if (qty === 0) color = '#d20d0dc5'
                 else if (qty <= 100) color = 'orange'
                 return <Tag color={color} style={{ fontWeight: 'bold' }}>{qty} units</Tag>
+            },
+        },
+        {
+            title: 'Action',
+            key: 'action',
+            width: 140,
+            render: (_, record) => {
+                const reorderKey = `${selectedBranch}-${record.productTypeId}`
+                const alreadyRequested = reOrderedKeys.has(reorderKey)
+
+                return (
+                    <Button
+                        size="small"
+                        type={alreadyRequested ? 'default' : 'primary'}
+                        disabled={alreadyRequested || !selectedBranch || record.stockQuantity > 100}
+                        onClick={() => onReOrder?.(record.productTypeId, selectedBranch)}
+                    >
+                        {alreadyRequested ? 'Requested' : 'Reorder'}
+                    </Button>
+                )
             },
         },
     ]

@@ -193,7 +193,12 @@ const LOAD_DISTRIBUTIONS = gql`
           stock {
             id
             product {
+              id
               name
+              product_type {
+                id
+                type
+              }
             }
           }
           branch {
@@ -334,6 +339,20 @@ const UPDATE_STOCK_QUANTITY = gql`
       records { 
         id 
         available_quantity 
+      }
+    }
+  }
+`;
+
+const UPDATE_DISTRIBUTION_STATUS = gql`
+  mutation UpdateDistributionStatus($id: BigInt!, $status: String!) {
+    updatestock_distributionCollection(
+      set: { status: $status }
+      filter: { id: { eq: $id } }
+    ) {
+      records {
+        id
+        status
       }
     }
   }
@@ -630,12 +649,19 @@ export default function MainStockHandling() {
       //  Branch stock
     const [loadBranchStock, {data: branchStockData}] = useLazyQuery(LOAD_BRANCH_STOCK,{fetchPolicy: 'network-only'})
 
-    useEffect(() => {
-      if(selectedBranch !== null && selectedBranch !== undefined) {
+    const refreshBranchStock = () => {
+      if (selectedBranchId) {
         loadBranchStock({
           variables: {
-            branch_id: Number(selectedBranch)
-          }})
+            branch_id: selectedBranchId,
+          },
+        })
+      }
+    }
+
+    useEffect(() => {
+      if(selectedBranch !== null && selectedBranch !== undefined) {
+        refreshBranchStock()
       }
     }, [selectedBranch, loadBranchStock])
 
@@ -643,6 +669,8 @@ export default function MainStockHandling() {
       fetchPolicy: 'network-only',
       pollInterval: 5000,
     })
+
+    const selectedBranchId = selectedBranch !== null && selectedBranch !== undefined ? Number(selectedBranch) : null
 
     useEffect(() => {
         loadReOrders()
@@ -661,13 +689,23 @@ export default function MainStockHandling() {
         .map(e => String(e.node.product_type_id)) || []
     )
 
+    const branchReorderKeys = new Set(
+      selectedBranchId
+        ? (reOrderData?.re_orderCollection?.edges || [])
+            .filter(e => Number(e.node.branch_id) === selectedBranchId)
+            .map(e => `${e.node.branch_id}-${e.node.product_type_id}`)
+        : []
+    )
+
     const[CheckBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
 
     const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
+    const [updateDistributionStatus] = useMutation(UPDATE_DISTRIBUTION_STATUS)
     const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK)
     const [insertReOrder] = useMutation(INSERT_REORDER)
     const [insertStock] = useMutation(INSERT_STOCK)
     const [InsertDistribution] = useMutation(INSERT_DISTRIBUTION)
+    const [deleteReorder] = useMutation(DELETE_REORDER)
     const [InsertProductType] = useMutation(INSERT_PRODUCT_TYPE)
     const [InsertSupplier] = useMutation(INSERT_SUPPLIER)
     const [InsertProduct] = useMutation(INSERT_PRODUCT)
@@ -738,17 +776,26 @@ export default function MainStockHandling() {
     stockQuantity: Number(item.node.available_quantity),
   })) || []
 
-  const distributionList = distributionData?.stock_distributionCollection?.edges.map((item, index) => ({
+  const distributionList = distributionData?.stock_distributionCollection?.edges.map((item, index) => {
+    const sourceStock = stockList.find((stock) => String(stock.id) === String(item.node.stock?.id))
+
+    return {
       key: index,
       distributionId: `DST-${String(item.node.id).padStart(4, '0')}`,
+      rawId: item.node.id,
       date: item.node.created_at?.split('T')[0],
-      productName:item.node.stock?.product?.name || 'Unknown Product',
-      branch:item.node.branch?.branch_name || 'Unknown Branch',
+      productName: item.node.stock?.product?.name || 'Unknown Product',
+      productId: item.node.stock?.product?.id,
+      productTypeId: item.node.stock?.product?.product_type?.id,
+      stockId: item.node.stock?.id,
+      mainStockQuantity: sourceStock?.stockQuantity ?? 0,
+      branch: item.node.branch?.branch_name || 'Unknown Branch',
+      branchId: item.node.branch?.id,
       quantity: Number(item.node.quantity),
       status: item.node.status || 'Pending Approval',
       notes: item.node.notes || '',
-    })
-  ) || []
+    }
+  }) || []
 
   //STATCARDS
   const totalProducts = productTypeList.length
@@ -759,12 +806,12 @@ export default function MainStockHandling() {
   const pendingDamaged = damagedStockList.filter(i => i.status_bool === false).length
 
   //Handlers
-  const handleReOrders = async(productTypeId) => {
+  const handleReOrders = async(productTypeId, branchIdValue = headOfficeBranchId) => {
     try{
       await insertReOrder({
         variables: {
           product_type_id: productTypeId,
-          branch_id: headOfficeBranchId,
+          branch_id: Number(branchIdValue),
         }
       })
       refetchAll()
@@ -780,58 +827,17 @@ export default function MainStockHandling() {
     const handleDistributeSubmit = async(values) => {
       try{
         const product = distributeProduct
-        const targetBranchId = values.branch
+        const targetBranchId = Number(values.branch)
         const qty = Number(values.quantity)
 
         if(!product){
           message.error("No product selected")
           return
         }
-        //Reduce central stock
-        const newCentralQty = product.stockQuantity  - qty
 
-        if(newCentralQty < 0 ){
+        if((product.stockQuantity ?? 0) < qty){
           message.error('Not enough stock to distribute!')
           return
-        }
-
-        await updateStock({
-          variables: {
-            id: product.id,
-            quantity: newCentralQty
-          }
-        })
-
-        const result = await CheckBranchStock({
-          variables: {
-            product_id: product.productId,
-            branch_id: targetBranchId
-          }
-        })
-
-        const existingStock = result?.data?.stockCollection?.edges?.[0]?.node
-
-        if(existingStock){
-          const updatedQty = 
-            Number(existingStock.available_quantity) + qty
-
-            await updateStock({
-              variables: {
-                id: existingStock.id,
-                quantity: updatedQty
-              }
-            })
-
-        }else{
-          await insertStock({
-            variables: {
-              product_id: product.productId,
-              branch_id: targetBranchId,
-              quantity: qty,
-              added_by: Number(staff?.id),
-              supplier_id: null,
-            }
-          })
         }
 
         await InsertDistribution({
@@ -844,29 +850,98 @@ export default function MainStockHandling() {
           }
         })
 
-        // Then in handleDistributeSubmit, after successful distribution:
-        // Find the matching reorder and delete it
-        const matchingReorder = reOrderData?.re_orderCollection?.edges?.find(
-          e => Number(e.node.branch_id) === targetBranchId
-            && Number(e.node.product_type_id) === product.productTypeId
-        )
-
-        if (matchingReorder) {
-          await deleteReorder({
-              variables: { 
-                id: matchingReorder.node.id 
-              }
-          })
-        }
-
+        refreshBranchStock()
         refetchDistribution()
         refetchAll()
         setDistributeProduct(null)
-        message.success('Stock distributed successfully.')
+        message.success('Distribution request submitted for approval.')
 
       }catch(err){
         console.error("Distribution failed:"+err)
         message.error('Distribution failed')
+      }
+    }
+
+    const handleApproveDistribution = async(record) => {
+      try {
+        const targetBranchId = Number(record.branchId)
+        const qty = Number(record.quantity)
+        const mainStockId = Number(record.stockId)
+        const productId = Number(record.productId)
+
+        if (!record.productId || !record.stockId || !targetBranchId) {
+          message.error('Distribution details are incomplete.')
+          return
+        }
+
+        if ((record.mainStockQuantity ?? 0) < qty) {
+          message.error('Main stock is no longer sufficient for this approval.')
+          return
+        }
+
+        const newCentralQty = Number(record.mainStockQuantity ?? 0) - qty
+        await updateStock({
+          variables: {
+            id: mainStockId,
+            quantity: newCentralQty,
+          },
+        })
+
+        const result = await CheckBranchStock({
+          variables: {
+            product_id: productId,
+            branch_id: targetBranchId,
+          },
+        })
+
+        const existingStock = result?.data?.stockCollection?.edges?.[0]?.node
+
+        if (existingStock) {
+          const updatedQty = Number(existingStock.available_quantity) + qty
+          await updateStock({
+            variables: {
+              id: existingStock.id,
+              quantity: updatedQty,
+            },
+          })
+        } else {
+          await insertStock({
+            variables: {
+              product_id: productId,
+              branch_id: targetBranchId,
+              quantity: qty,
+              added_by: Number(staff?.id),
+              supplier_id: null,
+            },
+          })
+        }
+
+        await updateDistributionStatus({
+          variables: {
+            id: Number(record.rawId),
+            status: 'Approved',
+          },
+        })
+
+        const matchingReorder = reOrderData?.re_orderCollection?.edges?.find(
+          (e) => Number(e.node.branch_id) === targetBranchId && Number(e.node.product_type_id) === record.productTypeId
+        )
+
+        if (matchingReorder) {
+          await deleteReorder({
+            variables: {
+              id: matchingReorder.node.id,
+            },
+          })
+        }
+
+        refreshBranchStock()
+        refetchDistribution()
+        refetchAll()
+        message.success('Distribution approved and branch stock updated.')
+      } catch (err) {
+        console.error('Approve distribution failed:', err)
+        message.error('Unable to approve distribution.')
       }
     }
 
@@ -954,7 +1029,12 @@ export default function MainStockHandling() {
             color="#7C3AED"
           />
         ),
-        children: (<DistributionHistoryTable data={distributionList} /> ),
+        children: (
+          <DistributionHistoryTable
+            data={distributionList}
+            onApprove={handleApproveDistribution}
+          />
+        ),
       },
       {
         key: 'branch',
@@ -968,7 +1048,8 @@ export default function MainStockHandling() {
             onBranchChange={setSelectedBranch}
             data={branchStockList}
             productTypeList={productTypeList}
-
+            reOrderedKeys={branchReorderKeys}
+            onReOrder={handleReOrders}
           />
         ),
       },
