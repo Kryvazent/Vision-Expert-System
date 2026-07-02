@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import {
   AccountBookOutlined,
   BarChartOutlined,
@@ -19,13 +20,18 @@ import {
   SyncOutlined,
   TransactionOutlined,
 } from "@ant-design/icons";
+=======
+import { AccountBookOutlined, MoneyCollectOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
+import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
+>>>>>>> 938b1119ad7f1f8d0b0c98a276004fe30964b1a0
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
     { key: '/recovery-dashboard',  icon: <DashboardOutlined />,    label: 'Dashboard' },
     { key: '/recovery-sheet',      icon: <FileTextOutlined />,      label: 'Recovery Sheet' },
-    { key: '/cash-transfer',       icon: <TransactionOutlined />,   label: 'Cash Transfer' },
+    { key: '/cash-transfer-to-admin',       icon: <TransactionOutlined />,   label: 'Cash Transfer to Admin' },
     { key: '/recovery-followup',   icon: <SyncOutlined />,   label: 'Recovery Follow-Up' },
+    { key: '/customer-lookup',   icon: <UserOutlined />,   label: 'Customer Lookup' },
     { key: '/warranty-claim',     icon: <ToolOutlined />,   label: 'Warranty Claims' },
   ],
 
@@ -53,7 +59,8 @@ export const MENU_BY_ROLE = {
     { key: '/petty-cash-handling', icon: <TransactionOutlined />,   label: 'Petty Cash Handling' },
     { key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
     { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
-    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' }
+    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
+    { key: '/cash-approval-admin', icon:  <TransactionOutlined />,   label: 'Cash Approval' },
 
   ],
 

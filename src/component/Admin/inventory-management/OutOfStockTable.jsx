@@ -57,7 +57,7 @@ export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(
                 type="primary"
                 size="small"
                 danger
-                onClick={() => onReOrder(record.productTypeId)}
+                onClick={() => onReOrder(record.productTypeId, undefined, 100)}
               >
                 Reorder
               </Button>

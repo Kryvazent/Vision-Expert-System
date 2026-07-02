@@ -50,6 +50,8 @@ const LOAD_REMINDER_CALLS = gql`
           order_id
           before_lab_reason
           before_lab_status
+          before_delivery_reason
+          before_delivery_status
         }
       }
     }
@@ -361,7 +363,7 @@ export default function BatchTracking() {
   })) || []
 
   // fetch all already-batched order IDs once so we can exclude them
-  const { data: batchedIdsData } = useQuery(LOAD_BATCHED_ORDER_IDS, {
+  const { data: batchedIdsData, refetch: refetchBatchedOrderIds } = useQuery(LOAD_BATCHED_ORDER_IDS, {
     fetchPolicy: 'network-only',
   })
   const batchedOrderIds = useMemo(() => {
@@ -498,6 +500,7 @@ export default function BatchTracking() {
       })
 
       refetchBatches()
+      refetchBatchedOrderIds()
       message.success(`Batch ${newBatch.batchNumber} added successfully!`)
       setIsModalOpen(false)
     } catch (err) {

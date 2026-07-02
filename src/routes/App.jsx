@@ -57,6 +57,10 @@ import PettyCashHandling from './../pages/AdministrativeOfficer/PettyCashHandlin
 import LabFollowUp from '../pages/AdministrativeOfficer/LabFollowUp';
 import MainStockHandling from '../pages/owner/MainStockHandling';
 import CashTransferToAdmin from '../pages/sales-executive/CashTransferToAdmin';
+import CustomerDetails from '../pages/recovery-officer/CustomerDetails';
+import AdminCashTransferApproval from '../pages/AdministrativeOfficer/AdminCashTransferApproval';
+
+
 
 // Wrap page in both layout + role guard
 function Page({ roles, children }) {
@@ -182,7 +186,7 @@ function App() {
       />
 
       <Route
-        path="/cash-transfer"
+        path="/cash-transfer-to-admin"
         element={
           <Page roles={["recovery-officer"]}>
             <CashTransfer />
@@ -198,6 +202,16 @@ function App() {
           </Page>
         }
       />
+
+      <Route
+        path="/customer-lookup"
+        element={
+          <Page roles={["recovery-officer"]}>
+            <CustomerDetails />
+          </Page>
+        }
+      />
+
 
       {/* Accountant */}
       <Route

@@ -113,7 +113,7 @@ export default function AddBatchModal({ open, onClose, onAddBatch, branchList = 
 
       const batchNumber = buildBatchNumber(branchName, values.branchId);
 
-      onAddBatch({
+      await onAddBatch({
         batchNumber,
         branchId: values.branchId,
         orderData: formattedOrders,

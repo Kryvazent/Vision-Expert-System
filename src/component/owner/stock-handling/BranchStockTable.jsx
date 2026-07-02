@@ -91,8 +91,8 @@ export default function BranchStockTable({branches = [], selectedBranch, onBranc
                     <Button
                         size="small"
                         type={alreadyRequested ? 'default' : 'primary'}
-                        disabled={alreadyRequested || !selectedBranch || record.stockQuantity > 100}
-                        onClick={() => onReOrder?.(record.productTypeId, selectedBranch)}
+                        disabled={alreadyRequested || !selectedBranch || record.stockQuantity >= 100}
+                        onClick={() => onReOrder?.(record.productTypeId, selectedBranch, Math.max(100 - Number(record.stockQuantity || 0), 1))}
                     >
                         {alreadyRequested ? 'Requested' : 'Reorder'}
                     </Button>
