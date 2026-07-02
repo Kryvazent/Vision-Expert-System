@@ -1,6 +1,9 @@
 import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined, MoneyCollectOutlined  } from "@ant-design/icons";
 //import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined } from "@ant-design/icons";
 import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
+import { AccountBookOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
+
+import {ToolOutlined, SyncOutlined, TransactionOutlined , MoneyCollectOutlined } from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
@@ -47,7 +50,8 @@ export const MENU_BY_ROLE = {
     { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
     { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
     { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
-    { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+    // { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
+    { key: '/Acreports', icon: <BarChartOutlined />,   label: 'Reports' },
 
 
     

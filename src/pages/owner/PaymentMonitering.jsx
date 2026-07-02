@@ -18,46 +18,38 @@ import dayjs from "dayjs";
 
 // 🔹 GraphQL Query
 const GET_PAYMENT_MONITORING = gql`
-  query {
+query {
 
-    orderCollection {
+  orderCollection {
 
-      edges {
+    edges {
 
-        node {
+      node {
 
-          id
+        id
+        placed_at
+        total_price
 
-          placed_at
-
-          total_payment
-
-          advance
-
-          clinic_attend_customer {
-
-            customer_has_branch {
-
-              branch {
-
-                branch_name
-
-              }
-
-              customer {
-
-                id
-
-                first_name
-
-                last_name
-
-              }
-
+        paymentCollection {
+          edges {
+            node {
+              advance
+              total_payment
             }
-
           }
+        }
 
+        clinic_attend_customer {
+          customer_has_branch {
+            branch {
+              branch_name
+            }
+            customer {
+              id
+              first_name
+              last_name
+            }
+          }
         }
 
       }
@@ -65,6 +57,8 @@ const GET_PAYMENT_MONITORING = gql`
     }
 
   }
+
+}
 `;
 
 const COLORS = [
@@ -94,6 +88,9 @@ export default function PaymentMonitoring() {
 
       const order = item.node;
 
+      const payment =
+        order?.paymentCollection?.edges?.[0]?.node;
+
       const branch =
         order?.clinic_attend_customer
           ?.customer_has_branch
@@ -104,37 +101,40 @@ export default function PaymentMonitoring() {
           ?.customer_has_branch
           ?.customer;
 
+      // Revenue = Order Price
       const revenue =
-        order?.total_payment || 0;
+        Number(order?.total_price) || 0;
 
+      // Amount Paid
       const paid =
-        order?.advance || 0;
+        Number(payment?.total_payment) || 0;
 
+      // Pending Amount
       const pending =
         revenue - paid;
 
+      // Collection Rate
       const rate =
         revenue > 0
           ? ((paid / revenue) * 100).toFixed(1)
-          : 0;
+          : "0.0";
 
       return {
 
         key: index,
 
-        orderId: order?.id,
+        orderId: order.id,
 
         customerId: customer?.id,
 
         customer:
-          `${customer?.first_name || ""}
-           ${customer?.last_name || ""}`,
+          `${customer?.first_name || ""} ${customer?.last_name || ""}`,
 
         branch:
-          branch?.branch_name,
+          branch?.branch_name || "Unknown",
 
         orderDate:
-          order?.placed_at,
+          order.placed_at,
 
         revenue,
 
@@ -152,13 +152,11 @@ export default function PaymentMonitoring() {
     selectedBranch === "all"
       ? tableData
       : tableData.filter(
-          (item) =>
-            item.branch === selectedBranch
+          (item) => item.branch === selectedBranch
         );
 
   // 🔹 Unique Branches
   const branchOptions = [
-
     {
       value: "all",
       label: "All Branches",
@@ -166,7 +164,9 @@ export default function PaymentMonitoring() {
 
     ...[
       ...new Set(
-        tableData.map((item) => item.branch)
+        tableData
+          .map((item) => item.branch)
+          .filter(Boolean)
       ),
     ].map((branch) => ({
       value: branch,
@@ -174,25 +174,22 @@ export default function PaymentMonitoring() {
     })),
   ];
 
-  // 🔹 Summary Calculations
+  // 🔹 Summary Cards
   const totalRevenue =
     filteredData.reduce(
-      (sum, item) =>
-        sum + item.revenue,
+      (sum, item) => sum + item.revenue,
       0
     );
 
   const totalPaid =
     filteredData.reduce(
-      (sum, item) =>
-        sum + item.paid,
+      (sum, item) => sum + item.paid,
       0
     );
 
   const totalPending =
     filteredData.reduce(
-      (sum, item) =>
-        sum + item.pending,
+      (sum, item) => sum + item.pending,
       0
     );
 
@@ -207,187 +204,136 @@ export default function PaymentMonitoring() {
     if (!branchMap[item.branch]) {
 
       branchMap[item.branch] = {
-
         branch: item.branch,
-
         revenue: 0,
-
         paid: 0,
-
         pending: 0,
       };
+
     }
 
-    branchMap[item.branch].revenue +=
-      item.revenue;
+    branchMap[item.branch].revenue += item.revenue;
+    branchMap[item.branch].paid += item.paid;
+    branchMap[item.branch].pending += item.pending;
 
-    branchMap[item.branch].paid +=
-      item.paid;
-
-    branchMap[item.branch].pending +=
-      item.pending;
   });
 
   const chartData =
     Object.values(branchMap);
 
-  // 🔹 Pie Chart Data
+  // 🔹 Pie Chart
   const pieData =
     chartData.map((item) => ({
-
       name: item.branch,
-
       value: item.revenue,
     }));
 
   // 🔹 Table Columns
-  const columns = [
+const columns = [
+  {
+    title: "Order ID",
+    dataIndex: "orderId",
+    render: (text) => (
+      <Tag color="blue">
+        ORD-{text}
+      </Tag>
+    ),
+  },
 
-    {
-      title: "Order ID",
+  {
+    title: "Customer ID",
+    dataIndex: "customerId",
+    render: (text) => (
+      <Tag color="purple">
+        CUS-{text}
+      </Tag>
+    ),
+  },
 
-      dataIndex: "orderId",
+  {
+    title: "Customer Name",
+    dataIndex: "customer",
+  },
 
-      render: (text) => (
+  {
+    title: "Branch",
+    dataIndex: "branch",
+    render: (text) => (
+      <Tag color="processing">
+        {text}
+      </Tag>
+    ),
+  },
 
-        <Tag color="blue">
+  {
+    title: "Order Date",
+    dataIndex: "orderDate",
+    render: (text) =>
+      dayjs(text).format("DD/MM/YYYY"),
+  },
 
-          ORD-{text}
+  {
+    title: "Total Price",
+    dataIndex: "revenue",
+    render: (val) => (
+      <span className="font-semibold text-blue-600">
+        Rs. {val.toLocaleString()}
+      </span>
+    ),
+  },
 
-        </Tag>
+  {
+    title: "Amount Paid",
+    dataIndex: "paid",
+    render: (val) => (
+      <span className="text-green-600">
+        Rs. {val.toLocaleString()}
+      </span>
+    ),
+  },
 
-      ),
-    },
+  {
+    title: "Balance Due",
+    dataIndex: "pending",
+    render: (val) => (
+      <span
+        className={
+          val > 0
+            ? "text-red-500 font-semibold"
+            : "text-green-600 font-semibold"
+        }
+      >
+        Rs. {val.toLocaleString()}
+      </span>
+    ),
+  },
 
-    {
-      title: "Customer ID",
-
-      dataIndex: "customerId",
-
-      render: (text) => (
-
-        <Tag color="purple">
-
-          CUS-{text}
-
-        </Tag>
-
-      ),
-    },
-
-    {
-      title: "Customer",
-
-      dataIndex: "customer",
-    },
-
-    {
-      title: "Branch",
-
-      dataIndex: "branch",
-
-      render: (text) => (
-
-        <Tag color="processing">
-
-          {text}
-
-        </Tag>
-
-      ),
-    },
-
-    {
-      title: "Order Date",
-
-      dataIndex: "orderDate",
-
-      render: (text) =>
-
-        dayjs(text).format(
-          "DD/MM/YYYY"
-        ),
-    },
-
-    {
-      title: "Total Revenue",
-
-      dataIndex: "revenue",
-
-      render: (val) => (
-
-        <span className="text-blue-600">
-
-          Rs. {val.toLocaleString()}
-
-        </span>
-
-      ),
-    },
-
-    {
-      title: "Amount Paid",
-
-      dataIndex: "paid",
-
-      render: (val) => (
-
-        <span className="text-green-600">
-
-          Rs. {val.toLocaleString()}
-
-        </span>
-
-      ),
-    },
-
-    {
-      title: "Pending",
-
-      dataIndex: "pending",
-
-      render: (val) => (
-
-        <span
-          className={
-            val > 0
-              ? "text-red-500"
-              : "text-green-600"
-          }
-        >
-
-          Rs. {val.toLocaleString()}
-
-        </span>
-
-      ),
-    },
-
-    {
-      title: "Collection Rate",
-
-      dataIndex: "rate",
-
-      render: (text) => (
-
-        <Tag color="green">
-
-          {text}
-
-        </Tag>
-
-      ),
-    },
-
-  ];
+  {
+    title: "Payment Progress",
+    dataIndex: "rate",
+    render: (text) => (
+      <Tag color={text === "100.0%" ? "green" : "orange"}>
+        {text}
+      </Tag>
+    ),
+  },
+];
 
   // 🔹 Error
   if (error) {
-
     console.log(error);
-
     return <p>Error loading payment data</p>;
   }
+
+  // 🔹 Loading
+  if (loading) {
+    return <p>Loading...</p>;
+  }
+
+  // Your return(...) comes here
+  console.log("Filtered Data:", filteredData);
+  console.log("Loading:", loading);
+  console.log(columns);
 
   return (
 

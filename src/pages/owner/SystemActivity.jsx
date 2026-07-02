@@ -1,363 +1,101 @@
-import { Card, Table, Select, DatePicker, Tag } from "antd";
-import { gql } from "@apollo/client";
-import { useQuery } from "@apollo/client/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Card, Table, Tag } from "antd";
 import dayjs from "dayjs";
-
-const { RangePicker } = DatePicker;
-
-const GET_SYSTEM_ACTIVITY = gql`
-  query {
-
-    orderCollection(orderBy: [{ placed_at: DescNullsLast }]) {
-
-      edges {
-
-        node {
-
-          id
-
-          placed_at
-
-          total_payment
-
-          advance
-
-          clinic_attend_customer {
-
-            customer_has_branch {
-
-              customer {
-
-                id
-
-                first_name
-
-                last_name
-
-              }
-
-              branch {
-
-                branch_name
-
-              }
-
-            }
-
-          }
-
-        }
-
-      }
-
-    }
-
-  }
-`;
+import supabase from "../../client/supabase";
 
 export default function SystemActivity() {
+  const [loading, setLoading] = useState(true);
+  const [tableData, setTableData] = useState([]);
 
-  // 🔹 States
-  const [selectedBranch, setSelectedBranch] =
-    useState("all");
+  useEffect(() => {
+    loadActivity();
+  }, []);
 
-  const [selectedDates, setSelectedDates] =
-    useState([]);
+  async function loadActivity() {
+    setLoading(true);
 
-  // 🔹 GraphQL
-  const {
-    data,
-    loading,
-    error
-  } = useQuery(GET_SYSTEM_ACTIVITY);
+    try {
+      // Login Activity
+      const { data: activities, error: activityError } = await supabase
+        .from("login_activity")
+        .select("*")
+        .order("login_time", { ascending: false });
 
-  // 🔹 Convert GraphQL Data
-  const tableData =
-    data?.orderCollection?.edges?.map((item, index) => {
+      if (activityError) throw activityError;
 
-      const order = item.node;
-
-      const customer =
-        order?.clinic_attend_customer
-          ?.customer_has_branch
-          ?.customer;
-
-      const branch =
-        order?.clinic_attend_customer
-          ?.customer_has_branch
-          ?.branch;
-
-      // 🔹 Activity Logic
-      let action = "Created Order";
-
-      let module = "Orders";
-
-      if (order.advance < order.total_payment) {
-
-        action = "Pending Payment";
-
-        module = "Payments";
-
+      if (!activities?.length) {
+        setTableData([]);
+        return;
       }
 
-      if (order.advance === order.total_payment) {
+      // Staff Details
+      const staffIds = [...new Set(activities.map((item) => item.staff_id))];
 
-        action = "Completed Payment";
+      const { data: staffs, error: staffError } = await supabase
+        .from("staff")
+        .select(`
+          id,
+          first_name,
+          role:role_id (
+            role_name
+          )
+        `)
+        .in("id", staffIds);
 
-        module = "Payments";
+      if (staffError) throw staffError;
 
-      }
+      // Merge Data
+      const rows = activities.map((activity) => {
+        const staff = staffs.find((s) => s.id === activity.staff_id);
 
-      return {
+        return {
+          key: activity.id,
+          staff: staff?.first_name || "-",
+          role: staff?.role?.role_name || "-",
+          loginTime: activity.login_time,
+        };
+      });
 
-        key: index,
-
-        orderId: order?.id,
-
-        customerId: customer?.id,
-
-        customer:
-          `${customer?.first_name || ""}
-           ${customer?.last_name || ""}`,
-
-        action,
-
-        module,
-
-        branch: branch?.branch_name,
-
-        datetime: order?.placed_at,
-      };
-
-    }) || [];
-
-  // 🔹 Filter Data
-  const filteredData = tableData.filter((item) => {
-
-    // 🔹 Branch Filter
-    const branchMatch =
-      selectedBranch === "all"
-        ? true
-        : item.branch === selectedBranch;
-
-    // 🔹 Date Filter
-    let dateMatch = true;
-
-    if (selectedDates?.length === 2) {
-
-      const start =
-        dayjs(selectedDates[0]).startOf("day");
-
-      const end =
-        dayjs(selectedDates[1]).endOf("day");
-
-      dateMatch =
-        dayjs(item.datetime).isAfter(start) &&
-        dayjs(item.datetime).isBefore(end);
+      setTableData(rows);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-
-    return branchMatch && dateMatch;
-
-  });
-
-  // 🔹 Unique Branches
-  const branchOptions = [
-
-    {
-      value: "all",
-      label: "All Branches",
-    },
-
-    ...[
-      ...new Set(
-        tableData.map((item) => item.branch)
-      ),
-    ].map((branch) => ({
-
-      value: branch,
-
-      label: branch,
-
-    })),
-
-  ];
-
-  // 🔹 Table Columns
-  const columns = [
-
-    // ORDER ID
-    {
-      title: "Order ID",
-
-      dataIndex: "orderId",
-
-      render: (text) => (
-
-        <Tag color="blue">
-
-          ORD-{text}
-
-        </Tag>
-
-      ),
-    },
-
-    // CUSTOMER ID
-    {
-      title: "Customer ID",
-
-      dataIndex: "customerId",
-
-      render: (text) => (
-
-        <Tag color="purple">
-
-          CUS-{text}
-
-        </Tag>
-
-      ),
-    },
-
-    // CUSTOMER
-    {
-      title: "Customer",
-
-      dataIndex: "customer",
-    },
-
-    // ACTION
-    {
-      title: "Action",
-
-      dataIndex: "action",
-
-      render: (text) => {
-
-        let color = "blue";
-
-        if (text === "Pending Payment") {
-
-          color = "red";
-
-        }
-
-        if (text === "Completed Payment") {
-
-          color = "green";
-
-        }
-
-        return (
-
-          <Tag color={color}>
-
-            {text}
-
-          </Tag>
-
-        );
-      },
-    },
-
-    // MODULE
-    {
-      title: "Module",
-
-      dataIndex: "module",
-    },
-
-    // BRANCH
-    {
-      title: "Branch",
-
-      dataIndex: "branch",
-
-      render: (text) => (
-
-        <Tag color="processing">
-
-          {text}
-
-        </Tag>
-
-      ),
-    },
-
-    // DATE TIME
-    {
-      title: "Date & Time",
-
-      dataIndex: "datetime",
-
-      render: (text) =>
-
-        dayjs(text).format(
-          "DD/MM/YYYY hh:mm A"
-        ),
-    },
-
-  ];
-
-  // 🔹 Error
-  if (error) {
-
-    console.log(error);
-
-    return <p>Error loading activity</p>;
-
   }
 
+  const columns = [
+    {
+      title: "Staff",
+      dataIndex: "staff",
+    },
+    {
+      title: "Role",
+      dataIndex: "role",
+      render: (role) => <Tag color="blue">{role}</Tag>,
+    },
+    {
+      title: "Login Time",
+      dataIndex: "loginTime",
+      render: (value) =>
+        value
+          ? dayjs(value).format("DD/MM/YYYY hh:mm A")
+          : "-",
+    },
+  ];
+
   return (
-
-    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
-
-      {/* 🔹 Card */}
+    <div className="h-[calc(100vh-120px)] overflow-y-auto pr-2">
       <Card>
-
-        {/* 🔹 Filters */}
-        <div className="flex flex-wrap gap-4 mb-4">
-
-          {/* Branch Filter */}
-          <Select
-            value={selectedBranch}
-
-            onChange={setSelectedBranch}
-
-            className="w-56"
-
-            options={branchOptions}
-          />
-
-          {/* Date Filter */}
-          <RangePicker
-            className="w-72"
-
-            onChange={(dates) =>
-
-              setSelectedDates(dates)
-
-            }
-          />
-
-        </div>
-
-        {/* 🔹 Table */}
         <Table
-          columns={columns}
-
-          dataSource={filteredData}
-
           loading={loading}
-
+          columns={columns}
+          dataSource={tableData}
           pagination={{
-            pageSize: 5,
+            pageSize: 10,
           }}
         />
-
       </Card>
-
     </div>
   );
 }

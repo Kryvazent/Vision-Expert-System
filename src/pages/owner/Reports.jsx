@@ -10,10 +10,23 @@ import { Row, Col, Modal, DatePicker, Select, message } from "antd";
 import { useState } from "react";
 
 import { gql } from "@apollo/client";
-import { useLazyQuery } from "@apollo/client/react";
+import { useLazyQuery, useQuery } from "@apollo/client/react";
 
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+
+const GET_BRANCHES = gql`
+  query {
+    branchCollection {
+      edges {
+        node {
+          id
+          branch_name
+        }
+      }
+    }
+  }
+`;
 
 const GET_REPORT_DATA = gql`
   query {
@@ -23,8 +36,17 @@ const GET_REPORT_DATA = gql`
           id
           placed_at
           estimated_delivery
-          total_payment
-          advance
+          total_price
+          order_status_id
+
+          paymentCollection {
+            edges {
+              node {
+                advance
+                total_payment
+              }
+            }
+          }
 
           clinic_attend_customer {
             customer_has_branch {
@@ -33,8 +55,10 @@ const GET_REPORT_DATA = gql`
               }
 
               customer {
+                id
                 first_name
                 last_name
+                contact_no
               }
             }
           }
@@ -113,102 +137,265 @@ export default function Reports() {
 
   const [selectedBranch, setSelectedBranch] = useState("All Branches");
 
-  const [fetchReports, { data, loading, error }] =
-    useLazyQuery(GET_REPORT_DATA);
+  const [selectedMonth, setSelectedMonth] = useState(null);
+  const { data: branchData } = useQuery(GET_BRANCHES);
+  const { data, loading, error } = useQuery(GET_REPORT_DATA);
 
-  // OPEN MODAL
+  // ================= OPEN REPORT MODAL =================
+
   const openReportModal = (type) => {
     setReportType(type);
-
     setOpenModal(true);
   };
 
-  // EXPORT EXCEL
-  const exportExcel = () => {
-    const orders = data?.orderCollection?.edges || [];
-
-    const today = new Date();
-
-    let filteredData = [];
-
-    // FILTER LOGIC
-    orders.forEach((item) => {
+  const orders =
+    data?.orderCollection?.edges?.map((item) => {
       const order = item.node;
 
-      const total = order.total_payment || 0;
-
-      const paid = order.advance || 0;
-
-      const pending = total - paid;
-
-      const deliveryDate = new Date(order.estimated_delivery);
-
-      const branch =
-        order?.clinic_attend_customer?.customer_has_branch?.branch?.branch_name;
+      const payment = order?.paymentCollection?.edges?.[0]?.node;
 
       const customer =
         order?.clinic_attend_customer?.customer_has_branch?.customer;
 
-   
+      const branch = order?.clinic_attend_customer?.customer_has_branch?.branch;
 
-      // BRANCH FILTER
-      if (
-        selectedBranch !== "All Branches" &&
-        branch?.toLowerCase().trim() !== selectedBranch?.toLowerCase().trim()
-      ) {
-        return;
-      }
+      const totalPrice = Number(order?.total_price) || 0;
 
-      // DAILY REPORT
-      if (reportType === "Daily Report") {
-        if (order.placed_at?.split("T")[0] !== selectedDate) {
-          return;
-        }
-      }
+      const totalPaid = Number(payment?.total_payment) || 0;
 
-      // RECOVERY REPORT
-      if (reportType === "Recovery Report") {
-        if (pending <= 0) {
-          return;
-        }
-      }
+      const advance = Number(payment?.advance) || 0;
 
-      // OVERDUE REPORT
-      if (reportType === "Overdue Payments Report") {
-        if (!(today > deliveryDate && pending > 0)) {
-          return;
-        }
-      }
+      const pending = Math.max(0, totalPrice - totalPaid);
 
-      // PAYMENT REPORT
-      if (reportType === "Payments Report") {
-        if (paid <= 0) {
-          return;
-        }
-      }
+      return {
+        id: order.id,
 
-      filteredData.push({
-        "Order ID": order.id,
+        placedAt: order.placed_at,
 
-        Customer: customer?.first_name + " " + customer?.last_name,
+        estimatedDelivery: order.estimated_delivery,
 
-        Branch: branch,
+        orderStatus: order.order_status_id,
 
-        "Total Payment": total,
+        customerId: customer?.id,
 
-        Advance: paid,
+        customer: `${customer?.first_name || ""} ${customer?.last_name || ""}`,
 
-        Pending: pending,
+        branch: branch?.branch_name || "Unknown",
+        phone: customer?.contact_no || "-",
 
-        "Placed Date": order.placed_at?.split("T")[0],
+        totalPrice,
 
-        "Estimated Delivery": order.estimated_delivery?.split("T")[0],
-      });
-    });
+        advance,
 
-    // TOTALS
+        totalPaid,
+
+        pending,
+      };
+    }) || [];
+
+  const branchOptions = [
+    {
+      value: "All Branches",
+      label: "All Branches",
+    },
+
+    ...(branchData?.branchCollection?.edges?.map((item) => ({
+      value: item.node.branch_name,
+      label: item.node.branch_name,
+    })) || []),
+  ];
+
+  // EXPORT EXCEL
+
+  const exportExcel = () => {
+    let filteredData = [];
+
+    switch (reportType) {
+      // ================= DAILY REPORT =================
+      case "Daily Report":
+        filteredData = orders
+          .filter((order) => {
+            const dateMatch = order.placedAt?.split("T")[0] === selectedDate;
+
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+
+            return dateMatch && branchMatch;
+          })
+
+          .map((order) => ({
+            "Order ID": `OD${order.id}`,
+
+            "Customer ID": `CUS-${order.customerId}`,
+
+            Customer: order.customer,
+
+            Phone: order.phone,
+
+            Branch: order.branch,
+
+            "Order Date": order.placedAt.split("T")[0],
+
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+
+            "Total Price": order.totalPrice,
+
+            Advance: order.advance,
+
+            "Amount Received": order.totalPaid,
+
+            Pending: order.pending,
+          }));
+        break;
+
+      // ================= MONTHLY REPORT =================
+      case "Monthly Report":
+        filteredData = orders
+          .filter((order) => {
+            const monthMatch = order.placedAt?.startsWith(selectedMonth);
+
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+
+            return monthMatch && branchMatch;
+          })
+
+          .map((order) => ({
+            "Order ID": `OD${order.id}`,
+
+            "Customer ID": `CUS-${order.customerId}`,
+
+            Customer: order.customer,
+
+            Phone: order.phone,
+
+            Branch: order.branch,
+
+            "Order Date": order.placedAt.split("T")[0],
+
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+
+            "Total Price": order.totalPrice,
+
+            Advance: order.advance,
+
+            "Amount Received": order.totalPaid,
+
+            Pending: order.pending,
+          }));
+
+        break;
+
+      case "Overdue Payments Report":
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        filteredData = orders
+          .filter((order) => {
+            const monthMatch =
+              order.estimatedDelivery?.startsWith(selectedMonth);
+
+            const deliveryDate = new Date(order.estimatedDelivery);
+            deliveryDate.setHours(0, 0, 0, 0);
+
+            const overdue = deliveryDate < today;
+
+            const hasPending = order.pending > 0;
+
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+
+            return overdue && hasPending && branchMatch;
+          })
+
+          .map((order) => ({
+            "Order ID": `OD${order.id}`,
+
+            "Customer ID": `CUS-${order.customerId}`,
+
+            Customer: order.customer,
+
+            Phone: order.phone,
+
+            Branch: order.branch,
+
+            "Order Date": order.placedAt.split("T")[0],
+
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+
+            "Total Price": order.totalPrice,
+
+            Advance: order.advance,
+
+            "Amount Received": order.totalPaid,
+
+            Pending: order.pending,
+          }));
+
+        break;
+
+      // ================= RECOVERY REPORT =================
+      case "Recovery Report":
+        filteredData = orders
+          .filter((order) => {
+            const monthMatch =
+              order.estimatedDelivery?.startsWith(selectedMonth);
+
+            const deliveryDate = new Date(order.estimatedDelivery);
+            deliveryDate.setHours(0, 0, 0, 0);
+
+            const overdue = deliveryDate < today;
+
+            const hasPending = order.pending > 0;
+
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+
+            return monthMatch && overdue && hasPending && branchMatch;
+          })
+
+          .map((order) => ({
+            "Order ID": `OD${order.id}`,
+
+            "Customer ID": `CUS-${order.customerId}`,
+
+            Customer: order.customer,
+
+            Phone: order.phone,
+
+            Branch: order.branch,
+
+            "Order Date": order.placedAt.split("T")[0],
+
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+
+            "Total Price": order.totalPrice,
+
+            Advance: order.advance,
+
+            "Amount Received": order.totalPaid,
+
+            Pending: order.pending,
+          }));
+
+        break;
+
+      default:
+        break;
+    }
+
+    // ================= TOTALS =================
+
     const totalRevenue = filteredData.reduce(
-      (sum, item) => sum + item["Total Payment"],
+      (sum, item) => sum + item["Total Price"],
       0,
     );
 
@@ -217,84 +404,315 @@ export default function Reports() {
       0,
     );
 
+    const totalReceived = filteredData.reduce(
+      (sum, item) => sum + item["Amount Received"],
+      0,
+    );
+
     const totalPending = filteredData.reduce(
       (sum, item) => sum + item.Pending,
       0,
     );
 
-    // INDUSTRIAL EXCEL FORMAT
-    const excelData = [
-      {
-        A: "VISION EXPERT",
+    // ================= CREATE WORKBOOK =================
+
+    const workbook = new ExcelJS.Workbook();
+
+    const worksheet = workbook.addWorksheet(reportType);
+    worksheet.pageSetup = {
+      paperSize: 9, // A4
+      orientation: "landscape",
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: {
+        left: 0.3,
+        right: 0.3,
+        top: 0.5,
+        bottom: 0.5,
+        header: 0.3,
+        footer: 0.3,
       },
+    };
 
-      {
-        A: reportType,
+    // ================= REPORT TITLE =================
+
+    worksheet.mergeCells("A1:K1");
+
+    const titleCell = worksheet.getCell("A1");
+
+    titleCell.value = "VISION EXPERT";
+
+    titleCell.font = {
+      bold: true,
+      size: 22,
+      color: {
+        argb: "FFFFFF",
       },
+    };
 
-      {
-        A: "Generated Date",
-        B: new Date().toLocaleDateString(),
+    titleCell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+
+    titleCell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "1E3A8A",
       },
+    };
 
-      {
-        A: "Branch",
-        B: selectedBranch,
+    worksheet.getRow(1).height = 30;
+
+    worksheet.mergeCells("A2:K2");
+
+    const reportCell = worksheet.getCell("A2");
+
+    reportCell.value = reportType.toUpperCase();
+
+    reportCell.font = {
+      bold: true,
+      size: 16,
+      color: {
+        argb: "1E3A8A",
       },
+    };
 
-      {},
+    reportCell.alignment = {
+      horizontal: "center",
+    };
 
-      {
-        A: "TOTAL REVENUE",
-        B: totalRevenue,
+    worksheet.getRow(2).height = 25;
+    // ================= ADD DATA =================
+
+    //Report information
+    worksheet.addRow([]);
+
+    const generatedRow = worksheet.addRow([
+      "Generated Date",
+      new Date().toLocaleDateString(),
+    ]);
+
+    generatedRow.getCell(1).font = {
+      bold: true,
+    };
+
+    const branchRow = worksheet.addRow(["Branch", selectedBranch]);
+
+    branchRow.getCell(1).font = {
+      bold: true,
+    };
+
+    const dateRow = worksheet.addRow([
+      reportType === "Monthly Report" ||
+      reportType === "Overdue Payments Report"
+        ? "Selected Month"
+        : "Selected Date",
+
+      reportType === "Monthly Report" ||
+      reportType === "Overdue Payments Report"
+        ? selectedMonth || "-"
+        : selectedDate || "-",
+    ]);
+
+    dateRow.getCell(1).font = {
+      bold: true,
+    };
+
+    //Summary
+
+    worksheet.addRow([]);
+
+    worksheet.addRow(["SUMMARY"]);
+
+    const summaryTitle = worksheet.lastRow;
+
+    summaryTitle.font = {
+      bold: true,
+      size: 14,
+      color: {
+        argb: "FFFFFF",
       },
+    };
 
-      {
-        A: "TOTAL ADVANCE",
-        B: totalAdvance,
+    summaryTitle.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "2563EB",
       },
+    };
 
-      {
-        A: "TOTAL PENDING",
-        B: totalPending,
+    summaryTitle.alignment = {
+      horizontal: "center",
+    };
+
+    worksheet.mergeCells(`A${summaryTitle.number}:B${summaryTitle.number}`);
+
+    // Total Revenue
+    const totalRevenueRow = worksheet.addRow(["Total Revenue", totalRevenue]);
+
+    totalRevenueRow.getCell(2).numFmt = '"LKR" #,##0.00';
+
+    totalRevenueRow.getCell(2).alignment = {
+      horizontal: "right",
+    };
+
+    // Advance Payments
+    const advanceRow = worksheet.addRow(["Advance Payments", totalAdvance]);
+
+    advanceRow.getCell(2).numFmt = '"LKR" #,##0.00';
+
+    advanceRow.getCell(2).alignment = {
+      horizontal: "right",
+    };
+
+    // Amount Received
+    const receivedRow = worksheet.addRow(["Amount Received", totalReceived]);
+
+    receivedRow.getCell(2).numFmt = '"LKR" #,##0.00';
+
+    receivedRow.getCell(2).alignment = {
+      horizontal: "right",
+    };
+
+    // Outstanding Balance
+    const pendingRow = worksheet.addRow(["Outstanding Balance", totalPending]);
+
+    pendingRow.getCell(2).numFmt = '"LKR" #,##0.00';
+
+    pendingRow.getCell(2).alignment = {
+      horizontal: "right",
+    };
+
+    totalRevenueRow.getCell(1).font = { bold: true };
+    advanceRow.getCell(1).font = { bold: true };
+    receivedRow.getCell(1).font = { bold: true };
+    pendingRow.getCell(1).font = { bold: true };
+
+    worksheet.addRow([]);
+    worksheet.addRow([]);
+
+    worksheet.addRow([]);
+
+    const detailsRow = worksheet.addRow(["ORDER DETAILS"]);
+
+    //table headers
+
+    worksheet.addRow([
+      "Order ID",
+      "Customer ID",
+      "Customer Name",
+      "Phone",
+      "Branch",
+      "Order Date",
+      "Estimated Delivery",
+      "Total Price",
+      "Advance",
+      "Total Received",
+      "Outstanding Balance",
+    ]);
+
+    const headerRow = worksheet.lastRow;
+
+    headerRow.font = {
+      bold: true,
+      color: { argb: "FFFFFF" },
+    };
+
+    headerRow.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+
+    headerRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "2563EB" },
+    };
+
+    headerRow.height = 22;
+
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
+    });
+
+    //order details
+
+    detailsRow.font = {
+      bold: true,
+      size: 14,
+      color: {
+        argb: "FFFFFF",
       },
+    };
 
-      {},
+    detailsRow.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: {
+        argb: "1E3A8A",
+      },
+    };
 
-      ...filteredData,
+    worksheet.mergeCells(`A${detailsRow.number}:K${detailsRow.number}`);
+
+    detailsRow.alignment = {
+      horizontal: "center",
+    };
+
+    filteredData.forEach((order) => {
+      const row = worksheet.addRow([
+        order["Order ID"],
+        order["Customer ID"],
+        order.Customer,
+        order.Phone,
+        order.Branch,
+        order["Order Date"],
+        order["Estimated Delivery"],
+        order["Total Price"],
+        order.Advance,
+        order["Amount Received"],
+        order.Pending,
+      ]);
+      row.height = 20;
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
+        };
+      });
+    });
+    worksheet.columns = [
+      { width: 15 }, // Order ID
+      { width: 18 }, // Customer ID
+      { width: 28 }, // Customer Name
+      { width: 18 }, // Phone
+      { width: 20 }, // Branch
+      { width: 18 }, // Order Date
+      { width: 20 }, // Estimated Delivery
+      { width: 18 }, // Total Price
+      { width: 18 }, // Advance
+      { width: 20 }, // Total Received
+      { width: 22 }, // Outstanding Balance
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData, {
-      skipHeader: true,
+    // ================= DOWNLOAD EXCEL =================
+
+    workbook.xlsx.writeBuffer().then((buffer) => {
+      saveAs(new Blob([buffer]), `${reportType}.xlsx`);
+
+      message.success("Excel Report Generated Successfully");
     });
-
-    // COLUMN WIDTH
-    worksheet["!cols"] = [
-      { wch: 20 },
-      { wch: 30 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 20 },
-    ];
-
-    const workbook = XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Vision Expert Report");
-
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-
-    const fileData = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
-    });
-
-    saveAs(fileData, `${reportType}.xlsx`);
-
-    message.success("Excel Report Generated Successfully");
   };
 
   return (
@@ -324,45 +742,12 @@ export default function Reports() {
 
         <Col xs={24} md={12} lg={8}>
           <ReportCard
-            icon={<DollarOutlined />}
-            title="Payments Report"
-            description="Generate revenue and collection reports"
-            color="#f59e0b"
-            btnColor="#f59e0b"
-            onClick={() => openReportModal("Payments Report")}
-          />
-        </Col>
-
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
-            icon={<FileSearchOutlined />}
-            title="Recovery Report"
-            description="Generate pending payment recovery reports"
-            color="#ef4444"
-            btnColor="#ef4444"
-            onClick={() => openReportModal("Recovery Report")}
-          />
-        </Col>
-
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
             icon={<FileSearchOutlined />}
             title="Overdue Payments Report"
             description="Generate overdue customer payment reports"
             color="#dc2626"
             btnColor="#dc2626"
             onClick={() => openReportModal("Overdue Payments Report")}
-          />
-        </Col>
-
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
-            icon={<BarChartOutlined />}
-            title="Financial Reports"
-            description="Generate complete business financial reports"
-            color="#0ea5e9"
-            btnColor="#0284c7"
-            onClick={() => openReportModal("Financial Reports")}
           />
         </Col>
       </Row>
@@ -372,19 +757,31 @@ export default function Reports() {
         open={openModal}
         title={reportType}
         onCancel={() => setOpenModal(false)}
-        onOk={() => {
-          fetchReports();
-          exportExcel();
-        }}
+        onOk={exportExcel}
         okText="Generate Excel"
       >
         <div style={{ marginBottom: 20 }}>
-          <p>Select Date</p>
+          {reportType === "Monthly Report" ||
+          reportType === "Overdue Payments Report" ? (
+            <>
+              <p>Select Month</p>
 
-          <DatePicker
-            className="w-full"
-            onChange={(date, dateString) => setSelectedDate(dateString)}
-          />
+              <DatePicker
+                picker="month"
+                className="w-full"
+                onChange={(date, dateString) => setSelectedMonth(dateString)}
+              />
+            </>
+          ) : (
+            <>
+              <p>Select Date</p>
+
+              <DatePicker
+                className="w-full"
+                onChange={(date, dateString) => setSelectedDate(dateString)}
+              />
+            </>
+          )}
         </div>
 
         <div>
@@ -394,28 +791,7 @@ export default function Reports() {
             className="w-full"
             defaultValue="All Branches"
             onChange={(value) => setSelectedBranch(value)}
-            options={[
-              {
-                value: "All Branches",
-                label: "All Branches",
-              },
-              {
-                value: "Kadawatha",
-                label: "Kadawatha",
-              },
-              {
-                value: "Kandy",
-                label: "Kandy",
-              },
-              {
-                value: "Colombo",
-                label: "Colombo",
-              },
-              {
-                value: "NuwaraEliya",
-                label: "Nuwara Eliya",
-              },
-            ]}
+            options={branchOptions}
           />
         </div>
       </Modal>
