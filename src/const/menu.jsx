@@ -22,87 +22,214 @@ import {
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
-    { key: '/recovery-dashboard',  icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/recovery-sheet',      icon: <FileTextOutlined />,      label: 'Recovery Sheet' },
-    { key: '/cash-transfer-to-admin',       icon: <TransactionOutlined />,   label: 'Cash Transfer to Admin' },
-    { key: '/recovery-followup',   icon: <SyncOutlined />,   label: 'Recovery Follow-Up' },
-    { key: '/customer-lookup',   icon: <UserOutlined />,   label: 'Customer Lookup' },
-    { key: '/warranty-claim',     icon: <ToolOutlined />,   label: 'Warranty Claims' },
+    {
+      key: "/recovery-dashboard",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },
+    {
+      key: "/recovery-sheet",
+      icon: <FileTextOutlined />,
+      label: "Recovery Sheet",
+    },
+    {
+      key: "/cash-transfer-to-admin",
+      icon: <TransactionOutlined />,
+      label: "Cash Transfer to Admin",
+    },
+    {
+      key: "/recovery-followup",
+      icon: <SyncOutlined />,
+      label: "Recovery Follow-Up",
+    },
+    {
+      key: "/customer-lookup",
+      icon: <UserOutlined />,
+      label: "Customer Lookup",
+    },
+    {
+      key: "/warranty-claim",
+      icon: <ToolOutlined />,
+      label: "Warranty Claims",
+    },
   ],
 
-  "optometrist": [
-    { key: '/optometrist-dashboard', icon: <DashboardOutlined />,  label: 'Dashboard' },
-    { key: '/new-prescription',      icon: <PlusCircleOutlined />,  label: 'New Prescription' },
-    { key: '/patient-management',    icon: <BarChartOutlined />,    label: 'Patient Management' },
+  optometrist: [
+    {
+      key: "/optometrist-dashboard",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },
+    {
+      key: "/new-prescription",
+      icon: <PlusCircleOutlined />,
+      label: "New Prescription",
+    },
+    {
+      key: "/patient-management",
+      icon: <BarChartOutlined />,
+      label: "Patient Management",
+    },
   ],
 
   "sales-executive": [
-    { key: '/sales-executive-dashboard', icon: <DashboardOutlined />,       label: 'Dashboard' },
-    { key: '/new-order',                 icon: <PlusCircleOutlined />,       label: 'New Order' },
-    { key: '/orders',                    icon: <UnorderedListOutlined />,    label: 'Orders' },
-    { key: '/cash-transfer',             icon: <MoneyCollectOutlined />,         label: 'Cash Transfer' },
+    {
+      key: "/sales-executive-dashboard",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },
+    { key: "/new-order", icon: <PlusCircleOutlined />, label: "New Order" },
+    { key: "/orders", icon: <UnorderedListOutlined />, label: "Orders" },
+    {
+      key: "/order-status-management",
+      icon: <WarningOutlined />,
+      label: "Change Order Status",
+    },
+    {
+      key: "/cash-transfer",
+      icon: <MoneyCollectOutlined />,
+      label: "Cash Transfer",
+    },
   ],
 
-  "admin": [
-    { key: '/admin-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '//customer-lookup-details',        icon: <UserOutlined />,  label: 'Customer Lookup' },
-    { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
-     { key: '/clinic-details',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
-    { key: '/reminder-calls', icon: <PhoneOutlined />,   label: 'Reminder Calls' },
-    { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
-    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
-    { key: '/petty-cash-handling', icon: <TransactionOutlined />,   label: 'Petty Cash Handling' },
+  admin: [
+    {
+      key: "/admin-dashboard",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },
+    {
+      key: "//customer-lookup-details",
+      icon: <UserOutlined />,
+      label: "Customer Lookup",
+    },
+    {
+      key: "/inventory-management",
+      icon: <ShoppingOutlined />,
+      label: "Inventory Management",
+    },
+    {
+      key: "/clinic-details",
+      icon: <ProjectOutlined />,
+      label: "Clinic Details",
+    },
+    {
+      key: "/reminder-calls",
+      icon: <PhoneOutlined />,
+      label: "Reminder Calls",
+    },
+    {
+      key: "/complaint-management",
+      icon: <WarningOutlined />,
+      label: "Complaint Handling",
+    },
+    {
+      key: "/batch-tracking",
+      icon: <ClockCircleOutlined />,
+      label: "Batch Tracking",
+    },
+    {
+      key: "/petty-cash-handling",
+      icon: <TransactionOutlined />,
+      label: "Petty Cash Handling",
+    },
     //{ key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
-    { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
-    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
-    { key: '/cash-approval-admin', icon:  <TransactionOutlined />,   label: 'Cash Approval' },
-    
-
+    {
+      key: "/lab-followup",
+      icon: <ExperimentOutlined />,
+      label: "Lab Follow-Up",
+    },
+    {
+      key: "/main-stock",
+      icon: <ShoppingOutlined />,
+      label: "Main-Stock Handling",
+    },
+    {
+      key: "/cash-approval-admin",
+      icon: <TransactionOutlined />,
+      label: "Cash Approval",
+    },
   ],
 
-  
-
-  "accountant": [
-    { key: '/accountant',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/accRecovery-Details',        icon: <AccountBookOutlined />,  label: 'Recovery Details' },
-    { key: '/accRecovery-Filtering',        icon: <FileTextOutlined />,     label: 'Recovery Filtering' },
-    { key: '/accOrderfilter', icon: <BarChartOutlined />,   label: 'Order Filter' },
-    { key: '/accDailySales', icon: <BarChartOutlined />,   label: 'Daily Sales' },
+  accountant: [
+    { key: "/accountant", icon: <DashboardOutlined />, label: "Dashboard" },
+    {
+      key: "/accRecovery-Details",
+      icon: <AccountBookOutlined />,
+      label: "Recovery Details",
+    },
+    {
+      key: "/accRecovery-Filtering",
+      icon: <FileTextOutlined />,
+      label: "Recovery Filtering",
+    },
+    {
+      key: "/accOrderfilter",
+      icon: <BarChartOutlined />,
+      label: "Order Filter",
+    },
+    { key: "/accDailySales", icon: <BarChartOutlined />, label: "Daily Sales" },
     // { key: '/accCashTransfer', icon: <BarChartOutlined />,   label: 'Cash Transfer' },
-    { key: '/Acreports', icon: <BarChartOutlined />,   label: 'Reports' },
-
-
-    
-    
+    { key: "/Acreports", icon: <BarChartOutlined />, label: "Reports" },
   ],
 
-  "owner": [
-    { key: '/owner',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/project-management',        icon: <ProjectOutlined />,  label: 'Project Management' },
-    { key: '/payment-monitoring',        icon: <TransactionOutlined />,     label: 'Payment Monitoring' },
-    { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
-    { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
-    { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
-
-    
-    
+  owner: [
+    { key: "/owner", icon: <DashboardOutlined />, label: "Dashboard" },
+    {
+      key: "/project-management",
+      icon: <ProjectOutlined />,
+      label: "Project Management",
+    },
+    {
+      key: "/payment-monitoring",
+      icon: <TransactionOutlined />,
+      label: "Payment Monitoring",
+    },
+    { key: "/reports", icon: <BarChartOutlined />, label: "Reports" },
+    {
+      key: "/SystemActivity",
+      icon: <ClockCircleOutlined />,
+      label: "System Activity",
+    },
+    {
+      key: "/UserManagement",
+      icon: <UserOutlined />,
+      label: "User Management",
+    },
   ],
 
-
-
-"manager": [
-    { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
-    { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
-    { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Stock Management' },
-    { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
-    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
-    { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
-    { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
-    
+  manager: [
+    /*{
+      key: "/manager-dashboard",
+      icon: <DashboardOutlined />,
+      label: "Dashboard",
+    },*/
+    { key: "/clinics", icon: <ProjectOutlined />, label: "Clinic Details" },
+    {
+      key: "/cash-handling",
+      icon: <TransactionOutlined />,
+      label: "Cash Handling",
+    },
+    {
+      key: "/stock-management",
+      icon: <ShoppingCartOutlined />,
+      label: "Stock Management",
+    },
+    { key: "/petty-cash", icon: <AccountBookOutlined />, label: "Petty Cash" },
+    {
+      key: "/batch-tracking",
+      icon: <ClockCircleOutlined />,
+      label: "Batch Tracking",
+    },
+    {
+      key: "/pending-payments",
+      icon: <AccountBookOutlined />,
+      label: "Pending Payments",
+    },
+    {
+      key: "/complaint-handling",
+      icon: <SafetyOutlined />,
+      label: "Complaint Handling",
+    },
   ],
-
-
 };
-
-      
