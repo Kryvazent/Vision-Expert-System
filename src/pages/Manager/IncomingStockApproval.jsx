@@ -9,8 +9,8 @@ const { Content } = Layout
 const { Title, Text } = Typography
 
 const LOAD_DISTRIBUTIONS = gql`
-  query LoadManagerDistributions {
-    stock_distributionCollection(orderBy: [{ id: DescNullsLast }]) {
+  query LoadManagerDistributions($branchId: Int!) {
+    stock_distributionCollection(filter: { branch_id: { eq: $branchId } }, orderBy: [{ id: DescNullsLast }]) {
       edges {
         node {
           id
@@ -21,6 +21,7 @@ const LOAD_DISTRIBUTIONS = gql`
           notes
           stock {
             id
+            available_quantity
             product {
               id
               name
@@ -34,19 +35,6 @@ const LOAD_DISTRIBUTIONS = gql`
             id
             branch_name
           }
-        }
-      }
-    }
-  }
-`
-
-const LOAD_MAIN_STOCK = gql`
-  query LoadMainStock {
-    stockCollection(orderBy: [{ created_at: DescNullsLast }]) {
-      edges {
-        node {
-          id
-          available_quantity
         }
       }
     }
@@ -101,12 +89,8 @@ export default function IncomingStockApproval() {
   const branchId = Number(staff?.branch_id ?? staff?.branch?.id)
   const hasBranchId = Number.isFinite(branchId)
 
-  const { data, loading, refetch } = useQuery(LOAD_DISTRIBUTIONS, {
-    skip: !hasBranchId,
-    fetchPolicy: 'network-only',
-  })
-
-  const { data: mainStockData } = useQuery(LOAD_MAIN_STOCK, {
+  const { data, refetch } = useQuery(LOAD_DISTRIBUTIONS, {
+    variables: { branchId },
     skip: !hasBranchId,
     fetchPolicy: 'network-only',
   })
@@ -117,10 +101,6 @@ export default function IncomingStockApproval() {
   const [insertStock] = useMutation(INSERT_STOCK)
 
   const distributions = useMemo(() => {
-    const stockMap = new Map(
-      mainStockData?.stockCollection?.edges?.map((item) => [String(item.node.id), Number(item.node.available_quantity ?? 0)]) || []
-    )
-
     return (data?.stock_distributionCollection?.edges || [])
       .map((item, index) => ({
         key: index,
@@ -130,15 +110,14 @@ export default function IncomingStockApproval() {
         productName: item.node.stock?.product?.name || 'Unknown Product',
         productId: item.node.stock?.product?.id,
         stockId: item.node.stock?.id,
-        mainStockQuantity: stockMap.get(String(item.node.stock?.id)) ?? Number(item.node.stock?.available_quantity ?? 0),
+        mainStockQuantity: Number(item.node.stock?.available_quantity ?? 0),
         branch: item.node.branch?.branch_name || 'Unknown Branch',
         branchId: Number(item.node.branch_id ?? item.node.branch?.id),
         quantity: Number(item.node.quantity),
         status: item.node.status || 'Pending Approval',
         notes: item.node.notes || '',
       }))
-      .filter((item) => item.branchId === branchId)
-  }, [branchId, data, mainStockData])
+  }, [data])
 
   const incomingCount = distributions.filter((d) => d.status === 'Pending Approval').length
 
