@@ -1,6 +1,7 @@
 import React, {useState} from 'react'
 import { Modal, Form, Input, DatePicker, Select, Button, Typography, Divider,message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 const {Option} = Select;
@@ -84,7 +85,7 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
                 name="sentToLab"
                 rules={[{ required: true, message: 'Please select the date sent to lab!' }]}
             >
-                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
             </Form.Item>
 
             <Form.Item
@@ -92,7 +93,7 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
                 name="expectedReturn"
                 rules={[{ required: true, message: 'Please select the expected return date!' }]}
             >
-                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
             </Form.Item>
 
             

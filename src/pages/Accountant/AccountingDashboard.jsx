@@ -1,21 +1,27 @@
-import { Card, Select, DatePicker } from "antd";
-import AcStatCard from "./AcStatCard";
-const { Option } = Select;
-const { RangePicker } = DatePicker;
-
+import { Card, Col, Row, Select, DatePicker } from "antd";
+import {
+  DollarOutlined,
+  WalletOutlined,
+  CreditCardOutlined,
+  ShoppingOutlined,
+  ClockCircleOutlined,
+  TrophyOutlined,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
 import { useState } from "react";
-
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
+
+import PageLayout from "../../component/shared/PageLayout";
+import StatCard from "../../component/shared/StatCard";
+
+const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const GET_BRANCHES = gql`
   query GetBranches {
     branchCollection {
-      edges {
-        node {
-          branch_name
-        }
-      }
+      edges { node { branch_name } }
     }
   }
 `;
@@ -26,28 +32,15 @@ const GET_DASHBOARD_DATA = gql`
       edges {
         node {
           id
-
           placed_at
-
           estimated_delivery
-
           total_price
-
           paymentCollection {
-            edges {
-              node {
-                advance
-
-                total_payment
-              }
-            }
+            edges { node { advance total_payment } }
           }
-
           clinic_attend_customer {
             customer_has_branch {
-              branch {
-                branch_name
-              }
+              branch { branch_name }
             }
           }
         }
@@ -56,260 +49,122 @@ const GET_DASHBOARD_DATA = gql`
   }
 `;
 
-function AccountantDashboard() {
-  // selected branch
+export default function AccountantDashboard() {
   const [selectedBranch, setSelectedBranch] = useState("all");
+  const [selectedDates, setSelectedDates]   = useState([]);
 
-  // selected dates
-  const [selectedDates, setSelectedDates] = useState([]);
+  const { data: branchData } = useQuery(GET_BRANCHES);
+  const { data: dashboardData, loading } = useQuery(GET_DASHBOARD_DATA);
 
-  // branches
-  const { data, loading, error } = useQuery(GET_BRANCHES);
+  // ── Filtered orders ──
+  const filteredOrders = (dashboardData?.orderCollection?.edges ?? []).filter((item) => {
+    const branchName = item?.node?.clinic_attend_customer?.customer_has_branch?.branch?.branch_name;
+    const orderDate  = new Date(item?.node?.placed_at);
+    const branchMatch = selectedBranch === "all" || branchName === selectedBranch;
+    let dateMatch = true;
+    if (Array.isArray(selectedDates) && selectedDates.length === 2 && selectedDates[0] && selectedDates[1]) {
+      dateMatch = orderDate >= new Date(selectedDates[0]) && orderDate <= new Date(selectedDates[1]);
+    }
+    return branchMatch && dateMatch;
+  });
 
-  // dashboard data
-  const { data: dashboardData } = useQuery(GET_DASHBOARD_DATA);
-
-  // filter orders
-  const filteredOrders =
-    dashboardData?.orderCollection?.edges?.filter((item) => {
-      // branch name
-      const branchName =
-        item?.node?.clinic_attend_customer?.customer_has_branch?.branch
-          ?.branch_name;
-
-      // order date
-      const orderDate = new Date(item?.node?.placed_at);
-
-      // branch filter
-      const branchMatch =
-        selectedBranch === "all" ? true : branchName === selectedBranch;
-
-      // date filter
-      let dateMatch = true;
-
-      // if user selected date range
-      if (
-        Array.isArray(selectedDates) &&
-        selectedDates.length === 2 &&
-        selectedDates[0] &&
-        selectedDates[1]
-      ) {
-        const startDate = new Date(selectedDates[0]);
-        const endDate = new Date(selectedDates[1]);
-
-        dateMatch = orderDate >= startDate && orderDate <= endDate;
-      }
-
-      return branchMatch && dateMatch;
-    }) || [];
-
-  // total revenue (Total Order Value)
-  const totalRevenue = filteredOrders.reduce((sum, item) => {
-    const totalPrice = Number(item?.node?.total_price) || 0;
-
-    return sum + totalPrice;
+  // ── Derived metrics ──
+  const totalRevenue = filteredOrders.reduce((s, { node }) => s + (Number(node.total_price) || 0), 0);
+  const amountReceived = filteredOrders.reduce((s, { node }) => {
+    return s + (Number(node.paymentCollection?.edges?.[0]?.node?.total_payment) || 0);
   }, 0);
-
-  // amount received (Total Paid)
-  const amountReceived = filteredOrders.reduce((sum, item) => {
-    const payment = item?.node?.paymentCollection?.edges?.[0]?.node;
-
-    const totalPaid = Number(payment?.total_payment) || 0;
-
-    return sum + totalPaid;
+  const pendingCollections = filteredOrders.reduce((s, { node }) => {
+    const paid = Number(node.paymentCollection?.edges?.[0]?.node?.total_payment) || 0;
+    return s + ((Number(node.total_price) || 0) - paid);
   }, 0);
-
-  // pending collections (Due Amount)
-  const pendingCollections = filteredOrders.reduce((sum, item) => {
-    const totalPrice = Number(item?.node?.total_price) || 0;
-
-    const payment = item?.node?.paymentCollection?.edges?.[0]?.node;
-
-    const totalPaid = Number(payment?.total_payment) || 0;
-
-    return sum + (totalPrice - totalPaid);
-  }, 0);
-
-  // total orders
   const totalOrders = filteredOrders.length;
 
-  // average delivery time
-  const averageDeliveryTime =
-    filteredOrders.length === 0
-      ? 0
-      : (
-          filteredOrders.reduce((sum, item) => {
-            const placedDate = new Date(item?.node?.placed_at);
+  const avgDeliveryTime = filteredOrders.length === 0 ? 0 : (
+    filteredOrders.reduce((s, { node }) => {
+      const placed   = new Date(node.placed_at);
+      const delivery = new Date(node.estimated_delivery);
+      return s + (delivery - placed) / (1000 * 60 * 60 * 24);
+    }, 0) / filteredOrders.length
+  ).toFixed(0);
 
-            const deliveryDate = new Date(item?.node?.estimated_delivery);
-
-            const differenceInDays =
-              (deliveryDate - placedDate) / (1000 * 60 * 60 * 24);
-
-            return sum + differenceInDays;
-          }, 0) / filteredOrders.length
-        ).toFixed(0);
-
-  // best performing branch
+  // Best branch (from all orders, not filtered)
   const branchTotals = {};
-
-  dashboardData?.orderCollection?.edges?.forEach((item) => {
-    const branchName =
-      item?.node?.clinic_attend_customer?.customer_has_branch?.branch
-        ?.branch_name;
-
-    const totalPrice = Number(item?.node?.total_price) || 0;
-
-    if (!branchTotals[branchName]) {
-      branchTotals[branchName] = 0;
-    }
-
-    branchTotals[branchName] += totalPrice;
+  (dashboardData?.orderCollection?.edges ?? []).forEach(({ node }) => {
+    const name = node.clinic_attend_customer?.customer_has_branch?.branch?.branch_name;
+    if (!name) return;
+    branchTotals[name] = (branchTotals[name] || 0) + (Number(node.total_price) || 0);
   });
+  const bestBranch = Object.entries(branchTotals).reduce((best, [b, r]) => r > (best[1] ?? 0) ? [b, r] : best, [null, 0])[0] ?? "—";
 
-  let bestBranch = "No Data";
-  let highestRevenue = 0;
-
-  Object.entries(branchTotals).forEach(([branch, revenue]) => {
-    if (revenue > highestRevenue) {
-      highestRevenue = revenue;
-      bestBranch = branch;
-    }
-  });
-
-  // completed orders
-  const completedOrders = filteredOrders.filter((item) => {
-    const totalPrice = Number(item?.node?.total_price) || 0;
-
-    const payment = item?.node?.paymentCollection?.edges?.[0]?.node;
-
-    const totalPaid = Number(payment?.total_payment) || 0;
-
-    return totalPaid >= totalPrice;
+  const completedOrders = filteredOrders.filter(({ node }) => {
+    const paid  = Number(node.paymentCollection?.edges?.[0]?.node?.total_payment) || 0;
+    return paid >= (Number(node.total_price) || 0);
   }).length;
 
-  return (
-    <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-4 justify-center">
-        {/* Branch Filter */}
-        <Select
-          defaultValue="all"
-          className="w-52"
-          onChange={(value) => setSelectedBranch(value)}
-        >
-          <Option value="all">All Branches</Option>
+  const fmt = (n) => `Rs. ${Number(n).toLocaleString()}`;
 
-          {data?.branchCollection?.edges?.map((b) => (
-            <Option key={b.node.id} value={b.node.branch_name}>
-              {b.node.branch_name}
-            </Option>
-          ))}
-        </Select>
+  const topCards = [
+    { title: "Total Order Value",     value: fmt(totalRevenue),    icon: <DollarOutlined />,     accent: "#1677ff" },
+    { title: "Amount Received",       value: fmt(amountReceived),  icon: <WalletOutlined />,     accent: "#52c41a" },
+    { title: "Outstanding Balance",   value: fmt(pendingCollections), icon: <CreditCardOutlined />, accent: "#ff4d4f" },
+    { title: "Total Orders",          value: totalOrders,          icon: <ShoppingOutlined />,   accent: "#faad14" },
+  ];
 
-        {/* Date Filter */}
-        <RangePicker
-          className="w-64"
-          allowClear
-          onChange={(dates, dateStrings) => {
-            if (!dates) {
-              setSelectedDates([]);
-              return;
-            }
+  const bottomCards = [
+    { title: "Avg Delivery Time",          value: `${avgDeliveryTime} days`, icon: <ClockCircleOutlined />, accent: "#13c2c2", subtitle: "Delivery analysis" },
+    { title: "Best Performing Branch",     value: bestBranch,                icon: <TrophyOutlined />,      accent: "#faad14", subtitle: "Highest order value" },
+    { title: "Orders Completed (Paid)",    value: completedOrders,           icon: <CheckCircleOutlined />, accent: "#52c41a", subtitle: "Fully paid orders" },
+  ];
 
-            setSelectedDates(dateStrings);
-          }}
-        />
-      </div>
-
-      {/* Cards */}
-      <div className="flex flex-wrap gap-6 justify-center">
-        {/* Card 1 */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Total Order Value</p>
-
-          <h2 className="text-2xl font-bold">
-            Rs. {totalRevenue.toLocaleString()}
-          </h2>
-
-          <AcStatCard iconType="dollar" className="absolute top-4 right-4" />
-        </Card>
-
-        {/* Card 2 */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Amount Received</p>
-
-          <h2 className="text-2xl font-bold">
-            Rs. {amountReceived.toLocaleString()}
-          </h2>
-
-          <AcStatCard iconType="wallet" className="absolute top-4 right-4" />
-        </Card>
-
-        {/* Card 3 */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Outstanding Balance</p>
-
-          <h2 className="text-2xl font-bold">
-            Rs. {pendingCollections.toLocaleString()}
-          </h2>
-
-          <AcStatCard
-            iconType="creditcard"
-            className="absolute top-4 right-4"
-          />
-        </Card>
-
-        {/* Card 4 */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Total Orders</p>
-
-          <h2 className="text-2xl font-bold">{totalOrders}</h2>
-
-          <AcStatCard iconType="shopping" className="absolute top-4 right-4" />
-        </Card>
-      </div>
-
-      <div className="flex justify-center">
-        <h2>Branch Performance Analysis</h2>
-      </div>
-
-      <div className="flex flex-wrap gap-6 justify-center">
-        {/* Average Delivery */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Average Delivery Time</p>
-
-          <h2 className="text-2xl font-bold">{averageDeliveryTime} days</h2>
-
-          <AcStatCard iconType="clock" className="absolute top-4 right-4" />
-
-          <p className="text-green-500 font-medium">Delivery Analysis</p>
-        </Card>
-
-        {/* Best Branch */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Best Performing Branch</p>
-
-          <h2 className="text-2xl font-bold">{bestBranch}</h2>
-
-          <AcStatCard iconType="trophy" className="absolute top-4 right-4" />
-
-          <p className="text-green-500 font-medium">Highest Order Value</p>
-        </Card>
-
-        {/* Completed Orders */}
-        <Card className="w-[40%] rounded-xl shadow-sm">
-          <p className="text-gray-500">Orders Completed</p>
-
-          <h2 className="text-2xl font-bold">{completedOrders}</h2>
-
-          <AcStatCard iconType="check" className="absolute top-4 right-4" />
-
-          <p className="text-green-500 font-medium">Fully Paid Orders</p>
-        </Card>
-      </div>
+  const filters = (
+    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+      <Select
+        defaultValue="all"
+        style={{ width: 180 }}
+        onChange={setSelectedBranch}
+        loading={!branchData}
+      >
+        <Option value="all">All Branches</Option>
+        {branchData?.branchCollection?.edges?.map(({ node: b }) => (
+          <Option key={b.branch_name} value={b.branch_name}>{b.branch_name}</Option>
+        ))}
+      </Select>
+      <RangePicker
+        style={{ width: 260 }}
+        allowClear
+        onChange={(dates, strings) => setSelectedDates(dates ? strings : [])}
+      />
     </div>
   );
-}
 
-export default AccountantDashboard;
+  return (
+    <PageLayout
+      title="Accountant Dashboard"
+      subtitle="Financial overview with branch and date filtering"
+      extra={filters}
+    >
+      {/* ── Top metric cards ── */}
+      <Row gutter={[16, 16]}>
+        {topCards.map((c) => (
+          <Col xs={24} sm={12} xl={6} key={c.title}>
+            <StatCard {...c} loading={loading} />
+          </Col>
+        ))}
+      </Row>
+
+      {/* ── Branch performance heading ── */}
+      <div style={{ margin: "28px 0 16px" }}>
+        <p className="ve-section-title">Branch Performance Analysis</p>
+      </div>
+
+      {/* ── Bottom metric cards ── */}
+      <Row gutter={[16, 16]}>
+        {bottomCards.map((c) => (
+          <Col xs={24} sm={12} lg={8} key={c.title}>
+            <StatCard {...c} loading={loading} />
+          </Col>
+        ))}
+      </Row>
+    </PageLayout>
+  );
+}

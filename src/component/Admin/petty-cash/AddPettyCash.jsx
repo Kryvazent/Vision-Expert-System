@@ -119,7 +119,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
             name = "date"
             rules={[{required:true,message: "Please select date"}]}
         >
-            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" name='date'  /> 
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" name='date' disabledDate={(d) => d && d < dayjs().startOf("day")} /> 
         </Form.Item>
         <Form.Item
             label={<span><span style={{ color: 'red' }}>* </span>Category</span>}

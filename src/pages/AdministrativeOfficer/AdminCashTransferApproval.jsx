@@ -2,6 +2,7 @@ import {
     Button,
     Card,
     Col,
+    Input,
     Row,
     Space,
     Table,
@@ -166,6 +167,7 @@ const SET_ADMIN_DECISION = gql`
         $adminProofStatus: String!
         $adminProofAt: Datetime!
         $reviewedAt: Datetime!
+        $rejectionReason: String
     ) {
         updatecash_transfers_to_adminCollection(
             filter: { id: { eq: $id } }
@@ -174,6 +176,7 @@ const SET_ADMIN_DECISION = gql`
                 admin_proof_status: $adminProofStatus
                 admin_proof_at: $adminProofAt
                 reviewed_at: $reviewedAt
+                rejection_reason: $rejectionReason
             }
         ) {
             records {
@@ -181,6 +184,7 @@ const SET_ADMIN_DECISION = gql`
                 admin_proof_status
                 admin_proof_at
                 reviewed_at
+                rejection_reason
                 cash_transfer_status {
                     id
                     status
@@ -227,6 +231,8 @@ function AdminCashTransferApproval() {
     const [managerModal, setManagerModal] = useState(null);
     const [bankDeposit, setBankDeposit] = useState(false);
     const [managerSubmitting, setManagerSubmitting] = useState(false);
+    const [rejectModal, setRejectModal] = useState(null);
+    const [rejectReason, setRejectReason] = useState("");
 
 
     const [loadTransfers, { data: transfersData, loading: transfersLoading, error: transfersError }] =
@@ -447,60 +453,103 @@ function AdminCashTransferApproval() {
 
     const handleDecision = (record, decision) => {
         const isAccept = decision === "accept";
-        const targetStatusText = isAccept ? STATUS_TEXT.ACCEPTED : STATUS_TEXT.REJECTED;
-        const targetAdminProof = isAccept ? ADMIN_PROOF.ACCEPTED : ADMIN_PROOF.REJECTED;
 
-        Modal.confirm({
-            title: isAccept ? "Accept this transfer?" : "Reject this transfer?",
-            icon: <ExclamationCircleOutlined style={{ color: isAccept ? "#52c41a" : "#ff4d4f" }} />,
-            content: (
-                <div>
-                    <p>
-                        Transfer <strong>#{record.id}</strong> from <strong>{record.submittedBy}</strong> ({record.cashType})
-                    </p>
-                    <p style={{ color: "#8c8c8c", fontSize: 12 }}>Amount: {formatCurrency(record.amount)}</p>
-                    {!isAccept && (
-                        <p style={{ color: "#ff4d4f", fontSize: 12 }}>
-                            ⚠ Rejecting returns this amount to {record.submittedBy}'s responsibility.
+        if (isAccept) {
+            const targetStatusText = STATUS_TEXT.ACCEPTED;
+            const targetAdminProof = ADMIN_PROOF.ACCEPTED;
+
+            Modal.confirm({
+                title: "Accept this transfer?",
+                icon: <ExclamationCircleOutlined style={{ color: "#52c41a" }} />,
+                content: (
+                    <div>
+                        <p>
+                            Transfer <strong>#{record.id}</strong> from <strong>{record.submittedBy}</strong> ({record.cashType})
                         </p>
-                    )}
-                </div>
-            ),
-            okText: isAccept ? "Yes, Accept" : "Yes, Reject",
-            cancelText: "Cancel",
-            okButtonProps: isAccept
-                ? { style: { background: "#52c41a", borderColor: "#52c41a" } }
-                : { danger: true },
-            onOk: async () => {
-                const statusId = statusIdFor(targetStatusText);
-                if (!statusId) {
-                    message.error(
-                        `Could not resolve cash_transfer_status id for "${targetStatusText}". Check the cash_transfer_status table has this value.`
-                    );
-                    return;
-                }
-                setDecisionSubmittingId(record.id);
-                try {
-                    const now = dayjs().toISOString();
-                    await setAdminDecision({
-                        variables: {
-                            id: record.id,
-                            statusId,
-                            adminProofStatus: targetAdminProof,
-                            adminProofAt: now,
-                            reviewedAt: now,
-                        },
-                    });
-                    message.success(isAccept ? "Transfer accepted." : "Transfer rejected and returned to staff.");
-                    loadTransfers();
-                } catch (err) {
-                    console.error("❌ Decision mutation error:", err);
-                    message.error("Failed to update transfer: " + err.message);
-                } finally {
-                    setDecisionSubmittingId(null);
-                }
-            },
-        });
+                        <p style={{ color: "#8c8c8c", fontSize: 12 }}>Amount: {formatCurrency(record.amount)}</p>
+                    </div>
+                ),
+                okText: "Yes, Accept",
+                cancelText: "Cancel",
+                okButtonProps: { style: { background: "#52c41a", borderColor: "#52c41a" } },
+                onOk: async () => {
+                    const statusId = statusIdFor(targetStatusText);
+                    if (!statusId) {
+                        message.error(
+                            `Could not resolve cash_transfer_status id for "${targetStatusText}". Check the cash_transfer_status table has this value.`
+                        );
+                        return;
+                    }
+                    setDecisionSubmittingId(record.id);
+                    try {
+                        const now = dayjs().toISOString();
+                        await setAdminDecision({
+                            variables: {
+                                id: record.id,
+                                statusId,
+                                adminProofStatus: targetAdminProof,
+                                adminProofAt: now,
+                                reviewedAt: now,
+                                rejectionReason: null,
+                            },
+                        });
+                        message.success("Transfer accepted.");
+                        loadTransfers();
+                    } catch (err) {
+                        console.error("❌ Decision mutation error:", err);
+                        message.error("Failed to update transfer: " + err.message);
+                    } finally {
+                        setDecisionSubmittingId(null);
+                    }
+                },
+            });
+        } else {
+            setRejectModal(record);
+            setRejectReason("");
+        }
+    };
+
+    const handleRejectSubmit = async () => {
+        if (!rejectModal) return;
+        if (!rejectReason.trim()) {
+            message.warning("Please provide a reason for rejection.");
+            return;
+        }
+
+        const targetStatusText = STATUS_TEXT.REJECTED;
+        const targetAdminProof = ADMIN_PROOF.REJECTED;
+        const statusId = statusIdFor(targetStatusText);
+
+        if (!statusId) {
+            message.error(
+                `Could not resolve cash_transfer_status id for "${targetStatusText}". Check the cash_transfer_status table has this value.`
+            );
+            return;
+        }
+
+        setDecisionSubmittingId(rejectModal.id);
+        try {
+            const now = dayjs().toISOString();
+            await setAdminDecision({
+                variables: {
+                    id: rejectModal.id,
+                    statusId,
+                    adminProofStatus: targetAdminProof,
+                    adminProofAt: now,
+                    reviewedAt: now,
+                    rejectionReason: rejectReason,
+                },
+            });
+            message.success("Transfer rejected and returned to staff.");
+            setRejectModal(null);
+            setRejectReason("");
+            loadTransfers();
+        } catch (err) {
+            console.error("❌ Decision mutation error:", err);
+            message.error("Failed to update transfer: " + err.message);
+        } finally {
+            setDecisionSubmittingId(null);
+        }
     };
 
     const openManagerModal = (record) => {
@@ -873,6 +922,57 @@ function AdminCashTransferApproval() {
                                 Confirm Transfer
                             </Button>
                         </Space>
+                    </div>
+                )}
+            </Modal>
+
+            {/* ── Reject Reason Modal ── */}
+            <Modal
+                title={
+                    <Space>
+                        <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
+                        <span>Reject Transfer</span>
+                    </Space>
+                }
+                open={!!rejectModal}
+                onCancel={() => {
+                    setRejectModal(null);
+                    setRejectReason("");
+                }}
+                onOk={handleRejectSubmit}
+                okText="Reject"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true, loading: decisionSubmittingId === rejectModal?.id }}
+                width={480}
+                centered
+                destroyOnClose
+            >
+                {rejectModal && (
+                    <div>
+                        <div style={{ background: "#fff1f0", border: "1px solid #ffccc7", borderRadius: 8, padding: "10px 14px", marginBottom: 20 }}>
+                            <p style={{ margin: 0 }}>
+                                Transfer <strong>#{rejectModal.id}</strong> — <strong>{formatCurrency(rejectModal.amount)}</strong>
+                            </p>
+                            <p style={{ margin: "4px 0 0", color: "#8c8c8c", fontSize: 12 }}>
+                                From {rejectModal.submittedBy} · {rejectModal.cashType} · {rejectModal.branchName}
+                            </p>
+                        </div>
+
+                        <div style={{ marginBottom: 12 }}>
+                            <Text strong>Reason for Rejection</Text>
+                            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                                Please provide a reason why this transfer is being rejected.
+                            </div>
+                        </div>
+
+                        <Input.TextArea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            rows={4}
+                            maxLength={500}
+                            showCount
+                        />
                     </div>
                 )}
             </Modal>

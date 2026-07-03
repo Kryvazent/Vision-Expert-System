@@ -13,6 +13,10 @@ const STATUS_CONFIG ={
         icon: <CheckCircleOutlined />,
         bg: '#F0FDF4', border: '#BBF7D0', text: '#065F46',
     },
+    Transferred: {
+        icon: <CheckCircleOutlined />,
+        bg: '#F5F3FF', border: '#DDD6FE', text: '#5B21B6',
+    },
     Rejected: {
         icon: <CloseCircleOutlined />,
         bg: '#FEF2F2', border: '#FECACA', text: '#991B1B',
@@ -80,7 +84,22 @@ export default function DistributionHistoryTable({data, onApprove}) {
             title: 'Product Name',
             dataIndex: 'productName',
             key: 'productName',
-            render: (val) => <Text strong style={{ fontSize: 14 }}>{val}</Text>,
+            render: (val, record) => (
+                <div>
+                    <Text strong style={{ fontSize: 14 }}>{val}</Text>
+                    {record.frameSerialNo && (
+                        <>
+                            <br />
+                            <Text
+                                type="secondary"
+                                style={{ fontSize: 11, fontFamily: 'monospace' }}
+                            >
+                                Frame: {record.frameSerialNo}
+                            </Text>
+                        </>
+                    )}
+                </div>
+            ),
         },
         {
             title: 'Branch',
@@ -142,6 +161,7 @@ export default function DistributionHistoryTable({data, onApprove}) {
                     { label: 'All Status', value: 'All' },
                     { label: 'Pending Approval', value: 'Pending Approval' },
                     { label: 'Approved', value: 'Approved' },
+                    { label: 'Transferred', value: 'Transferred' },
                     { label: 'Rejected', value: 'Rejected' },
                 ]}
             />

@@ -52,7 +52,7 @@ export default function RecordCashModal({ open, onCancel, onSubmit, cashTypeList
                         name="date"
                         rules={[{ required: true, message: 'Please select date!' }]}
                     >
-                        <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                        <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
                     </Form.Item>
                 </div>
 

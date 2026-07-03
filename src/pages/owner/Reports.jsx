@@ -3,9 +3,11 @@ import {
   BarChartOutlined,
   DollarOutlined,
   FileSearchOutlined,
+  EyeOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 
-import { Row, Col, Modal, DatePicker, Select, message } from "antd";
+import { Row, Col, Modal, DatePicker, Select, message, Table, Button, Space, Statistic, Typography, Card } from "antd";
 
 import { useState } from "react";
 
@@ -14,6 +16,10 @@ import { useLazyQuery, useQuery } from "@apollo/client/react";
 
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+
+import { headerStyles, buttonStyles, cardStyles, modalStyles, formStyles } from "../../const/designSystem";
+
+const { Title, Text } = Typography;
 
 const GET_BRANCHES = gql`
   query {
@@ -138,6 +144,9 @@ export default function Reports() {
   const [selectedBranch, setSelectedBranch] = useState("All Branches");
 
   const [selectedMonth, setSelectedMonth] = useState(null);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewData, setPreviewData] = useState([]);
+  const [previewSummary, setPreviewSummary] = useState({});
   const { data: branchData } = useQuery(GET_BRANCHES);
   const { data, loading, error } = useQuery(GET_REPORT_DATA);
 
@@ -146,6 +155,128 @@ export default function Reports() {
   const openReportModal = (type) => {
     setReportType(type);
     setOpenModal(true);
+  };
+
+  const generatePreviewData = () => {
+    let filteredData = [];
+
+    switch (reportType) {
+      case "Daily Report":
+        filteredData = orders
+          .filter((order) => {
+            const dateMatch = order.placedAt?.split("T")[0] === selectedDate;
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+            return dateMatch && branchMatch;
+          })
+          .map((order) => ({
+            key: order.id,
+            "Order ID": `OD${order.id}`,
+            "Customer ID": `CUS-${order.customerId}`,
+            Customer: order.customer,
+            Phone: order.phone,
+            Branch: order.branch,
+            "Order Date": order.placedAt.split("T")[0],
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+            "Total Price": order.totalPrice,
+            Advance: order.advance,
+            "Amount Received": order.totalPaid,
+            Pending: order.pending,
+          }));
+        break;
+
+      case "Monthly Report":
+        filteredData = orders
+          .filter((order) => {
+            const monthMatch = order.placedAt?.startsWith(selectedMonth);
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+            return monthMatch && branchMatch;
+          })
+          .map((order) => ({
+            key: order.id,
+            "Order ID": `OD${order.id}`,
+            "Customer ID": `CUS-${order.customerId}`,
+            Customer: order.customer,
+            Phone: order.phone,
+            Branch: order.branch,
+            "Order Date": order.placedAt.split("T")[0],
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+            "Total Price": order.totalPrice,
+            Advance: order.advance,
+            "Amount Received": order.totalPaid,
+            Pending: order.pending,
+          }));
+        break;
+
+      case "Overdue Payments Report":
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        filteredData = orders
+          .filter((order) => {
+            const monthMatch =
+              order.estimatedDelivery?.startsWith(selectedMonth);
+            const deliveryDate = new Date(order.estimatedDelivery);
+            deliveryDate.setHours(0, 0, 0, 0);
+            const overdue = deliveryDate < today;
+            const hasPending = order.pending > 0;
+            const branchMatch =
+              selectedBranch === "All Branches"
+                ? true
+                : order.branch === selectedBranch;
+            return overdue && hasPending && branchMatch;
+          })
+          .map((order) => ({
+            key: order.id,
+            "Order ID": `OD${order.id}`,
+            "Customer ID": `CUS-${order.customerId}`,
+            Customer: order.customer,
+            Phone: order.phone,
+            Branch: order.branch,
+            "Order Date": order.placedAt.split("T")[0],
+            "Estimated Delivery": order.estimatedDelivery.split("T")[0],
+            "Total Price": order.totalPrice,
+            Advance: order.advance,
+            "Amount Received": order.totalPaid,
+            Pending: order.pending,
+          }));
+        break;
+
+      default:
+        break;
+    }
+
+    const totalRevenue = filteredData.reduce(
+      (sum, item) => sum + item["Total Price"],
+      0,
+    );
+    const totalAdvance = filteredData.reduce(
+      (sum, item) => sum + item.Advance,
+      0,
+    );
+    const totalReceived = filteredData.reduce(
+      (sum, item) => sum + item["Amount Received"],
+      0,
+    );
+    const totalPending = filteredData.reduce(
+      (sum, item) => sum + item.Pending,
+      0,
+    );
+
+    setPreviewData(filteredData);
+    setPreviewSummary({
+      totalRevenue,
+      totalAdvance,
+      totalReceived,
+      totalPending,
+      recordCount: filteredData.length,
+    });
+    setPreviewModalVisible(true);
   };
 
   const orders =
@@ -158,6 +289,8 @@ export default function Reports() {
         order?.clinic_attend_customer?.customer_has_branch?.customer;
 
       const branch = order?.clinic_attend_customer?.customer_has_branch?.branch;
+
+      const branchName = branch?.branch_name || "Unknown";
 
       const totalPrice = Number(order?.total_price) || 0;
 
@@ -180,7 +313,7 @@ export default function Reports() {
 
         customer: `${customer?.first_name || ""} ${customer?.last_name || ""}`,
 
-        branch: branch?.branch_name || "Unknown",
+        branch: branchName,
         phone: customer?.contact_no || "-",
 
         totalPrice,
@@ -716,55 +849,70 @@ export default function Reports() {
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <Row gutter={[20, 20]}>
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
-            icon={<FileTextOutlined />}
-            title="Daily Report"
-            description="Generate daily delivery and payment reports"
-            color="#2563eb"
-            btnColor="#2563eb"
-            onClick={() => openReportModal("Daily Report")}
-          />
-        </Col>
+    <div style={{ padding: 24 }}>
+      <div style={headerStyles.container}>
+        <Row align="middle" justify="space-between">
+          <Col>
+            <Title level={2} style={headerStyles.title}>
+              Reports
+            </Title>
+            <Text type="secondary" style={headerStyles.subtitle}>
+              Generate and export business reports
+            </Text>
+          </Col>
+        </Row>
+      </div>
 
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
-            icon={<BarChartOutlined />}
-            title="Monthly Report"
-            description="Generate monthly branch performance reports"
-            color="#10b981"
-            btnColor="#059669"
-            onClick={() => openReportModal("Monthly Report")}
-          />
-        </Col>
+      <Card style={cardStyles.default}>
+        <Row gutter={[20, 20]}>
+          <Col xs={24} md={12} lg={8}>
+            <ReportCard
+              icon={<FileTextOutlined />}
+              title="Daily Report"
+              description="Generate daily delivery and payment reports"
+              color="#2563eb"
+              btnColor="#2563eb"
+              onClick={() => openReportModal("Daily Report")}
+            />
+          </Col>
 
-        <Col xs={24} md={12} lg={8}>
-          <ReportCard
-            icon={<FileSearchOutlined />}
-            title="Overdue Payments Report"
-            description="Generate overdue customer payment reports"
-            color="#dc2626"
-            btnColor="#dc2626"
-            onClick={() => openReportModal("Overdue Payments Report")}
-          />
-        </Col>
-      </Row>
+          <Col xs={24} md={12} lg={8}>
+            <ReportCard
+              icon={<BarChartOutlined />}
+              title="Monthly Report"
+              description="Generate monthly branch performance reports"
+              color="#10b981"
+              btnColor="#059669"
+              onClick={() => openReportModal("Monthly Report")}
+            />
+          </Col>
+
+          <Col xs={24} md={12} lg={8}>
+            <ReportCard
+              icon={<FileSearchOutlined />}
+              title="Overdue Payments Report"
+              description="Generate overdue customer payment reports"
+              color="#dc2626"
+              btnColor="#dc2626"
+              onClick={() => openReportModal("Overdue Payments Report")}
+            />
+          </Col>
+        </Row>
+      </Card>
 
       {/* MODAL */}
       <Modal
         open={openModal}
         title={reportType}
         onCancel={() => setOpenModal(false)}
-        onOk={exportExcel}
-        okText="Generate Excel"
+        footer={null}
+        {...modalStyles.default}
       >
         <div style={{ marginBottom: 20 }}>
           {reportType === "Monthly Report" ||
           reportType === "Overdue Payments Report" ? (
             <>
-              <p>Select Month</p>
+              <label style={formStyles.label}>Select Month</label>
 
               <DatePicker
                 picker="month"
@@ -774,26 +922,120 @@ export default function Reports() {
             </>
           ) : (
             <>
-              <p>Select Date</p>
+              <label style={formStyles.label}>Select Date</label>
 
               <DatePicker
                 className="w-full"
+                style={formStyles.datePicker}
                 onChange={(date, dateString) => setSelectedDate(dateString)}
               />
             </>
           )}
         </div>
 
-        <div>
-          <p>Select Branch</p>
+        <div style={{ marginBottom: 20 }}>
+          <label style={formStyles.label}>Select Branch</label>
 
           <Select
-            className="w-full"
+            style={formStyles.select}
             defaultValue="All Branches"
             onChange={(value) => setSelectedBranch(value)}
             options={branchOptions}
           />
         </div>
+
+        <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+          <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              setOpenModal(false);
+              generatePreviewData();
+            }}
+            style={buttonStyles.primary}
+          >
+            Preview Report
+          </Button>
+        </Space>
+      </Modal>
+
+      {/* PREVIEW MODAL */}
+      <Modal
+        open={previewModalVisible}
+        title={`${reportType} Preview`}
+        onCancel={() => setPreviewModalVisible(false)}
+        footer={null}
+        width={1200}
+        {...modalStyles.large}
+      >
+        <Row gutter={16} style={{ marginBottom: 16 }}>
+          <Col span={6}>
+            <Statistic
+              title="Total Records"
+              value={previewSummary.recordCount}
+              valueStyle={{ color: "#1890ff" }}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="Total Revenue"
+              value={previewSummary.totalRevenue}
+              formatter={(value) => `LKR ${value.toLocaleString()}`}
+              valueStyle={{ color: "#52c41a" }}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="Amount Received"
+              value={previewSummary.totalReceived}
+              formatter={(value) => `LKR ${value.toLocaleString()}`}
+              valueStyle={{ color: "#1890ff" }}
+            />
+          </Col>
+          <Col span={6}>
+            <Statistic
+              title="Outstanding"
+              value={previewSummary.totalPending}
+              formatter={(value) => `LKR ${value.toLocaleString()}`}
+              valueStyle={{ color: "#ff4d4f" }}
+            />
+          </Col>
+        </Row>
+
+        <Table
+          columns={[
+            { title: "Order ID", dataIndex: "Order ID", key: "orderId" },
+            { title: "Customer ID", dataIndex: "Customer ID", key: "customerId" },
+            { title: "Customer", dataIndex: "Customer", key: "customer" },
+            { title: "Phone", dataIndex: "Phone", key: "phone" },
+            { title: "Branch", dataIndex: "Branch", key: "branch" },
+            { title: "Order Date", dataIndex: "Order Date", key: "orderDate" },
+            { title: "Est. Delivery", dataIndex: "Estimated Delivery", key: "estDelivery" },
+            { title: "Total Price", dataIndex: "Total Price", key: "totalPrice", render: (v) => `LKR ${v.toLocaleString()}` },
+            { title: "Advance", dataIndex: "Advance", key: "advance", render: (v) => `LKR ${v.toLocaleString()}` },
+            { title: "Received", dataIndex: "Amount Received", key: "received", render: (v) => `LKR ${v.toLocaleString()}` },
+            { title: "Pending", dataIndex: "Pending", key: "pending", render: (v) => `LKR ${v.toLocaleString()}` },
+          ]}
+          dataSource={previewData}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 1200 }}
+          size="small"
+        />
+
+        <Space style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+          <Button onClick={() => setPreviewModalVisible(false)}>Close</Button>
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={() => {
+              setPreviewModalVisible(false);
+              exportExcel();
+            }}
+          >
+            Download Excel
+          </Button>
+        </Space>
       </Modal>
     </div>
   );

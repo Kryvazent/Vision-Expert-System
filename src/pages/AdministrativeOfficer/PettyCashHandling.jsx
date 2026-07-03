@@ -1,9 +1,9 @@
-import { 
+import {
     Layout,
-     Row, 
-     Col, 
+     Row,
+     Col,
      Button ,
-     Typography, 
+     Typography,
      Card,
      message
     } from 'antd'
@@ -14,6 +14,7 @@ import PettyCashTable from '../../component/Admin/petty-cash/PettyCashTable'
 import AddPettyCash from '../../component/Admin/petty-cash/AddPettyCash'
 import { gql } from '@apollo/client'
 import { useMutation, useQuery } from '@apollo/client/react/compiled'
+import { useAuth } from '../../const/functions'
 import dayjs from 'dayjs'
 
 const {Title,Text} = Typography
@@ -21,12 +22,16 @@ const {Content} = Layout
 
 export default function PettyCashHandling({transactions = []}) {
 
-    const staffID = 5;
-    const branchID = 1;
+    const { staff } = useAuth();
+    const staffID = staff?.id;
+    const branchID = staff?.branch?.id;
 
     const LOAD_PETTY_CASH_DATA = gql`
-        query LoadPettyCashData{
-            petty_cashCollection{
+        query LoadPettyCashData($branchId: Int!){
+            petty_cashCollection(
+                filter: { branch_id: { eq: $branchId } }
+                orderBy: [{ created_at: DescNullsLast }]
+            ){
                 edges{
                     node{
                         id
@@ -35,6 +40,13 @@ export default function PettyCashHandling({transactions = []}) {
                         description
                         date
                         category
+                        allocation_id
+                        allocation {
+                            id
+                            month
+                            year
+                            amount
+                        }
                     }
                 }
             }
@@ -107,11 +119,14 @@ const UPDATE_PETTY_CASH = gql`
     }
 `;
 
-    const {data: pettyCash, loading, error, refetch} = useQuery(LOAD_PETTY_CASH_DATA);
+    const {data: pettyCash, loading, error, refetch} = useQuery(LOAD_PETTY_CASH_DATA, {
+        variables: { branchId: branchID },
+        skip: !branchID
+    });
     const [insertPettyCash] = useMutation(INSERT_PETTY_CASH);
     const [updatePettyCash] = useMutation(UPDATE_PETTY_CASH);
 
-    const pettyCashList = 
+    const pettyCashList =
         pettyCash?.petty_cashCollection?.edges?.map((item) => ({
             id: item.node.id,
             type: item.node.type,
@@ -120,7 +135,9 @@ const UPDATE_PETTY_CASH = gql`
             date: item.node.date,
             category: item.node.category,
             received_by: item.node.received_by,
-        })) || [];  
+            allocation_id: item.node.allocation_id,
+            allocation: item.node.allocation,
+        })) || [];
 
     //Model State
     const [isModelOpen, setIsModelOpen]= useState(false)
@@ -132,10 +149,16 @@ const UPDATE_PETTY_CASH = gql`
         const totalExpenses = pettyCashList
             .filter((item) => item.type === "Expense")
             .reduce((sum, item) => sum + Number(item.amount || 0) , 0);
-           
+
          const totalReplenishment = pettyCashList
             .filter((item) => item.type === "Replenishment")
-            .reduce((sum, item) => sum + Number(item.amount || 0) , 0);    
+            .reduce((sum, item) => {
+                // If it's linked to an allocation, use the allocation amount
+                if (item.allocation) {
+                    return sum + Number(item.allocation.amount || 0);
+                }
+                return sum + Number(item.amount || 0);
+            }, 0);
 
         const currentBalance = totalReplenishment - totalExpenses;
 

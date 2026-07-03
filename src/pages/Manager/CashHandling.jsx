@@ -37,6 +37,7 @@ import {
     Card,
     Col,
     Empty,
+    Input,
     Modal,
     Row,
     Select,
@@ -154,6 +155,7 @@ const SET_MANAGER_DECISION = gql`
         $managerProofStatus: String!
         $managerProofAt: Datetime!
         $bankDeposit: Boolean!
+        $rejectionReason: String
     ) {
         updatecash_transfers_to_adminCollection(
             filter: { id: { eq: $id } }
@@ -161,6 +163,7 @@ const SET_MANAGER_DECISION = gql`
                 manager_proof_status: $managerProofStatus
                 manager_proof_at: $managerProofAt
                 bank_deposit: $bankDeposit
+                rejection_reason: $rejectionReason
             }
         ) {
             records {
@@ -168,6 +171,7 @@ const SET_MANAGER_DECISION = gql`
                 manager_proof_status
                 manager_proof_at
                 bank_deposit
+                rejection_reason
             }
         }
     }
@@ -205,6 +209,8 @@ function ManagerCashApproval() {
     const [depositTogglingId, setDepositTogglingId] = useState(null);
     const [confirmModal, setConfirmModal] = useState(null); // record being confirmed
     const [modalDeposit, setModalDeposit] = useState(false);
+    const [rejectModal, setRejectModal] = useState(null);
+    const [rejectReason, setRejectReason] = useState("");
 
     // ── Main query, scoped to this manager's branch ──
     const [loadTransfers, { data: transfersData, loading: transfersLoading, error: transfersError }] =
@@ -370,25 +376,60 @@ function ManagerCashApproval() {
     const handleConfirmSubmit = async (decision) => {
         if (!confirmModal) return;
         const isAccept = decision === "accept";
-        setConfirmSubmittingId(confirmModal.id);
+
+        if (isAccept) {
+            setConfirmSubmittingId(confirmModal.id);
+            try {
+                await setManagerDecision({
+                    variables: {
+                        id: confirmModal.id,
+                        managerProofStatus: MANAGER_PROOF.ACCEPTED,
+                        managerProofAt: dayjs().toISOString(),
+                        bankDeposit: modalDeposit,
+                        rejectionReason: null,
+                    },
+                });
+                message.success(
+                    modalDeposit
+                        ? "Cash confirmed and marked as deposited to the bank. This is now locked."
+                        : "Cash confirmed and recorded as held (not yet deposited)."
+                );
+                setConfirmModal(null);
+                refreshData();
+            } catch (err) {
+                console.error("❌ Manager decision mutation error:", err);
+                message.error("Failed to record your decision: " + err.message);
+            } finally {
+                setConfirmSubmittingId(null);
+            }
+        } else {
+            setRejectModal(confirmModal);
+            setRejectReason("");
+            setConfirmModal(null);
+        }
+    };
+
+    const handleRejectSubmit = async () => {
+        if (!rejectModal) return;
+        if (!rejectReason.trim()) {
+            message.warning("Please provide a reason for rejection.");
+            return;
+        }
+
+        setConfirmSubmittingId(rejectModal.id);
         try {
             await setManagerDecision({
                 variables: {
-                    id: confirmModal.id,
-                    managerProofStatus: isAccept ? MANAGER_PROOF.ACCEPTED : MANAGER_PROOF.REJECTED,
+                    id: rejectModal.id,
+                    managerProofStatus: MANAGER_PROOF.REJECTED,
                     managerProofAt: dayjs().toISOString(),
-                    // Reject always leaves bank_deposit false; accept uses the toggle.
-                    bankDeposit: isAccept ? modalDeposit : false,
+                    bankDeposit: false,
+                    rejectionReason: rejectReason,
                 },
             });
-            message.success(
-                isAccept
-                    ? modalDeposit
-                        ? "Cash confirmed and marked as deposited to the bank. This is now locked."
-                        : "Cash confirmed and recorded as held (not yet deposited)."
-                    : "Transfer disputed and sent back to admin."
-            );
-            setConfirmModal(null);
+            message.success("Transfer disputed and sent back to admin.");
+            setRejectModal(null);
+            setRejectReason("");
             refreshData();
         } catch (err) {
             console.error("❌ Manager decision mutation error:", err);
@@ -792,6 +833,57 @@ function ManagerCashApproval() {
                                 </Button>
                             </Space>
                         </Space>
+                    </div>
+                )}
+            </Modal>
+
+            {/* ── Reject Reason Modal ── */}
+            <Modal
+                title={
+                    <Space>
+                        <CloseCircleOutlined style={{ color: "#ff4d4f" }} />
+                        <span>Reject Transfer</span>
+                    </Space>
+                }
+                open={!!rejectModal}
+                onCancel={() => {
+                    setRejectModal(null);
+                    setRejectReason("");
+                }}
+                onOk={handleRejectSubmit}
+                okText="Reject"
+                cancelText="Cancel"
+                okButtonProps={{ danger: true, loading: confirmSubmittingId === rejectModal?.id }}
+                width={480}
+                centered
+                destroyOnClose
+            >
+                {rejectModal && (
+                    <div>
+                        <div style={{ background: "#fff1f0", border: "1px solid #ffccc7", borderRadius: 8, padding: "10px 14px", marginBottom: 20 }}>
+                            <p style={{ margin: 0 }}>
+                                Transfer <strong>#{rejectModal.id}</strong> — <strong>{formatCurrency(rejectModal.amount)}</strong>
+                            </p>
+                            <p style={{ margin: "4px 0 0", color: "#8c8c8c", fontSize: 12 }}>
+                                From {rejectModal.submittedBy} · {rejectModal.cashType}
+                            </p>
+                        </div>
+
+                        <div style={{ marginBottom: 12 }}>
+                            <Text strong>Reason for Rejection</Text>
+                            <div style={{ fontSize: 12, color: "#8c8c8c", marginTop: 4 }}>
+                                Please provide a reason why this transfer is being rejected.
+                            </div>
+                        </div>
+
+                        <Input.TextArea
+                            value={rejectReason}
+                            onChange={(e) => setRejectReason(e.target.value)}
+                            placeholder="Enter rejection reason..."
+                            rows={4}
+                            maxLength={500}
+                            showCount
+                        />
                     </div>
                 )}
             </Modal>

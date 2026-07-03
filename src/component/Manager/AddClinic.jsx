@@ -206,6 +206,7 @@ function AddClinic({ open, onClose, onAdd, mode = 'add', clinicData = null }) {
               size="large"
               style={{ width: '100%', ...disabledInputStyle }}
               format="MMMM DD, YYYY"
+              disabledDate={(d) => d && d < dayjs().startOf("day")}
             />
           </Form.Item>
 

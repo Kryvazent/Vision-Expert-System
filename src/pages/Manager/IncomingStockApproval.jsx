@@ -194,12 +194,12 @@ export default function IncomingStockApproval() {
         <Card bordered={false} style={{ borderRadius: 12, marginBottom: 20 }}>
           <Row justify="space-between" align="middle">
             <Col>
-              <Title level={2} style={{ marginBottom: 4 }}>Incoming Stocks</Title>
-              <Text type="secondary">Approve stock allocations sent to your branch</Text>
+              <Title level={2} style={{ marginBottom: 4 }}>Allocated Stock Notices</Title>
+              <Text type="secondary">Approve allocations to apply them to your branch stock</Text>
             </Col>
             <Col>
               <Card size="small" style={{ borderRadius: 10, minWidth: 160 }}>
-                <Text type="secondary">Pending Approvals</Text>
+                <Text type="secondary">Pending Notices</Text>
                 <div style={{ fontSize: 28, fontWeight: 700, color: '#1677ff' }}>{incomingCount}</div>
               </Card>
             </Col>

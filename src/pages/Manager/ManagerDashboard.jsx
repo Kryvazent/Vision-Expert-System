@@ -1,5 +1,8 @@
-import React, { useMemo } from 'react';
-import { Typography, Progress, Spin, Alert, Modal, Form, InputNumber, Button, message, Empty } from 'antd';
+import React, { useMemo } from "react";
+import {
+  Progress, Spin, Alert, Modal, Form,
+  InputNumber, Button, message, Empty, Row, Col, Card,
+} from "antd";
 import {
   TrophyOutlined,
   DollarCircleOutlined,
@@ -7,31 +10,14 @@ import {
   CheckCircleOutlined,
   RiseOutlined,
   SettingOutlined,
-} from '@ant-design/icons';
-import dayjs from 'dayjs';
-import { gql } from '@apollo/client';
-import { useQuery, useMutation } from '@apollo/client/react';
+} from "@ant-design/icons";
+import dayjs from "dayjs";
+import { gql } from "@apollo/client";
+import { useQuery, useMutation } from "@apollo/client/react";
+import { useAuth } from "../../const/functions";
 
-const { Title, Text } = Typography;
-
-// ------------------------------------------------------------------
-// Targets Supabase's pg_graphql API.
-//
-// Revenue achievement is intentionally based on DELIVERED order value
-// (order.total_price for orders whose delivery status is "Delivered"),
-// not on raw payment rows. Payments can include advances/partials on
-// orders that never end up delivered, which would inflate "achieved"
-// revenue against a target that's meant to reflect completed business.
-//
-// Target writes go through the `setBranchTarget` SQL function (see
-// migration below) instead of the generic updatebranchCollection
-// mutation. That mutation's atMost:1 safety check is evaluated against
-// filter + RLS together, and on multi-branch schemas an RLS USING
-// clause that isn't tightly scoped can make the match set exceed 1
-// row even though `id` is a primary key — producing "update impacts
-// too many records". A dedicated function does a plain
-// `UPDATE ... WHERE id = branch_id`, which can't fan out.
-// ------------------------------------------------------------------
+import PageLayout from "../../component/shared/PageLayout";
+import StatCard from "../../component/shared/StatCard";
 
 const GET_BRANCH_PERFORMANCE = gql`
   query GetBranchPerformance($branchId: Int!, $monthStart: Datetime!, $monthEnd: Datetime!) {
@@ -55,11 +41,7 @@ const GET_BRANCH_PERFORMANCE = gql`
           id
           total_price
           delivery_orderCollection {
-            edges {
-              node {
-                status
-              }
-            }
+            edges { node { status } }
           }
         }
       }
@@ -69,11 +51,7 @@ const GET_BRANCH_PERFORMANCE = gql`
 
 const SET_BRANCH_TARGET = gql`
   mutation SetBranchTarget($branchId: Int!, $revenueTarget: Float!, $orderTarget: BigInt!) {
-    setBranchTarget(
-      branchId: $branchId
-      revenueTarget: $revenueTarget
-      orderTarget: $orderTarget
-    ) {
+    setBranchTarget(branchId: $branchId, revenueTarget: $revenueTarget, orderTarget: $orderTarget) {
       id
       revenue_target
       order_target
@@ -81,276 +59,204 @@ const SET_BRANCH_TARGET = gql`
   }
 `;
 
-function formatCurrency(n) {
-  if (n === null || n === undefined) return 'LKR 0';
-  return `LKR ${Number(n).toLocaleString('en-LK', { maximumFractionDigits: 0 })}`;
-}
+const fmt = (n) => `LKR ${Number(n ?? 0).toLocaleString("en-LK", { maximumFractionDigits: 0 })}`;
+const fmtInput = (v) => (v == null || v === "" ? "" : `LKR ${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+const parseInput = (v) => (v ? v.replace(/LKR\s?|,/g, "") : "");
+const pct = (a, t) => (!t ? 0 : Math.round((a / t) * 100));
+const DELIVERED = "Delivered";
 
-// Antd InputNumber needs a matching parser whenever a formatter is used,
-// or typed input can't be converted back to a number.
-function formatRevenueInput(value) {
-  if (value === undefined || value === null || value === '') return '';
-  return `LKR ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-}
-function parseRevenueInput(value) {
-  if (!value) return '';
-  return value.replace(/LKR\s?|,/g, '');
-}
+export default function ManagerDashboard() {
+  const { staff } = useAuth();
+  const branchId = staff?.branch?.id;
 
-function pct(achieved, target) {
-  if (!target) return 0;
-  return Math.round((achieved / target) * 100);
-}
-
-const DELIVERED_STATUS = 'Delivered';
-
-// branchId: integer id from vision_expert.branch
-function ManagerDashboard({ branchId }) {
   const [targetModalOpen, setTargetModalOpen] = React.useState(false);
   const [form] = Form.useForm();
-  const now = dayjs();
-  const monthStart = now.startOf('month');
-  const monthEnd = monthStart.add(1, 'month');
+
+  const now        = dayjs();
+  const monthStart = now.startOf("month");
+  const monthEnd   = monthStart.add(1, "month");
 
   const { data, loading, error, refetch } = useQuery(GET_BRANCH_PERFORMANCE, {
-    variables: {
-      branchId,
-      monthStart: monthStart.toISOString(),
-      monthEnd: monthEnd.toISOString(),
-    },
+    variables: { branchId, monthStart: monthStart.toISOString(), monthEnd: monthEnd.toISOString() },
     skip: !branchId,
-    fetchPolicy: 'network-only',
+    fetchPolicy: "network-only",
   });
 
-  const branch = data?.branchCollection?.edges?.[0]?.node;
-  const hasTarget = branch && branch.revenue_target !== null && branch.order_target !== null;
+  const branch    = data?.branchCollection?.edges?.[0]?.node;
+  const hasTarget = branch?.revenue_target != null && branch?.order_target != null;
 
-  // Aggregate raw records into the numbers the UI needs
   const performance = useMemo(() => {
     if (!branch || !data?.orderCollection) return null;
-
     const orders = data.orderCollection.edges.map((e) => e.node);
-    const ordersAchieved = orders.length;
-
-    let revenueAchieved = 0;
-    let deliveriesAchieved = 0;
-
+    let revenueAchieved = 0, deliveriesAchieved = 0;
     orders.forEach((order) => {
-      const isDelivered = order.delivery_orderCollection.edges.some(
-        (dEdge) => dEdge.node.status === DELIVERED_STATUS
-      );
-
-      if (isDelivered) {
-        deliveriesAchieved += 1;
-        // Revenue counts only the value of orders that were actually
-        // delivered this month — not arbitrary payment/advance rows.
-        revenueAchieved += order.total_price || 0;
-      }
+      const isDelivered = order.delivery_orderCollection.edges.some((d) => d.node.status === DELIVERED);
+      if (isDelivered) { deliveriesAchieved += 1; revenueAchieved += order.total_price || 0; }
     });
-
     return {
-      revenue_target: branch.revenue_target,
-      revenue_achieved: revenueAchieved,
-      revenue_pct: pct(revenueAchieved, branch.revenue_target),
-      order_target: branch.order_target,
-      orders_achieved: ordersAchieved,
-      order_pct: pct(ordersAchieved, branch.order_target),
+      revenue_target:    branch.revenue_target,
+      revenue_achieved:  revenueAchieved,
+      revenue_pct:       pct(revenueAchieved, branch.revenue_target),
+      order_target:      branch.order_target,
+      orders_achieved:   orders.length,
+      order_pct:         pct(orders.length, branch.order_target),
       deliveries_achieved: deliveriesAchieved,
-      total_orders: ordersAchieved,
-      delivery_pct: pct(deliveriesAchieved, ordersAchieved),
+      total_orders:      orders.length,
+      delivery_pct:      pct(deliveriesAchieved, orders.length),
     };
   }, [branch, data]);
 
   const overallPct = performance
-    ? Math.round((performance.revenue_pct + performance.order_pct + performance.delivery_pct) / 3)
+    ? Math.min(Math.round((performance.revenue_pct + performance.order_pct + performance.delivery_pct) / 3), 100)
     : 0;
 
   const [setBranchTarget, { loading: savingTarget }] = useMutation(SET_BRANCH_TARGET, {
     onCompleted: (result) => {
-      if (!result?.setBranchTarget?.id) {
-        message.error('Branch target could not be saved.');
-        return;
-      }
-      message.success('Monthly target saved');
+      if (!result?.setBranchTarget?.id) { message.error("Branch target could not be saved."); return; }
+      message.success("Monthly target saved");
       setTargetModalOpen(false);
       form.resetFields();
       refetch();
     },
-    onError: (mutationError) => {
-      message.error(`Failed to save target: ${mutationError.message}`);
-    },
+    onError: (err) => message.error(`Failed to save target: ${err.message}`),
   });
 
-  function handleSaveTarget(values) {
-    setBranchTarget({
-      variables: {
-        branchId,
-        revenueTarget: values.revenue_target,
-        orderTarget: values.order_target,
-      },
-    });
-  }
+  const handleSaveTarget = (values) =>
+    setBranchTarget({ variables: { branchId, revenueTarget: values.revenue_target, orderTarget: values.order_target } });
 
-  const metrics = performance
+  // Stat cards — shown even without a target
+  const statCards = performance
     ? [
-        {
-          icon: <DollarCircleOutlined style={{ fontSize: 32, color: '#3b82f6' }} />,
-          label: 'Revenue Target',
-          displayCurrent: `${formatCurrency(performance.revenue_achieved)} /\n${formatCurrency(
-            performance.revenue_target
-          ).replace('LKR ', '')}`,
-          percent: Math.min(performance.revenue_pct, 100),
-          remaining: `Remaining: ${formatCurrency(
-            Math.max(performance.revenue_target - performance.revenue_achieved, 0)
-          )}`,
-        },
-        {
-          icon: <ShoppingOutlined style={{ fontSize: 32, color: '#22c55e' }} />,
-          label: 'Orders Target',
-          displayCurrent: `${performance.orders_achieved} / ${performance.order_target}`,
-          percent: Math.min(performance.order_pct, 100),
-          remaining: `Remaining: ${Math.max(
-            performance.order_target - performance.orders_achieved,
-            0
-          )} orders`,
-        },
-        {
-          icon: <CheckCircleOutlined style={{ fontSize: 32, color: '#a855f7' }} />,
-          label: 'Deliveries',
-          displayCurrent: `${performance.deliveries_achieved} / ${performance.total_orders}`,
-          percent: Math.min(performance.delivery_pct, 100),
-          remaining: `Remaining: ${Math.max(
-            performance.total_orders - performance.deliveries_achieved,
-            0
-          )} to deliver`,
-        },
+        { title: "Revenue Achieved",  value: fmt(performance.revenue_achieved),   icon: <DollarCircleOutlined />, accent: "#1677ff",  subtitle: `Target: ${fmt(performance.revenue_target)}` },
+        { title: "Orders This Month", value: performance.orders_achieved,          icon: <ShoppingOutlined />,    accent: "#52c41a",  subtitle: `Target: ${performance.order_target} orders` },
+        { title: "Deliveries Made",   value: performance.deliveries_achieved,      icon: <CheckCircleOutlined />, accent: "#722ed1",  subtitle: `${performance.delivery_pct}% of orders` },
+        { title: "Overall Progress",  value: `${overallPct}%`,                     icon: <RiseOutlined />,        accent: "#faad14",  subtitle: "Avg across all targets" },
       ]
     : [];
 
+  const metrics = performance
+    ? [
+        { icon: <DollarCircleOutlined style={{ fontSize: 28, color: "#1677ff" }} />, label: "Revenue Target",  display: `${fmt(performance.revenue_achieved)} / ${fmt(performance.revenue_target).replace("LKR ", "")}`, pct: Math.min(performance.revenue_pct, 100), remaining: `Remaining: ${fmt(Math.max(performance.revenue_target - performance.revenue_achieved, 0))}`, color: "#1677ff" },
+        { icon: <ShoppingOutlined     style={{ fontSize: 28, color: "#52c41a" }} />, label: "Orders Target",   display: `${performance.orders_achieved} / ${performance.order_target}`,                                   pct: Math.min(performance.order_pct, 100),    remaining: `Remaining: ${Math.max(performance.order_target - performance.orders_achieved, 0)} orders`,      color: "#52c41a" },
+        { icon: <CheckCircleOutlined  style={{ fontSize: 28, color: "#722ed1" }} />, label: "Deliveries",      display: `${performance.deliveries_achieved} / ${performance.total_orders}`,                                pct: Math.min(performance.delivery_pct, 100), remaining: `Remaining: ${Math.max(performance.total_orders - performance.deliveries_achieved, 0)} to deliver`, color: "#722ed1" },
+      ]
+    : [];
+
+  const editBtn = (
+    <Button icon={<SettingOutlined />} onClick={() => setTargetModalOpen(true)}>
+      {hasTarget ? "Edit Target" : "Set Target"}
+    </Button>
+  );
+
   return (
-    <div className="bg-gray-100 p-10">
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
-          <div className="flex items-center gap-3">
-            <TrophyOutlined style={{ fontSize: 24, color: '#f59e0b' }} />
-            <h2 className="text-xl font-semibold text-gray-800 m-0">
-              Monthly Performance - {now.format('MMMM YYYY')}
-            </h2>
-          </div>
-          <Button icon={<SettingOutlined />} onClick={() => setTargetModalOpen(true)}>
-            {hasTarget ? 'Edit Target' : 'Set Target'}
-          </Button>
-        </div>
+    <PageLayout
+      title={`Monthly Performance — ${now.format("MMMM YYYY")}`}
+      subtitle="Branch targets vs. achievements for the current month"
+      extra={editBtn}
+    >
+      {loading && (
+        <div className="ve-loading-center"><Spin size="large" /></div>
+      )}
 
-        {loading && (
-          <div className="flex justify-center py-16">
-            <Spin size="large" />
-          </div>
-        )}
+      {!loading && error && (
+        <Alert type="error" message="Failed to load performance data" description={error.message} showIcon />
+      )}
 
-        {!loading && error && (
-          <Alert
-            type="error"
-            message="Failed to load performance data"
-            description={error.message}
-            showIcon
-          />
-        )}
-
-        {!loading && !error && !hasTarget && (
-          <Empty description={`No target set for ${now.format('MMMM YYYY')} yet.`} className="py-12">
+      {!loading && !error && !hasTarget && (
+        <Card>
+          <Empty description={`No target set for ${now.format("MMMM YYYY")} yet.`} style={{ padding: "48px 0" }}>
             <Button type="primary" onClick={() => setTargetModalOpen(true)}>
               Set Monthly Target
             </Button>
           </Empty>
-        )}
+        </Card>
+      )}
 
-        {!loading && !error && hasTarget && performance && (
-          <>
-            <div className="grid grid-cols-3 gap-5 mb-8">
-              {metrics.map((metric, i) => (
-                <div
-                  key={i}
-                  className="flex flex-col items-center text-center p-5 bg-gray-100 rounded-xl border border-gray-200 w-full"
-                  style={{ minHeight: 200 }}
-                >
-                  <div className="mb-3">{metric.icon}</div>
-                  <p className="text-sm text-gray-500 mb-2">{metric.label}</p>
-                  <p className="text-base font-bold text-gray-800 mb-3 whitespace-pre-line leading-snug">
-                    {metric.displayCurrent}
-                  </p>
-                  <div className="w-full mb-2">
-                    <Progress
-                      percent={metric.percent}
-                      strokeColor="#3b82f6"
-                      trailColor="#d1d5db"
-                      size="small"
-                      format={(p) => <span className="text-xs text-gray-600 font-medium">{p}%</span>}
-                    />
+      {!loading && !error && hasTarget && performance && (
+        <>
+          {/* Stat summary cards */}
+          <Row gutter={[16, 16]}>
+            {statCards.map((c) => (
+              <Col xs={24} sm={12} xl={6} key={c.title}>
+                <StatCard {...c} />
+              </Col>
+            ))}
+          </Row>
+
+          {/* Detailed progress bars */}
+          <Row gutter={[16, 16]} className="mt-5">
+            {metrics.map((m, i) => (
+              <Col xs={24} md={8} key={i}>
+                <Card>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 8 }}>
+                    {m.icon}
+                    <p style={{ fontWeight: 600, margin: 0, fontSize: 14 }}>{m.label}</p>
+                    <p style={{ fontWeight: 700, margin: 0, fontSize: 16, whiteSpace: "pre-line", lineHeight: 1.4 }}>
+                      {m.display}
+                    </p>
+                    <div style={{ width: "100%" }}>
+                      <Progress
+                        percent={m.pct}
+                        strokeColor={m.color}
+                        trailColor="#e8e8e8"
+                        size="small"
+                        format={(p) => <span style={{ fontSize: 12, color: "var(--ve-text-muted)" }}>{p}%</span>}
+                      />
+                    </div>
+                    <p style={{ margin: 0, fontSize: 12, color: "var(--ve-text-muted)" }}>{m.remaining}</p>
                   </div>
-                  <p className="text-xs text-gray-400 m-0">{metric.remaining}</p>
-                </div>
-              ))}
-            </div>
+                </Card>
+              </Col>
+            ))}
+          </Row>
 
-            {/* Overall Performance */}
-            <div className="bg-blue-50 rounded-xl px-6 py-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <RiseOutlined style={{ fontSize: 20, color: '#3b82f6' }} />
-                <div>
-                  <p className="font-semibold text-gray-800 m-0">Overall Performance</p>
-                  <p className="text-sm text-gray-500 m-0">Average achievement across all targets</p>
+          {/* Overall bar */}
+          <Row className="mt-5">
+            <Col span={24}>
+              <Card>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <RiseOutlined style={{ fontSize: 22, color: "#1677ff" }} />
+                    <div>
+                      <p style={{ fontWeight: 600, margin: 0 }}>Overall Performance</p>
+                      <p style={{ fontSize: 13, color: "var(--ve-text-muted)", margin: 0 }}>
+                        Average achievement across all targets
+                      </p>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 40, fontWeight: 700, color: "#1677ff" }}>{overallPct}%</span>
                 </div>
-              </div>
-              <span className="text-4xl font-bold text-blue-500">{Math.min(overallPct, 100)}%</span>
-            </div>
-          </>
-        )}
-      </div>
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
 
-      {/* Set/Edit Target Modal */}
+      {/* Set / Edit Target Modal */}
       <Modal
-        title={`Set Target - ${now.format('MMMM YYYY')}`}
+        title={`Set Target — ${now.format("MMMM YYYY")}`}
         open={targetModalOpen}
         onCancel={() => setTargetModalOpen(false)}
         onOk={() => form.submit()}
         confirmLoading={savingTarget}
         okText="Save Target"
+        centered
       >
         <Form
           form={form}
           layout="vertical"
           onFinish={handleSaveTarget}
-          initialValues={{
-            revenue_target: branch?.revenue_target,
-            order_target: branch?.order_target,
-          }}
+          initialValues={{ revenue_target: branch?.revenue_target, order_target: branch?.order_target }}
+          style={{ marginTop: 8 }}
         >
-          <Form.Item
-            label="Revenue Target (LKR)"
-            name="revenue_target"
-            rules={[{ required: true, message: 'Revenue target is required' }]}
-          >
-            <InputNumber
-              min={0}
-              step={1000}
-              style={{ width: '100%' }}
-              formatter={formatRevenueInput}
-              parser={parseRevenueInput}
-            />
+          <Form.Item label="Revenue Target (LKR)" name="revenue_target" rules={[{ required: true, message: "Revenue target is required" }]}>
+            <InputNumber min={0} step={1000} style={{ width: "100%" }} formatter={fmtInput} parser={parseInput} />
           </Form.Item>
-          <Form.Item
-            label="Orders Target"
-            name="order_target"
-            rules={[{ required: true, message: 'Orders target is required' }]}
-          >
-            <InputNumber min={0} style={{ width: '100%' }} />
+          <Form.Item label="Orders Target" name="order_target" rules={[{ required: true, message: "Orders target is required" }]}>
+            <InputNumber min={0} style={{ width: "100%" }} />
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </PageLayout>
   );
 }
-
-export default ManagerDashboard;

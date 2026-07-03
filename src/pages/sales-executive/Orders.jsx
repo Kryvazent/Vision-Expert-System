@@ -1,10 +1,10 @@
-import { EyeOutlined, SearchOutlined } from "@ant-design/icons";
-import { Button, Card, Col, Input, Modal, Row, Space, Tag } from "antd";
+import { EyeOutlined, SearchOutlined, StopOutlined } from "@ant-design/icons";
+import { Button, Card, Col, Input, Modal, Row, Space, Tag, message } from "antd";
 import CustomTable from "../../component/optimetrist/dashboard/CustomTable";
 import { useEffect, useState } from "react";
 import { SpectacleVisualization } from "../../component/sales-executive/dashboard/SpectacleVisualization";
 import { gql } from "@apollo/client";
-import { useLazyQuery } from "@apollo/client/react";
+import { useLazyQuery, useMutation } from "@apollo/client/react";
 import {
   getOrderStatusLabel,
   normalizeOrderStatus,
@@ -16,8 +16,47 @@ function Orders() {
   const [selectedPrescription, setSelectedPrescription] = useState(null);
   const [searchText, setSearchText] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [cancelModalVisible, setCancelModalVisible] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
 
   const { staff } = useAuth();
+
+  // Cancel order mutation
+  const CANCEL_ORDER = gql`
+    mutation cancelOrder($orderId: BigInt!) {
+      updateorderCollection(
+        filter: { id: { eq: $orderId } }
+        set: { order_status_id: 5 }
+      ) {
+        records {
+          id
+          order_status {
+            id
+            status
+          }
+        }
+      }
+    }
+  `;
+
+  const [cancelOrder, { loading: cancelLoading }] = useMutation(CANCEL_ORDER);
+
+  const handleCancelOrder = async () => {
+    if (!orderToCancel) return;
+    try {
+      await cancelOrder({ variables: { orderId: orderToCancel.orderId } });
+      message.success(`Order #${orderToCancel.orderId} cancelled successfully`);
+      setCancelModalVisible(false);
+      setOrderToCancel(null);
+      // Refresh orders
+      if (staff?.branch?.id) {
+        getOrders({ variables: { branchId: staff?.branch?.id } });
+      }
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      message.error("Failed to cancel order: " + error.message);
+    }
+  };
 
   const columns = [
     {
@@ -104,38 +143,54 @@ function Orders() {
       title: "Action",
       key: "action",
       render: (_, record) => (
-        <Button
-          size="small"
-          type="link"
-          icon={<EyeOutlined />}
-          onClick={() => {
-            const mappedPrescription = {
-              id: record.orderId,
-              optometrist: "",
-              customerName: record.customerName,
-              date: record.orderDate,
-              pd: record.pd || "",
-              notes: record.notes || "",
-              rightEye: {
-                sphere: record.rightSphere || "-",
-                cylinder: record.rightCylinder || "-",
-                axis: record.rightAxis || "-",
-                add: record.rightAdd || "0.00",
-              },
-              leftEye: {
-                sphere: record.leftSphere || "-",
-                cylinder: record.leftCylinder || "-",
-                axis: record.leftAxis || "-",
-                add: record.leftAdd || "0.00",
-              },
-            };
+        <Space>
+          <Button
+            size="small"
+            type="link"
+            icon={<EyeOutlined />}
+            onClick={() => {
+              const mappedPrescription = {
+                id: record.orderId,
+                optometrist: "",
+                customerName: record.customerName,
+                date: record.orderDate,
+                pd: record.pd || "",
+                notes: record.notes || "",
+                rightEye: {
+                  sphere: record.rightSphere || "-",
+                  cylinder: record.rightCylinder || "-",
+                  axis: record.rightAxis || "-",
+                  add: record.rightAdd || "0.00",
+                },
+                leftEye: {
+                  sphere: record.leftSphere || "-",
+                  cylinder: record.leftCylinder || "-",
+                  axis: record.leftAxis || "-",
+                  add: record.leftAdd || "0.00",
+                },
+              };
 
-            setSelectedPrescription(mappedPrescription);
-            setShowPrescriptionModal(true);
-          }}
-        >
-          View Prescription
-        </Button>
+              setSelectedPrescription(mappedPrescription);
+              setShowPrescriptionModal(true);
+            }}
+          >
+            View Prescription
+          </Button>
+          {record.orderStatusKey !== "canceled" && record.orderStatusKey !== "completed" && (
+            <Button
+              size="small"
+              type="link"
+              danger
+              icon={<StopOutlined />}
+              onClick={() => {
+                setOrderToCancel(record);
+                setCancelModalVisible(true);
+              }}
+            >
+              Cancel Order
+            </Button>
+          )}
+        </Space>
       ),
     },
   ];
@@ -484,6 +539,30 @@ function Orders() {
       >
         {selectedPrescription && (
           <SpectacleVisualization prescription={selectedPrescription} />
+        )}
+      </Modal>
+
+      <Modal
+        title="Cancel Order"
+        open={cancelModalVisible}
+        onOk={handleCancelOrder}
+        onCancel={() => {
+          setCancelModalVisible(false);
+          setOrderToCancel(null);
+        }}
+        okText="Yes, Cancel"
+        cancelText="No"
+        okButtonProps={{ danger: true, loading: cancelLoading }}
+        centered
+      >
+        {orderToCancel && (
+          <div>
+            <p>Are you sure you want to cancel order <strong>#{orderToCancel.orderId}</strong>?</p>
+            <p style={{ color: "#666", marginTop: 8 }}>
+              Customer: {orderToCancel.customerName}<br />
+              Total Amount: Rs. {orderToCancel.totalPayment}
+            </p>
+          </div>
         )}
       </Modal>
     </>
