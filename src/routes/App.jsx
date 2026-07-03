@@ -33,7 +33,8 @@ import AdminCashHandling from '../pages/AdministrativeOfficer/AdminCashHandling'
 
 import ManagerDashboard from './../pages/Manager/ManagerDashboard';
 import ClinicDetails from './../pages/Manager/ClinicDetails';
-import ManagerStockManagement from './../pages/Manager/ManagerStockManagement';
+import BranchStockManagement from './../pages/Manager/BranchStockManagement';
+import IncomingStockApproval from './../pages/Manager/IncomingStockApproval';
 import CashHandling from './../pages/Manager/CashHandling';
 import PettyCash from './../pages/Manager/PettyCash';
 import PendingLabOrders from './../pages/Manager/PendingLabOrders';
@@ -427,7 +428,13 @@ function App() {
 
       <Route path="/stock-management" element={
         <Page roles={["manager"]}>
-          <InventoryManagement />
+          <BranchStockManagement />
+        </Page>
+      } />
+
+      <Route path="/incoming-stock-approval" element={
+        <Page roles={["manager"]}>
+          <IncomingStockApproval />
         </Page>
       } />
 
@@ -474,9 +481,9 @@ function App() {
         </Page>
       } />
 
-      {/* Admin */}
+      {/* Owner */}
       <Route path="/main-stock" element={
-        <Page roles={["admin"]}>
+        <Page roles={["owner"]}>
           <MainStockHandling />
         </Page>
       } />

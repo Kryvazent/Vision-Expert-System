@@ -1032,7 +1032,6 @@ export default function MainStockHandling() {
         children: (
           <DistributionHistoryTable
             data={distributionList}
-            onApprove={handleApproveDistribution}
           />
         ),
       },

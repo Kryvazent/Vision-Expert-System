@@ -54,7 +54,6 @@ export const MENU_BY_ROLE = {
     { key: '/petty-cash-handling', icon: <TransactionOutlined />,   label: 'Petty Cash Handling' },
     //{ key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
     { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
-    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
     { key: '/cash-approval-admin', icon:  <TransactionOutlined />,   label: 'Cash Approval' },
     
 
@@ -83,6 +82,7 @@ export const MENU_BY_ROLE = {
     { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
     { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
     { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
+    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
 
     
     
@@ -94,7 +94,8 @@ export const MENU_BY_ROLE = {
     { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
     { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
     { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
-    { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Stock Management' },
+    { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Branch Stock Management' },
+    { key: '/incoming-stock-approval', icon: <ClockCircleOutlined />,   label: 'Incoming Stock Approval' },
     { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
     { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },

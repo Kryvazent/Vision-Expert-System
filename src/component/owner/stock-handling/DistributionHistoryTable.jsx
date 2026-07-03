@@ -104,7 +104,10 @@ export default function DistributionHistoryTable({data, onApprove}) {
             width: 160,
             render: (val) => <StatusBadge status={val} />,
         },
-        {
+    ]
+
+    if (onApprove) {
+        columns.push({
             title: 'Action',
             key: 'action',
             width: 140,
@@ -118,8 +121,8 @@ export default function DistributionHistoryTable({data, onApprove}) {
                     {record.status === 'Approved' ? 'Approved' : 'Approve'}
                 </Button>
             ),
-        },
-    ]
+        })
+    }
   return (
     <div>
         {/* Filters */}
