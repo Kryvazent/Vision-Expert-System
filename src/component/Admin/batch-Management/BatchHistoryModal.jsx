@@ -58,6 +58,51 @@ const LOAD_REMINDER_CALLS_FOR_ORDERS = gql`
   }
 `;
 
+const LOAD_BATCH_CUSTOMERS = gql`
+  query LoadBatchCustomers($branchId: ID!) {
+    customerCollection {
+      edges {
+        node {
+          id
+          first_name
+          last_name
+          customer_has_branchCollection(filter: { branch_id: { eq: $branchId } }) {
+            edges {
+              node {
+                id
+                branch {
+                  id
+                  branch_name
+                }
+                clinic_attend_customerCollection {
+                  edges {
+                    node {
+                      id
+                      clinic {
+                        id
+                        branch_id
+                        date
+                      }
+                      orderCollection {
+                        edges {
+                          node {
+                            id
+                            placed_at
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 
 const parseDate = (str) => {
   if (!str) return null
@@ -126,6 +171,20 @@ const renderCallCell = (callRecord, statusField, reasonField, customField) => {
   )
 }
 
+const extractCustomerName = (orderNode) => {
+  const directCustomer = orderNode?.clinic_attend_customer?.customer
+  if (directCustomer) {
+    return `${directCustomer.first_name || ''} ${directCustomer.last_name || ''}`.trim() || 'Unknown'
+  }
+
+  const branchCustomer = orderNode?.clinic_attend_customer?.customer_has_branch?.customer
+  if (branchCustomer) {
+    return `${branchCustomer.first_name || ''} ${branchCustomer.last_name || ''}`.trim() || 'Unknown'
+  }
+
+  return 'Unknown'
+}
+
 
 export default function BatchHistoryModal({ open, onClose, batch, onRefetch }) {
 
@@ -148,6 +207,12 @@ export default function BatchHistoryModal({ open, onClose, batch, onRefetch }) {
     fetchPolicy: 'network-only',
   })
 
+  const { data: batchCustomerData } = useQuery(LOAD_BATCH_CUSTOMERS, {
+    variables: { branchId: batch?.branchId },
+    skip: !open || orderIds.length === 0 || !batch?.branchId,
+    fetchPolicy: 'network-only',
+  })
+
 
   const reminderMap = useMemo(() => {
   const map = {}
@@ -156,6 +221,26 @@ export default function BatchHistoryModal({ open, onClose, batch, onRefetch }) {
   })
   return map
 }, [reminderData])
+
+  const customerMap = useMemo(() => {
+    const map = {}
+    const allowedOrderIds = new Set(orderIds.map(String))
+
+    batchCustomerData?.customerCollection?.edges?.forEach(({ node: customer }) => {
+      const customerName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown'
+
+      customer.customer_has_branchCollection?.edges?.forEach(({ node: branch }) => {
+        branch.clinic_attend_customerCollection?.edges?.forEach(({ node: clinicAttend }) => {
+          clinicAttend.orderCollection?.edges?.forEach(({ node: orderNode }) => {
+            if (!allowedOrderIds.has(String(orderNode.id))) return
+            map[String(orderNode.id)] = customerName
+          })
+        })
+      })
+    })
+
+    return map
+  }, [batchCustomerData, orderIds])
 
 
   useEffect(() => {
@@ -234,7 +319,13 @@ export default function BatchHistoryModal({ open, onClose, batch, onRefetch }) {
     },
     {
       title: 'Customer', dataIndex: 'customer', width: 160,
-      render: (name) => <Space><UserOutlined /><Text>{name}</Text></Space>,
+      render: (name, record) => {
+        const resolvedName = name && name !== '—'
+          ? name
+          : customerMap[String(record.id)] || 'Unknown'
+
+        return <Space><UserOutlined /><Text>{resolvedName}</Text></Space>
+      },
     },
     {
       title: 'Placed Date', dataIndex: 'placed', width: 120,

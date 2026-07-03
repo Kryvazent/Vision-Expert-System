@@ -212,6 +212,15 @@ function App() {
         }
       />
 
+       <Route
+        path="/customer-lookup-details"
+        element={
+          <Page roles={["admin"]}>
+            <CustomerDetails />
+          </Page>
+        }
+      />
+
 
       {/* Accountant */}
       <Route
@@ -335,13 +344,15 @@ function App() {
 
        {/* Admin */}
       <Route
-        path="/admin-cash-handling"
+        path="/cash-approval-admin"
         element={
           <Page roles={["admin"]}>
-            <AdminCashHandling />
+            <AdminCashTransferApproval />
           </Page>
         }
       />
+
+      
 
 
        {/* Owner */}
@@ -482,7 +493,11 @@ function App() {
         </Page>
       } />
 
-
+      <Route path="/clinic-details" element={
+        <Page roles={["admin"]}>
+          <ClinicDetails />
+        </Page>
+      } />
 
       <Route
         path="/sales-reports"

@@ -26,7 +26,7 @@ import order from "../../assets/icons/sales-executive/order.png";
 import active from "../../assets/icons/sales-executive/active-order.png";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
-import { useAuth } from "../../const/functions";
+import { getOrderStatusLabel, normalizeOrderStatus, useAuth } from "../../const/functions";
 
 function SalesExecutiveDashboard() {
   const [messageApi, contextHolder] = message.useMessage();
@@ -35,19 +35,19 @@ function SalesExecutiveDashboard() {
   const { staff } = useAuth();
 
   const statusColors = {
-    Active: "green",
-    Hold: "orange",
-    Cancelled: "red",
-    Completed: "green",
-    Pending: "blue",
+    active: "green",
+    hold: "orange",
+    canceled: "red",
+    completed: "green",
+    pending: "blue",
   };
 
   const statusStrokeColors = {
-    Active: "#52c41a",
-    Hold: "#faad14",
-    Cancelled: "#ff4d4f",
-    Completed: "#52c41a",
-    Pending: "#1677ff",
+    active: "#52c41a",
+    hold: "#faad14",
+    canceled: "#ff4d4f",
+    completed: "#52c41a",
+    pending: "#1677ff",
   };
 
   // ── Load Orders Query ──
@@ -136,6 +136,7 @@ function SalesExecutiveDashboard() {
                     contactNo: customer.contact_no,
                     amount: orderNode.total_price ?? 0,
                     status: orderNode.order_status?.status ?? "Unknown",
+                    statusKey: normalizeOrderStatus(orderNode.order_status?.status),
                     createdAt: orderNode.placed_at
                       ? new Date(orderNode.placed_at).toLocaleDateString(
                         "en-LK"
@@ -158,7 +159,7 @@ function SalesExecutiveDashboard() {
     return result;
   }, [orderData]);
 
-  const canHold = (status) => status.toLowerCase() === "pending";
+  const canHold = (status) => normalizeOrderStatus(status) === "pending";
 
   const formatCurrency = (value) =>
     new Intl.NumberFormat("en-LK", {
@@ -168,20 +169,20 @@ function SalesExecutiveDashboard() {
     }).format(value);
 
   const totalOrders = orders.length;
-  const newOrders = orders.filter((o) => o.status.toLowerCase() === "pending").length;
-  const activeOrders = orders.filter((o) => o.status.toLowerCase() === "active").length;
-  const cancelledOrders = orders.filter((o) => o.status.toLowerCase() === "cancelled").length;
-  const holdOrders = orders.filter((o) => o.status.toLowerCase() === "hold").length;
+  const newOrders = orders.filter((o) => o.statusKey === "pending").length;
+  const activeOrders = orders.filter((o) => o.statusKey === "active").length;
+  const cancelledOrders = orders.filter((o) => o.statusKey === "canceled").length;
+  const holdOrders = orders.filter((o) => o.statusKey === "hold").length;
 
   const totalRevenue = orders
-    .filter((o) => o.status.toLowerCase() === "active" || o.status.toLowerCase() === "completed")
+    .filter((o) => o.statusKey === "active" || o.statusKey === "completed")
     .reduce((sum, o) => sum + o.amount, 0);
 
   // ── Filtered Orders ──
   const filteredOrders = useMemo(() => {
     if (filterStatus === "All") return orders;
     return orders.filter(
-      (o) => o.status.toLowerCase() === filterStatus.toLowerCase()
+      (o) => o.statusKey === normalizeOrderStatus(filterStatus)
     );
   }, [filterStatus, orders]);
 
@@ -296,7 +297,10 @@ function SalesExecutiveDashboard() {
       title: "Status",
       dataIndex: "status",
       key: "status",
-      render: (v) => <Tag color={statusColors[v] || "blue"}>{v}</Tag>,
+      render: (v) => {
+        const statusKey = normalizeOrderStatus(v);
+        return <Tag color={statusColors[statusKey] || "blue"}>{getOrderStatusLabel(v)}</Tag>;
+      },
     },
     {
       title: "Order Date",
@@ -452,7 +456,7 @@ function SalesExecutiveDashboard() {
                 { label: "Active", value: activeOrders },
                 { label: "Pending", value: newOrders },
                 { label: "Hold", value: holdOrders },
-                { label: "Cancelled", value: cancelledOrders },
+                { label: "Canceled", value: cancelledOrders },
               ].map((item) => {
                 const percent = totalOrders
                   ? Math.round((item.value / totalOrders) * 100)
@@ -467,7 +471,7 @@ function SalesExecutiveDashboard() {
                       }}
                     >
                       <Tag
-                        color={statusColors[item.label] || "blue"}
+                        color={statusColors[normalizeOrderStatus(item.label)] || "blue"}
                         style={{ margin: 0 }}
                       >
                         {item.label}
@@ -480,7 +484,7 @@ function SalesExecutiveDashboard() {
                       percent={percent}
                       showInfo={false}
                       strokeWidth={8}
-                      strokeColor={statusStrokeColors[item.label] || "#1677ff"}
+                      strokeColor={statusStrokeColors[normalizeOrderStatus(item.label)] || "#1677ff"}
                       trailColor="#f0f0f0"
                     />
                   </Col>
@@ -503,7 +507,7 @@ function SalesExecutiveDashboard() {
             }}
             extra={
               <Space wrap>
-                {["All", "Active", "Pending", "Hold", "Cancelled"].map(
+                {["All", "Active", "Pending", "Hold", "Completed", "Canceled"].map(
                   (status) => (
                     <Button
                       key={status}

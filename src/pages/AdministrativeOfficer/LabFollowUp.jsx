@@ -17,6 +17,8 @@ const {Content} = Layout
 const {RangePicker} = DatePicker
 
 const STATUS_OPTIONS = ['All Status', 'Sent to Lab', 'In Progress', 'Received', 'Delayed'];
+const SENT_TO_LAB_DELAY_DAYS = 2;
+const LAB_TURNAROUND_DAYS = 7;
 
 const LOAD_LAB_FOLLOW_UP = gql `
     query LoadLabFollowUp{
@@ -353,17 +355,16 @@ export default function LabFollowUp() {
         )
         .map(({ node }) => {
             const placedDate = dayjs(node.placed_at);
+            const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
 
             return {
                 id: `temp-${node.id}`, // CHANGED
                 orderId: Number(node.id),
                 clinicCenter:
                     node.clinic_attend_customer?.clinic?.venue || "",
-                sentToLab: placedDate
-                    .add(2, "day")
-                    .format("YYYY-MM-DD"),
-                expectedReturn: placedDate
-                    .add(9, "day")
+                sentToLab: sentToLabDate.format("YYYY-MM-DD"),
+                expectedReturn: sentToLabDate
+                    .add(LAB_TURNAROUND_DAYS, "day")
                     .format("YYYY-MM-DD"),
                 receivedDate: null,
                 note: "",
@@ -405,13 +406,14 @@ useEffect(() => {
             await Promise.all(
                 newOrdersToInsert.map(({ node }) => {
                     const placedDate = dayjs(node.placed_at);
+                    const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
                     return InsertLabFollowUp({
                         variables: {
                             order_id: Number(node.id),
                             clinic_id: Number(node.clinic_attend_customer.clinic_id),
                             branch_id: Number(branchId),
-                            sent_to_lab_date: placedDate.add(2, "day").format("YYYY-MM-DD"),
-                            expected_return_date: placedDate.add(9, "day").format("YYYY-MM-DD"),
+                            sent_to_lab_date: sentToLabDate.format("YYYY-MM-DD"),
+                            expected_return_date: sentToLabDate.add(LAB_TURNAROUND_DAYS, "day").format("YYYY-MM-DD"),
                         }
                     });
                 })
@@ -452,6 +454,7 @@ useEffect(() => {
             if (!node.id || !node?.clinic_attend_customer?.clinic_id) return null;
 
             const placedDate = dayjs(node.placed_at);
+            const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
 
             return {
                 orderId: Number(node.id),
@@ -461,10 +464,8 @@ useEffect(() => {
                     "Unknown Clinic",
 
                 placedAt: placedDate,
-                sentToLabDate: placedDate.add(2, "day"),
-                expectedReturnDate: placedDate
-                    .add(2, "day")
-                    .add(7, "day")
+                sentToLabDate: sentToLabDate,
+                expectedReturnDate: sentToLabDate.add(LAB_TURNAROUND_DAYS, "day")
             };
         })
         .filter(Boolean);

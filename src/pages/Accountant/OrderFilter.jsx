@@ -3,6 +3,7 @@ import { SearchOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
+import { getOrderStatusLabel, normalizeOrderStatus } from "../../const/functions";
 
 export default function OrderFilter() {
   const [searchValue, setSearchValue] = useState("");
@@ -100,6 +101,7 @@ export default function OrderFilter() {
         remaining: remaining,
 
         status: order?.order_status?.status || "Pending",
+        statusKey: normalizeOrderStatus(order?.order_status?.status || "Pending"),
 
         payment: remaining <= 0 ? "Completed" : "Pending",
       };
@@ -207,8 +209,9 @@ export default function OrderFilter() {
 
       render: (status) => {
         let style = "bg-gray-100 text-gray-700";
+        const normalizedStatus = normalizeOrderStatus(status);
 
-        switch (status?.toLowerCase()) {
+        switch (normalizedStatus) {
           case "completed":
             style = "bg-green-100 text-green-700";
             break;
@@ -226,13 +229,14 @@ export default function OrderFilter() {
             break;
 
           case "canceled":
+          case "cancelled":
             style = "bg-red-100 text-red-700";
             break;
         }
 
         return (
           <span className={`${style} px-3 py-1 rounded font-medium`}>
-            {status}
+            {getOrderStatusLabel(status)}
           </span>
         );
       },

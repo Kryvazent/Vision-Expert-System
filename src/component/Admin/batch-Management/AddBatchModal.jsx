@@ -163,6 +163,7 @@ export default function AddBatchModal({ open, onClose, onAddBatch, branchList = 
           <DatePicker
             style={{ width: '100%' }}
             format="YYYY-MM-DD"
+            onChange={handleLoadOrders}
           />
         </Form.Item>
 

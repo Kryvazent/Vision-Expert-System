@@ -11,28 +11,42 @@ const { Title, Text } = Typography
 const { Content } = Layout
 
 const LOAD_AVAILABLE_ORDERS = gql`
-  query LoadAvailableOrders {
-    orderCollection(
-      orderBy: [{ placed_at: AscNullsLast }]
-    ) {
+  query LoadAvailableOrders($branchId: ID!) {
+    customerCollection {
       edges {
         node {
           id
-          placed_at
-
-          clinic_attend_customer {
-            clinic{
-              branch_id
-            }
-            customer_has_branch {
-              branch {
+          first_name
+          last_name
+          customer_has_branchCollection(filter: { branch_id: { eq: $branchId } }) {
+            edges {
+              node {
                 id
-                branch_name
-              }
-              customer { 
-                first_name 
-                last_name 
+                branch {
+                  id
+                  branch_name
                 }
+                clinic_attend_customerCollection {
+                  edges {
+                    node {
+                      id
+                      clinic {
+                        id
+                        branch_id
+                        date
+                      }
+                      orderCollection {
+                        edges {
+                          node {
+                            id
+                            placed_at
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -50,8 +64,6 @@ const LOAD_REMINDER_CALLS = gql`
           order_id
           before_lab_reason
           before_lab_status
-          before_delivery_reason
-          before_delivery_status
         }
       }
     }
@@ -216,6 +228,20 @@ const addDays = (dateStr, days) => {
   return d.toISOString().split('T')[0]
 }
 
+const extractCustomerName = (orderNode) => {
+  const customer = orderNode?.clinic_attend_customer?.customer_has_branch?.customer
+  if (customer) {
+    return `${customer.first_name || ''} ${customer.last_name || ''}`.trim()
+  }
+
+  const directCustomer = orderNode?.clinic_attend_customer?.customer
+  if (directCustomer) {
+    return `${directCustomer.first_name || ''} ${directCustomer.last_name || ''}`.trim()
+  }
+
+  return 'Unknown'
+}
+
 const normalizeReminderValue = (value = '') => String(value).toLowerCase().trim().replace(/[^a-z0-9]+/g, '')
 
 const isBeforeLabReady = (callRecord) => {
@@ -299,6 +325,24 @@ const stepMap = {
   'Delivered':                     { step: 6 },
 }
 
+const LAB_TURNAROUND_DAYS = 7
+
+const addDaysToYmd = (value, days) => {
+  if (!value) return null
+
+  const [year, month, day] = String(value).split('-').map(Number)
+  if (!year || !month || !day) return value
+
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + days)
+
+  const nextYear = date.getFullYear()
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0')
+  const nextDay = String(date.getDate()).padStart(2, '0')
+
+  return `${nextYear}-${nextMonth}-${nextDay}`
+}
+
 const transformBatch = (node) => {
   const timeline = node.batch_timeline || {}
 
@@ -310,11 +354,23 @@ const transformBatch = (node) => {
     step1: { intended: e.node.step1_intended, actual: e.node.step1_actual },
     step2: { intended: e.node.step2_intended, actual: e.node.step2_actual },
     step3: { intended: e.node.step3_intended, actual: e.node.step3_actual },
-    step4: { intended: e.node.step4_intended, actual: e.node.step4_actual },
+    step4: {
+      intended: e.node.step3_intended
+        ? addDays(e.node.step3_intended, 7)
+        : e.node.step4_intended,
+      actual: e.node.step4_actual,
+    },
     step5: { intended: e.node.step5_intended, actual: e.node.step5_actual },
     step6: { intended: e.node.step6_intended, actual: e.node.step6_actual },
     _batchOrderId: e.node.id,
   })) || []
+
+  const firstOrder = orders[0] || {}
+  const deliveredToLabIntended = firstOrder.step3?.intended || timeline.delivered_to_lab_intended || null
+  const receivedFromLabIntended = firstOrder.step4?.intended
+    || addDays(deliveredToLabIntended, 7)
+    || timeline.received_from_lab_intended
+    || null
 
   return {
     key: String(node.id),
@@ -327,18 +383,20 @@ const transformBatch = (node) => {
     currentStep:   node.current_step,
     createdAt:     node.created_at,
     batchLevelTracking: {
+      deliveredToLabDate: deliveredToLabIntended,
       deliveredToLab: {
-        intended: timeline.delivered_to_lab_intended || null,
-        actual:   timeline.delivered_to_lab_actual   || null,
+        intended: deliveredToLabIntended,
+        actual:   firstOrder.step3?.actual || timeline.delivered_to_lab_actual || null,
       },
       receivedFromLab: {
-        intended: timeline.received_from_lab_intended || null,
-        actual:   timeline.received_from_lab_actual   || null,
+        intended: receivedFromLabIntended,
+        actual:   firstOrder.step4?.actual || timeline.received_from_lab_actual || null,
       },
     },
     historyData: {
       batchNumber:   node.batch_number,
       branch:        node.branch?.branch_name || '',
+      branchId:      node.branch?.id,
       orders:        orders.length,
       currentStatus: node.current_status,
       currentStep:   node.current_step,
@@ -363,7 +421,7 @@ export default function BatchTracking() {
   })) || []
 
   // fetch all already-batched order IDs once so we can exclude them
-  const { data: batchedIdsData, refetch: refetchBatchedOrderIds } = useQuery(LOAD_BATCHED_ORDER_IDS, {
+  const { data: batchedIdsData } = useQuery(LOAD_BATCHED_ORDER_IDS, {
     fetchPolicy: 'network-only',
   })
   const batchedOrderIds = useMemo(() => {
@@ -388,77 +446,93 @@ export default function BatchTracking() {
 
  
   const loadOrdersByBranchAndDate = async ({ branchId, placedDate }) => {
-    const { data } = await fetchOrders()
-
-    const orderEdges = data?.orderCollection?.edges || []
     const selectedDate = String(placedDate)
 
-    return orderEdges
-      .filter(({ node }) => {
-        const branchMatch = [
-          node.clinic_attend_customer?.clinic?.branch_id,
-          node.clinic_attend_customer?.customer_has_branch?.branch?.id,
-          node.clinic_attend_customer?.customer_has_branch?.branch_id,
-        ].some(id => Number(id) === Number(branchId))
+    const { data } = await fetchOrders({ variables: { branchId } })
 
-        if (!branchMatch) {
-          return false
-        }
+    const candidateOrders = []
+    ;(data?.customerCollection?.edges || []).forEach(({ node: customer }) => {
+      const customerName = `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Unknown'
 
-        const placedOn = node.placed_at?.split('T')[0] || ''
-        if (placedOn !== selectedDate) {
-          return false
-        }
+      customer.customer_has_branchCollection?.edges?.forEach(({ node: branch }) => {
+        branch.clinic_attend_customerCollection?.edges?.forEach(({ node: clinicAttend }) => {
+          clinicAttend.orderCollection?.edges?.forEach(({ node: orderNode }) => {
+            const placedOn = orderNode.placed_at?.split('T')[0] || ''
+            if (placedOn !== selectedDate) return
+            if (batchedOrderIds.has(String(orderNode.id))) return
 
-        if (batchedOrderIds.has(String(node.id))) {
-          return false
-        }
-
-        return true
+            candidateOrders.push({
+              node: {
+                ...orderNode,
+                clinic_attend_customer: {
+                  clinic: clinicAttend.clinic,
+                  customer_has_branch: {
+                    branch: branch.branch,
+                    customer: customer,
+                  },
+                },
+                _customerName: customerName,
+              },
+            })
+          })
+        })
       })
-      .map(({ node }) => {
-        const reminderRecord = (reminderMap.get(String(node.id)) || [])[0] || null
-        const canForward = isBeforeLabReady(reminderRecord)
+    })
 
-        const statusText = reminderRecord?.before_lab_status
-          ? reminderRecord.before_lab_status === 'answer'
-            ? 'Answered'
-            : reminderRecord.before_lab_status === 'not_answer'
-              ? 'Not answered'
-              : reminderRecord.before_lab_status
-          : 'No reminder call'
+    const reminderIds = candidateOrders.map(({ node }) => Number(node.id)).filter(Number.isFinite)
+    const reminderResult = reminderIds.length > 0
+      ? await fetchReminderCalls({ variables: { order_ids: reminderIds } })
+      : { data: null }
 
-        const reasonText = reminderRecord?.before_lab_reason
-          ? String(reminderRecord.before_lab_reason)
-          : 'No reason recorded'
+    const reminderMap = new Map()
+    ;(reminderResult?.data?.reminder_callCollection?.edges || []).forEach(({ node }) => {
+      const key = String(node.order_id)
+      if (!reminderMap.has(key)) reminderMap.set(key, [])
+      reminderMap.get(key).push(node)
+    })
 
-        const deliveryStatusText = reminderRecord?.before_delivery_status
-          ? reminderRecord.before_delivery_status === 'answer'
-            ? 'Answered'
-            : reminderRecord.before_delivery_status === 'not_answer'
-              ? 'Not answered'
-              : reminderRecord.before_delivery_status
-          : 'No delivery reminder call'
+    return candidateOrders.map(({ node }) => {
+      const reminderRecord = (reminderMap.get(String(node.id)) || [])[0] || null
+      const canForward = isBeforeLabReady(reminderRecord)
 
-        const deliveryReasonText = reminderRecord?.before_delivery_reason
-          ? String(reminderRecord.before_delivery_reason)
-          : 'No delivery reason recorded'
+      const statusText = reminderRecord?.before_lab_status
+        ? reminderRecord.before_lab_status === 'answer'
+          ? 'Answered'
+          : reminderRecord.before_lab_status === 'not_answer'
+            ? 'Not answered'
+            : reminderRecord.before_lab_status
+        : 'No reminder call'
 
-        return {
-          id: Number(node.id),
-          orderID: String(node.id),
-          placedDate: node.placed_at?.split('T')[0] || '',
-          customerName: node.clinic_attend_customer?.customer_has_branch?.customer
-            ? `${node.clinic_attend_customer.customer_has_branch.customer.first_name} ${node.clinic_attend_customer.customer_has_branch.customer.last_name || ''}`.trim()
-            : 'Unknown',
-          canForward,
-          forwardReason: canForward ? 'Ready for batch' : getBeforeLabBlockReason(reminderRecord),
-          reminderStatus: statusText,
-          reminderReason: reasonText,
-          deliveryStatus: deliveryStatusText,
-          deliveryReason: deliveryReasonText,
-        }
-      })
+      const reasonText = reminderRecord?.before_lab_reason
+        ? String(reminderRecord.before_lab_reason)
+        : 'No reason recorded'
+
+      const deliveryStatusText = reminderRecord?.before_delivery_status
+        ? reminderRecord.before_delivery_status === 'answer'
+          ? 'Answered'
+          : reminderRecord.before_delivery_status === 'not_answer'
+            ? 'Not answered'
+            : reminderRecord.before_delivery_status
+        : 'No delivery reminder call'
+
+      const deliveryReasonText = reminderRecord?.before_delivery_reason
+        ? String(reminderRecord.before_delivery_reason)
+        : 'No delivery reason recorded'
+
+      return {
+        id: Number(node.id),
+        orderID: String(node.id),
+        placedDate: node.placed_at?.split('T')[0] || '',
+        customerName: node._customerName || extractCustomerName(node),
+        canForward,
+        forwardReason: canForward ? 'Ready for batch' : getBeforeLabBlockReason(reminderRecord),
+        reminderStatus: statusText,
+        reminderReason: reasonText,
+        deliveryStatus: deliveryStatusText,
+        deliveryReason: deliveryReasonText,
+      }
+    })
+
   }
 
   const handleAddBatch = async (newBatch) => {
@@ -475,32 +549,37 @@ export default function BatchTracking() {
       if (!batchId) { message.error('Failed to create batch'); return }
 
       for (const order of newBatch.orderData) {
+        const step3Intended = addDays(order.placedDate, 2)
+        const step4Intended = addDays(step3Intended, 7)
+        const step5Intended = addDays(step4Intended, 1)
+        const step6Intended = addDays(step4Intended, 2)
+
         await insertBatchOrder({
           variables: {
             batch_id:       batchId,
             order_id:       order.orderID,
             placed_date:    order.placedDate,
             step1_intended: addDays(order.placedDate, 0),
-            step2_intended: addDays(order.placedDate, 0),
-            step3_intended: addDays(order.placedDate, 1),
-            step4_intended: addDays(order.placedDate, 7),
-            step5_intended: addDays(order.placedDate, 9),
-            step6_intended: addDays(order.placedDate, 10),
+            step2_intended: addDays(order.placedDate, 1),
+            step3_intended: step3Intended,
+            step4_intended: step4Intended,
+            step5_intended: step5Intended,
+            step6_intended: step6Intended,
           }
         })
       }
 
       const firstPlaced = newBatch.orderData?.[0]?.placedDate
+      const deliveredToLabIntended = addDays(firstPlaced, 7)
       await insertBatchTimeline({
         variables: {
           batch_id:                   batchId,
-          delivered_to_lab_intended:  addDays(firstPlaced, 1),
-          received_from_lab_intended: addDays(firstPlaced, 7),
+          delivered_to_lab_intended:  deliveredToLabIntended,
+          received_from_lab_intended: addDays(deliveredToLabIntended, 7),
         }
       })
 
       refetchBatches()
-      refetchBatchedOrderIds()
       message.success(`Batch ${newBatch.batchNumber} added successfully!`)
       setIsModalOpen(false)
     } catch (err) {
