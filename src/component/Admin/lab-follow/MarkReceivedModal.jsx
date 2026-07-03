@@ -52,7 +52,7 @@ export default function MarkReceivedModal({open, order, onCancel, onConfirm}) {
                         name="receivedDate"
                         rules={[{ required: true, message: 'Please select the received date!' }]}
                     >
-                        <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                        <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
                     </Form.Item>
                 </Form>
 

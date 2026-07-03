@@ -797,7 +797,7 @@ function CashTransferToAdmin() {
                     >
                         <DatePicker
                             style={{ width: "100%" }}
-                            disabledDate={(d) => d && d > dayjs().endOf("day")}
+                            disabledDate={(d) => d && d < dayjs().startOf("day")}
                         />
                     </Form.Item>
 

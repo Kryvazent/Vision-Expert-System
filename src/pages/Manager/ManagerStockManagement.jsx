@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Card, Col, Layout, Row, Table, Tag, Typography, message } from 'antd'
 import { gql } from '@apollo/client'
-import { useMutation, useQuery } from '@apollo/client/react'
+import { useMutation, useQuery, useLazyQuery } from '@apollo/client/react'
 import { useAuth } from '../../const/functions'
 import DistributionHistoryTable from '../../component/owner/stock-handling/DistributionHistoryTable'
+import FrameStockTable from '../../component/owner/stock-handling/FrameStockTable'
+import StockMovementHistoryTable from '../../component/owner/stock-handling/StockMovementHistoryTable'
 
 const { Content } = Layout
 const { Title, Text } = Typography
@@ -18,12 +20,18 @@ const LOAD_DISTRIBUTIONS = gql`
           created_at
           status
           notes
+          frame_id
+          frame {
+            id
+            serial_no
+          }
           stock {
             id
             available_quantity
             product {
               id
               name
+              sku
               product_type {
                 id
                 type
@@ -52,6 +60,7 @@ const LOAD_BRANCH_STOCK = gql`
           product {
             id
             name
+            sku
             brand {
               brand
             }
@@ -60,6 +69,65 @@ const LOAD_BRANCH_STOCK = gql`
               type
             }
           }
+        }
+      }
+    }
+  }
+`
+
+const LOAD_STOCK_MOVEMENT_HISTORY = gql`
+  query LoadStockMovementHistory {
+    stock_movement_historyCollection(orderBy: [{ created_at: DescNullsLast }]) {
+      edges {
+        node {
+          id
+          reference_table
+          reference_id
+          movement_type
+          stock_id
+          frame_id
+          source_branch_id
+          target_branch_id
+          quantity
+          status
+          notes
+          created_at
+          stock {
+            id
+            product {
+              id
+              name
+              sku
+            }
+          }
+          frame {
+            id
+            serial_no
+          }
+        }
+      }
+    }
+  }
+`
+
+// ── branch_frame_stock view ────────────────────────────────────────────────
+const LOAD_BRANCH_FRAME_STOCK = gql`
+  query ManagerLoadBranchFrameStock($branchId: Int!) {
+    branch_frame_stockCollection(
+      filter: { branch_id: { eq: $branchId } }
+    ) {
+      edges {
+        node {
+          branch_id
+          product_id
+          product_name
+          product_sku
+          frame_type
+          in_stock_count
+          reserved_count
+          sold_count
+          damaged_count
+          transferred_count
         }
       }
     }
@@ -126,6 +194,39 @@ export default function ManagerStockManagement() {
     pollInterval: 5000,
   })
 
+  const { data: movementHistoryData } = useQuery(LOAD_STOCK_MOVEMENT_HISTORY, {
+    skip: !branchId,
+    fetchPolicy: 'network-only',
+    pollInterval: 5000,
+  })
+
+  // ── frame stock (branch_frame_stock view) ────────────────────────────────
+  const [frameStockLoaded, setFrameStockLoaded] = useState(false)
+  const [loadFrameStock, { data: frameStockData, loading: frameStockLoading }] =
+    useLazyQuery(LOAD_BRANCH_FRAME_STOCK, { fetchPolicy: 'network-only' })
+
+  useEffect(() => {
+    if (branchId && !frameStockLoaded) {
+      loadFrameStock({ variables: { branchId } })
+      setFrameStockLoaded(true)
+    }
+  }, [branchId, frameStockLoaded, loadFrameStock])
+
+  const branchFrameStockList = useMemo(() => {
+    return frameStockData?.branch_frame_stockCollection?.edges.map(e => ({
+      branch_id: e.node.branch_id,
+      product_id: e.node.product_id,
+      product_name: e.node.product_name,
+      product_sku: e.node.product_sku,
+      frame_type: e.node.frame_type,
+      in_stock_count: Number(e.node.in_stock_count ?? 0),
+      reserved_count: Number(e.node.reserved_count ?? 0),
+      sold_count: Number(e.node.sold_count ?? 0),
+      damaged_count: Number(e.node.damaged_count ?? 0),
+      transferred_count: Number(e.node.transferred_count ?? 0),
+    })) || []
+  }, [frameStockData])
+
   const [checkBranchStock] = useMutation(CHECK_BRANCH_STOCK)
   const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
   const [updateDistributionStatus] = useMutation(UPDATE_DISTRIBUTION_STATUS)
@@ -148,6 +249,8 @@ export default function ManagerStockManagement() {
       quantity: Number(item.node.quantity),
       status: item.node.status || 'Pending Approval',
       notes: item.node.notes || '',
+      frameId: item.node.frame_id || null,
+      frameSerialNo: item.node.frame?.serial_no || null,
     })) || []
   }, [data])
 
@@ -168,6 +271,26 @@ export default function ManagerStockManagement() {
   const branchStockTotal = branchStockRows.reduce((sum, item) => sum + item.quantity, 0)
   const branchStockLow = branchStockRows.filter((item) => item.quantity > 0 && item.quantity <= 100).length
   const branchStockOut = branchStockRows.filter((item) => item.quantity === 0).length
+
+  const movementHistoryRows = useMemo(() => {
+    return movementHistoryData?.stock_movement_historyCollection?.edges?.map((item) => ({
+      id: item.node.id,
+      reference_table: item.node.reference_table,
+      reference_id: item.node.reference_id,
+      movement_type: item.node.movement_type,
+      stock_id: item.node.stock_id,
+      frame_id: item.node.frame_id,
+      source_branch_id: item.node.source_branch_id,
+      target_branch_id: item.node.target_branch_id,
+      quantity: Number(item.node.quantity ?? 0),
+      status: item.node.status,
+      notes: item.node.notes,
+      created_at: item.node.created_at,
+      productName: item.node.stock?.product?.name || '—',
+      productSku: item.node.stock?.product?.sku || '',
+      frameSerialNo: item.node.frame?.serial_no || '',
+    })) || []
+  }, [movementHistoryData])
 
   const branchStockColumns = [
     {
@@ -343,6 +466,38 @@ export default function ManagerStockManagement() {
           )}
         </Card>
 
+        <Card bordered={false} style={{ borderRadius: 12, marginBottom: 20 }}>
+          <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+            <Col>
+              <Title level={3} style={{ marginBottom: 4 }}>Frame Stock (Serialised)</Title>
+              <Text type="secondary">Real-time per-product frame counts derived from individual frame records</Text>
+            </Col>
+            <Col>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <Card size="small" style={{ borderRadius: 10, minWidth: 140 }}>
+                  <Text type="secondary">In Stock</Text>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#16a34a' }}>
+                    {branchFrameStockList.reduce((s, r) => s + (r.in_stock_count || 0), 0)}
+                  </div>
+                </Card>
+                <Card size="small" style={{ borderRadius: 10, minWidth: 140 }}>
+                  <Text type="secondary">Damaged</Text>
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#dc2626' }}>
+                    {branchFrameStockList.reduce((s, r) => s + (r.damaged_count || 0), 0)}
+                  </div>
+                </Card>
+              </div>
+            </Col>
+          </Row>
+          <FrameStockTable
+            branches={[{ id: branchId, branch_name: staff?.branch?.branch_name || 'My Branch' }]}
+            selectedBranch={branchId}
+            onBranchChange={() => {}}
+            data={branchFrameStockList}
+            loading={frameStockLoading}
+          />
+        </Card>
+
         <Card bordered={false} style={{ borderRadius: 12 }}>
           {!branchId ? (
             <div style={{ padding: 24 }}>
@@ -353,6 +508,20 @@ export default function ManagerStockManagement() {
           ) : (
             <DistributionHistoryTable data={distributions} onApprove={handleApproveDistribution} />
           )}
+        </Card>
+
+        <Card bordered={false} style={{ borderRadius: 12, marginTop: 20 }}>
+          <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+            <Col>
+              <Title level={3} style={{ marginBottom: 4 }}>Movement History</Title>
+              <Text type="secondary">Allocation approvals and stock transfers involving this branch</Text>
+            </Col>
+          </Row>
+          <StockMovementHistoryTable
+            data={movementHistoryRows}
+            branches={[{ id: branchId, branch_name: staff?.branch?.branch_name || 'My Branch' }]}
+            branchId={branchId}
+          />
         </Card>
       </Content>
     </Layout>

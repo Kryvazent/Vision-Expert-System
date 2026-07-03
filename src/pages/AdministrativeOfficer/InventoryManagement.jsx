@@ -1,4 +1,3 @@
-import { gql } from '@apollo/client';
 import React, { useEffect } from 'react'
 import { Typography, Layout, Collapse } from 'antd';
 import {
@@ -7,11 +6,13 @@ import {
   StopOutlined,
   ExclamationCircleOutlined
 } from '@ant-design/icons';
+import { gql } from '@apollo/client';
 import StatCard from '../../component/Admin/StatCard';
 import StockItemsTable from '../../component/Admin/inventory-management/StockItemsTable';
 import OutOfStockTable from '../../component/Admin/inventory-management/OutOfStockTable';
 import LowStockTable from '../../component/Admin/inventory-management/LowStockTable';
 import DamagedStockTable from '../../component/Admin/inventory-management/DamagedStockTable';
+import FrameStockTable from '../../component/owner/stock-handling/FrameStockTable';
 import { useQuery, useLazyQuery, useMutation } from '@apollo/client/react/compiled';
 import { useAuth } from '../../const/functions';
 
@@ -26,6 +27,7 @@ import { useAuth } from '../../const/functions';
             product{
               id
               name
+              sku
               product_type{
                 id
                 type
@@ -197,6 +199,94 @@ import { useAuth } from '../../const/functions';
     }
   `;
 
+  // ── branch_frame_stock view ──────────────────────────────────────────────────
+  const LOAD_BRANCH_FRAME_STOCK = gql`
+    query AdminLoadBranchFrameStock($branch_id: Int!) {
+      branch_frame_stockCollection(
+        filter: { branch_id: { eq: $branch_id } }
+      ) {
+        edges {
+          node {
+            branch_id
+            product_id
+            product_name
+            product_sku
+            frame_type
+            in_stock_count
+            reserved_count
+            sold_count
+            damaged_count
+            transferred_count
+          }
+        }
+      }
+    }
+  `;
+
+  const LOAD_BRANCHES = gql`
+    query AdminLoadBranches {
+      branchCollection(filter: { is_active: { eq: true } }) {
+        edges {
+          node {
+            id
+            branch_name
+          }
+        }
+      }
+    }
+  `;
+
+  // ── individual frame rows for this branch ─────────────────────────────────
+  const LOAD_BRANCH_FRAMES = gql`
+    query AdminLoadBranchFrames($branch_id: Int!) {
+      frameCollection(
+        filter: { branch_id: { eq: $branch_id } }
+        orderBy: [{ created_at: DescNullsLast }]
+      ) {
+        edges {
+          node {
+            id
+            serial_no
+            color
+            status
+            created_at
+            product_id
+            product {
+              id
+              name
+              sku
+            }
+            frame_type {
+              type
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const UPDATE_FRAME_STATUS_ADMIN = gql`
+    mutation AdminUpdateFrameStatus($id: BigInt!, $status: String!) {
+      updateframeCollection(
+        set: { status: $status }
+        filter: { id: { eq: $id } }
+      ) {
+        records { id status }
+      }
+    }
+  `;
+
+  const UPDATE_FRAME_BRANCH_ADMIN = gql`
+    mutation AdminUpdateFrameBranch($id: BigInt!, $branch_id: Int!, $status: String!) {
+      updateframeCollection(
+        set: { branch_id: $branch_id, status: $status }
+        filter: { id: { eq: $id } }
+      ) {
+        records { id branch_id status }
+      }
+    }
+  `;
+
 export default function InventoryManagement() {
 
   const { Title, Text } = Typography;
@@ -234,6 +324,8 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
   const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY);
   const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK);
   const [insertReOrder] = useMutation(INSERT_REORDER);
+  const [updateFrameStatus] = useMutation(UPDATE_FRAME_STATUS_ADMIN);
+  const [updateFrameBranch] = useMutation(UPDATE_FRAME_BRANCH_ADMIN);
 
   //  Load reorders once branchId is available 
   useEffect(() => {
@@ -242,12 +334,76 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
     }
   }, [branchId, loadReOrders]);
 
+  // ── individual frames for this branch ──────────────────────────────────
+  const { data: branchFramesData, refetch: refetchFrames } = useQuery(LOAD_BRANCH_FRAMES, {
+    variables: { branch_id: branchId },
+    skip: !branchId,
+    fetchPolicy: 'network-only',
+    pollInterval: 10000,
+  });
+
+  const branchFrameRows = branchFramesData?.frameCollection?.edges.map(e => ({
+    id: e.node.id,
+    product_id: e.node.product_id,
+    serial_no: e.node.serial_no,
+    color: e.node.color,
+    status: e.node.status,
+    created_at: e.node.created_at,
+    frame_type: e.node.frame_type?.type || '—',
+    product_name: e.node.product?.name || '—',
+    product_sku: e.node.product?.sku || '',
+  })) || [];
+
+  const damagedFrames = branchFrameRows.filter(f => f.status === 'damaged');
+
+  const handleMarkFrameDamaged = async (frameId, _reason) => {
+    await updateFrameStatus({ variables: { id: frameId, status: 'damaged' } });
+    refetchFrames();
+  };
+
+  const handleTransferFrame = async (frameId, targetBranchId) => {
+    await updateFrameBranch({ variables: { id: frameId, branch_id: Number(targetBranchId), status: 'in_stock' } });
+    refetchFrames();
+  };
+
+  // ── frame stock (branch_frame_stock view) ──────────────────────────────────
+  const [frameStockBranch, setFrameStockBranch] = React.useState(null);
+
+  const { data: branchesData } = useQuery(LOAD_BRANCHES, { fetchPolicy: 'network-only' });
+  const allBranches = branchesData?.branchCollection?.edges.map(e => ({
+    id: Number(e.node.id),
+    branch_name: e.node.branch_name,
+  })) || [];
+
+  const [loadFrameStock, { data: frameStockData, loading: frameStockLoading }] =
+    useLazyQuery(LOAD_BRANCH_FRAME_STOCK, { fetchPolicy: 'network-only' });
+
+  useEffect(() => {
+    if (frameStockBranch) {
+      loadFrameStock({ variables: { branch_id: frameStockBranch } });
+    }
+  }, [frameStockBranch, loadFrameStock]);
+
+  const branchFrameStockList = frameStockData?.branch_frame_stockCollection?.edges.map(e => ({
+    branch_id: e.node.branch_id,
+    product_id: e.node.product_id,
+    product_name: e.node.product_name,
+    product_sku: e.node.product_sku,
+    frame_type: e.node.frame_type,
+    in_stock_count: Number(e.node.in_stock_count ?? 0),
+    reserved_count: Number(e.node.reserved_count ?? 0),
+    sold_count: Number(e.node.sold_count ?? 0),
+    damaged_count: Number(e.node.damaged_count ?? 0),
+    transferred_count: Number(e.node.transferred_count ?? 0),
+  })) || [];
+
   const refetchAll = () => {
   refetch();
   refetchLowStock();
   refetchOutStock();
   refetchDamaged();
   refetchReOrders && refetchReOrders();
+  refetchFrames && refetchFrames();
 };
 
 
@@ -278,6 +434,7 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
       key: index,
       id: item.node.id,
       productName: item.node.product.name,
+      sku: item.node.product.sku || '',
       productTypeId: item.node.product.product_type?.id,
       category: mapCategory(item.node.product.product_type?.type),
       date: item.node.created_at?.split('T')[0],
@@ -307,6 +464,7 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
       key: index,
       id: item.node.id,
       stock_id: item.node.stock_id,
+      branch_id: item.node.stock?.branch_id,
       productName: item.node.stock?.product?.name || 'Unknown',
       category: mapCategory(item.node.stock?.product?.product_type?.type),
       damaged_quantity: Number(item.node.damaged_quantity),
@@ -403,8 +561,14 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
       children: (
         <StockItemsTable
           data={stockList}
+          frames={branchFrameRows}
+          branches={allBranches}
+          currentBranchId={Number(branchId)}
           updateStock={updateStock}
           insertDamageStock={insertDamageStock}
+          onMarkFrameDamaged={handleMarkFrameDamaged}
+          onTransferFrame={handleTransferFrame}
+            deductImmediately={false}
           onRefetch={refetchAll}
           productTypeList={productTypeList}
         />
@@ -422,9 +586,30 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
       children: (
         <DamagedStockTable
           data={damagedStockList}
+          damagedFrames={damagedFrames}
+          ownerBranchId={Number(branchId)}
         />
       ),
       style: { marginBottom: 16, borderRadius: 12, border: '1px solid #f9f0ff' },
+    },
+    {
+      key: 'framestock',
+      label: collapseLabel(
+        <AppstoreOutlined />,
+        'Frame Stock (Serialised)',
+        branchFrameStockList.reduce((s, r) => s + (r.in_stock_count || 0), 0),
+        '#0369A1'
+      ),
+      children: (
+        <FrameStockTable
+          branches={allBranches}
+          selectedBranch={frameStockBranch}
+          onBranchChange={setFrameStockBranch}
+          data={branchFrameStockList}
+          loading={frameStockLoading}
+        />
+      ),
+      style: { marginBottom: 16, borderRadius: 12, border: '1px solid #BAE6FD' },
     },
   ];
 

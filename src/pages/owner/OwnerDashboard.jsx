@@ -1,5 +1,4 @@
-import { Card } from "antd";
-
+import { Card, Col, Row, Typography } from "antd";
 import {
   DollarOutlined,
   ShoppingOutlined,
@@ -10,7 +9,6 @@ import {
   RiseOutlined,
   CheckCircleOutlined,
 } from "@ant-design/icons";
-
 import {
   BarChart,
   Bar,
@@ -23,9 +21,13 @@ import {
   Cell,
   CartesianGrid,
 } from "recharts";
-
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
+
+import PageLayout from "../../component/shared/PageLayout";
+import StatCard from "../../component/shared/StatCard";
+
+const { Title } = Typography;
 
 const GET_OWNER_DASHBOARD = gql`
   query GetOwnerDashboard {
@@ -36,7 +38,6 @@ const GET_OWNER_DASHBOARD = gql`
           placed_at
           total_price
           order_status_id
-
           paymentCollection {
             edges {
               node {
@@ -45,436 +46,214 @@ const GET_OWNER_DASHBOARD = gql`
               }
             }
           }
-
           clinic_attend_customer {
             customer_has_branch {
-              customer {
-                id
-              }
-              branch {
-                branch_name
-              }
+              customer { id }
+              branch { branch_name }
             }
           }
         }
       }
     }
-
     productCollection {
       edges {
         node {
           id
           purchased_quantity
-
-          product_type {
-            type
-          }
+          product_type { type }
         }
       }
     }
   }
 `;
 
+const CHART_COLORS = [
+  "#1677ff","#52c41a","#faad14","#ff4d4f","#722ed1",
+  "#13c2c2","#eb2f96","#a0d911","#fa541c","#2f54eb",
+];
+
 export default function OwnerDashboard() {
   const { data, loading, error } = useQuery(GET_OWNER_DASHBOARD);
 
-  const orders = data?.orderCollection?.edges || [];
-  const products = data?.productCollection?.edges || [];
-  console.log(products);
+  if (loading) return <PageLayout><div className="ve-loading-center"><span>Loading dashboard…</span></div></PageLayout>;
+  if (error)   return <PageLayout><div className="ve-loading-center"><span>Error: {error.message}</span></div></PageLayout>;
 
-  // total revenue
-  const totalRevenue = orders.reduce(
-    (sum, item) => sum + (Number(item?.node?.total_price) || 0),
-    0,
-  );
+  const orders   = data?.orderCollection?.edges  ?? [];
+  const products = data?.productCollection?.edges ?? [];
 
-  // total orders
-  const totalOrders = orders.length;
-
-  // total customers
-  const uniqueCustomers = new Set(
-    orders.map(
-      (item) =>
-        item?.node?.clinic_attend_customer?.customer_has_branch?.customer?.id,
-    ),
-  );
-
-  const totalCustomers = uniqueCustomers.size;
-
-  // pending payments
-  const pendingPayments = orders.reduce((sum, item) => {
-    const payment = item?.node?.paymentCollection?.edges?.[0]?.node;
-
-    const totalPrice = Number(item?.node?.total_price) || 0;
-
-    const totalPaid = Number(payment?.total_payment) || 0;
-
-    return sum + (totalPrice - totalPaid);
+  // ── Metrics ──
+  const totalRevenue   = orders.reduce((s, { node }) => s + (Number(node.total_price) || 0), 0);
+  const totalOrders    = orders.length;
+  const uniqueCustomers = new Set(orders.map(({ node }) => node.clinic_attend_customer?.customer_has_branch?.customer?.id)).size;
+  const pendingPayments = orders.reduce((s, { node }) => {
+    const paid = Number(node.paymentCollection?.edges?.[0]?.node?.total_payment) || 0;
+    return s + (Number(node.total_price) - paid);
   }, 0);
+  const completedOrders = orders.filter(({ node }) => node.order_status_id === 2).length;
 
-  // branch performance
+  // ── Branch performance ──
   const branchTotals = {};
-
-  orders.forEach((item) => {
-    const branch =
-      item?.node?.clinic_attend_customer?.customer_has_branch?.branch
-        ?.branch_name;
-    const total = Number(item?.node?.total_price) || 0;
-
-    if (!branchTotals[branch]) {
-      branchTotals[branch] = 0;
-    }
-
-    branchTotals[branch] += total;
+  orders.forEach(({ node }) => {
+    const branch = node.clinic_attend_customer?.customer_has_branch?.branch?.branch_name;
+    if (!branch) return;
+    branchTotals[branch] = (branchTotals[branch] || 0) + (Number(node.total_price) || 0);
   });
+  const branchChartData = Object.entries(branchTotals).map(([branch, revenue]) => ({ branch, revenue }));
+  const maxRevenue      = Math.max(...branchChartData.map((b) => b.revenue), 1);
+  const bestBranch      = branchChartData.reduce((best, b) => b.revenue > (best?.revenue ?? 0) ? b : best, null)?.branch ?? "—";
 
-  const branchChartData = Object.entries(branchTotals).map(
-    ([branch, revenue]) => ({
-      branch,
-      revenue,
-    }),
-  );
-
-  // payment overview
+  // ── Payment overview ──
+  const totalPaid = orders.reduce((s, { node }) => s + (Number(node.paymentCollection?.edges?.[0]?.node?.total_payment) || 0), 0);
   const paymentOverviewData = [
-    {
-      name: "Received",
-
-      value: orders.reduce((sum, item) => {
-        const payment = item?.node?.paymentCollection?.edges?.[0]?.node;
-
-        return sum + (Number(payment?.total_payment) || 0);
-      }, 0),
-    },
-
-    {
-      name: "Pending",
-
-      value: pendingPayments,
-    },
+    { name: "Received", value: totalPaid },
+    { name: "Pending",  value: pendingPayments },
   ];
 
-  // product data
-
+  // ── Product distribution ──
   const productTypeTotals = {};
-
-  products.forEach((item) => {
-    const type = item?.node?.product_type?.type;
-
-    const quantity = item?.node?.purchased_quantity || 0;
-
-    if (!productTypeTotals[type]) {
-      productTypeTotals[type] = 0;
-    }
-
-    productTypeTotals[type] += Number(quantity);
+  products.forEach(({ node }) => {
+    const type = node.product_type?.type;
+    if (!type) return;
+    productTypeTotals[type] = (productTypeTotals[type] || 0) + (Number(node.purchased_quantity) || 0);
   });
+  const productDistribution = Object.entries(productTypeTotals).map(([name, value]) => ({ name, value }));
 
-  const productDistribution = Object.entries(productTypeTotals).map(
-    ([name, value]) => ({
-      name,
-      value,
-    }),
-  );
+  const fmt = (n) => `Rs. ${Number(n).toLocaleString()}`;
 
-  console.log(productDistribution);
-
-  // best branch
-  let bestBranch = "No Data";
-
-  let highestRevenue = 0;
-
-  Object.entries(branchTotals).forEach(([branch, revenue]) => {
-    if (revenue > highestRevenue) {
-      highestRevenue = revenue;
-
-      bestBranch = branch;
-    }
-  });
-
-  // completed orders
-  const completedOrders = orders.filter(
-    (item) => item?.node?.order_status_id == 2,
-  ).length;
-
-  if (loading) {
-    return <p>Loading...</p>;
-  }
-
-  if (error) {
-    console.log(error);
-
-    return <p>Error loading dashboard</p>;
-  }
-
-  const COLORS = [
-    "#3b82f6",
-    "#22c55e",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#06b6d4",
-    "#ec4899",
-    "#84cc16",
-    "#f97316",
-    "#14b8a6",
-    "#6366f1",
-    "#a855f7",
+  const statCards = [
+    { title: "Total Revenue",      value: fmt(totalRevenue),    icon: <DollarOutlined />,     accent: "#52c41a" },
+    { title: "Total Orders",       value: totalOrders,          icon: <ShoppingOutlined />,   accent: "#1677ff" },
+    { title: "Total Customers",    value: uniqueCustomers,      icon: <UserOutlined />,       accent: "#faad14" },
+    { title: "Pending Payments",   value: fmt(pendingPayments), icon: <CreditCardOutlined />, accent: "#ff4d4f" },
   ];
-  
-  //branch overview progress bar
-  const maxRevenue = Math.max(...branchChartData.map((b) => b.revenue), 1);
 
   return (
-    <div className="h-[calc(100vh-90px)] overflow-y-auto space-y-10 pr-2 mx-5 mt-5">
-      {/* TOP CARDS */}
-      <div className="flex flex-wrap gap-4">
-        {/* Revenue */}
-        <Card className="flex-1 min-w-[250px] relative">
-          <DollarOutlined
-            className="absolute right-4 top-4"
-            style={{
-              color: "#22c55e",
-              fontSize: 22,
-            }}
-          />
+    <PageLayout title="Owner Dashboard" subtitle="Business overview across all branches">
+      {/* ── Stat Cards ── */}
+      <Row gutter={[16, 16]}>
+        {statCards.map((card) => (
+          <Col xs={24} sm={12} xl={6} key={card.title}>
+            <StatCard {...card} />
+          </Col>
+        ))}
+      </Row>
 
-          <p className="text-gray-500">Total Revenue</p>
+      {/* ── Charts ── */}
+      <Row gutter={[16, 16]} className="mt-5">
+        <Col xs={24} lg={12}>
+          <Card title="Payments Overview">
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={paymentOverviewData} dataKey="value" outerRadius={80} label>
+                  {paymentOverviewData.map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? "#52c41a" : "#ff4d4f"} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v) => fmt(v)} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
 
-          <h2 className="text-2xl font-bold">
-            Rs. {totalRevenue.toLocaleString()}
-          </h2>
+        <Col xs={24} lg={12}>
+          <Card title="Branch Performance">
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={branchChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="branch" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip formatter={(v) => fmt(v)} />
+                <Bar dataKey="revenue" fill="#1677ff" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+      </Row>
 
-          <p className="text-green-500">Business Revenue</p>
-        </Card>
+      {/* ── Bottom section ── */}
+      <Row gutter={[16, 16]} className="mt-5">
+        <Col xs={24} lg={12}>
+          <Card title="Product Distribution">
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart>
+                <Pie
+                  data={productDistribution}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={95}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {productDistribution.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
 
-        {/* Orders */}
-        <Card className="flex-1 min-w-[250px] relative">
-          <ShoppingOutlined
-            className="absolute right-4 top-4"
-            style={{
-              color: "#3b82f6",
-              fontSize: 22,
-            }}
-          />
-
-          <p className="text-gray-500">Total Orders</p>
-
-          <h2 className="text-2xl font-bold">{totalOrders}</h2>
-
-          <p className="text-green-500">Total Orders</p>
-        </Card>
-
-        {/* Customers */}
-        <Card className="flex-1 min-w-[250px] relative">
-          <UserOutlined
-            className="absolute right-4 top-4"
-            style={{
-              color: "#f59e0b",
-              fontSize: 22,
-            }}
-          />
-
-          <p className="text-gray-500">Total Customers</p>
-
-          <h2 className="text-2xl font-bold">{totalCustomers}</h2>
-
-          <p className="text-green-500">Registered Customers</p>
-        </Card>
-
-        {/* Pending */}
-        <Card className="flex-1 min-w-[250px] relative">
-          <CreditCardOutlined
-            className="absolute right-4 top-4"
-            style={{
-              color: "#ef4444",
-              fontSize: 22,
-            }}
-          />
-
-          <p className="text-gray-500">Pending Payments</p>
-
-          <h2 className="text-2xl font-bold">
-            Rs. {pendingPayments.toLocaleString()}
-          </h2>
-
-          <p className="text-red-500">Outstanding Balance</p>
-        </Card>
-      </div>
-
-      {/* CHARTS */}
-      <div className="flex flex-wrap gap-4">
-        {/* Payment Chart */}
-        <Card className="flex-1 min-w-[350px]">
-          <h2 className="font-semibold mb-4">Payments Overview</h2>
-
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={paymentOverviewData}
-                dataKey="value"
-                outerRadius={80}
-                label
-              >
-                {paymentOverviewData.map((entry, index) => (
-                  <Cell
-                    key={index}
-                    fill={index === 0 ? "#22c55e" : "#ef4444"}
-                  />
-                ))}
-              </Pie>
-
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Branch Chart */}
-        <Card className="flex-1 min-w-[350px]">
-          <h2 className="font-semibold mb-4">Branch Performance</h2>
-
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={branchChartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-
-              <XAxis dataKey="branch" />
-
-              <YAxis />
-
-              <Tooltip />
-
-              <Bar dataKey="revenue" fill="#3b82f6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-      </div>
-
-      {/* BOTTOM SECTION */}
-      <div className="flex flex-wrap gap-4">
-        {/* Product Distribution */}
-        <Card className="flex-1 min-w-[350px]">
-          <h2 className="font-semibold mb-4">Product Distribution</h2>
-
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={productDistribution}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={100}
-                label={({ name, percent }) =>
-                  `${name} ${(percent * 100).toFixed(0)}%`
-                }
-              >
-                {productDistribution.map((entry, index) => (
-                  <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* Branch Overview */}
-        <Card className="flex-1 min-w-[350px] space-y-4">
-          <h2 className="font-semibold">Branch Overview</h2>
-
-          {branchChartData.map((branch) => (
-            <div key={branch.branch}>
-              <div className="flex justify-between text-sm">
-                <span>{branch.branch}</span>
-
-                <span>Rs. {branch.revenue.toLocaleString()}</span>
-              </div>
-
-              <div className="w-full bg-gray-200 h-2 rounded mt-1">
-                <div
-                  className="bg-blue-500 h-2 rounded"
-                  style={{
-                    width: `${(branch.revenue / maxRevenue) * 100}%`,
-                  }}
-                ></div>
-              </div>
+        <Col xs={24} lg={12}>
+          <Card title="Branch Overview">
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {branchChartData.map((b) => (
+                <div key={b.branch}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ fontWeight: 500 }}>{b.branch}</span>
+                    <span style={{ color: "var(--ve-text-muted)" }}>{fmt(b.revenue)}</span>
+                  </div>
+                  <div style={{ background: "var(--ve-border-light)", borderRadius: 4, height: 8 }}>
+                    <div
+                      style={{
+                        width: `${(b.revenue / maxRevenue) * 100}%`,
+                        background: "#1677ff",
+                        borderRadius: 4,
+                        height: 8,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </Card>
-      </div>
+          </Card>
+        </Col>
+      </Row>
 
-      {/* INSIGHTS */}
-      <Card>
-        <h2 className="font-semibold mb-4">Business Insights & Alerts</h2>
-
-        <div className="flex flex-wrap gap-4">
-          {/* Best Branch */}
-          <div className="bg-green-100 p-4 rounded flex-1 min-w-[200px] flex gap-2">
-            <TrophyOutlined
-              style={{
-                color: "#22c55e",
-                fontSize: 22,
-              }}
-            />
-
-            <div>
-              <p className="font-medium">Best Branch</p>
-
-              <p className="text-sm">{bestBranch} generated highest revenue</p>
-            </div>
-          </div>
-
-          {/* Pending */}
-          <div className="bg-yellow-100 p-4 rounded flex-1 min-w-[200px] flex gap-2">
-            <WarningOutlined
-              style={{
-                color: "#eab308",
-                fontSize: 22,
-              }}
-            />
-
-            <div>
-              <p className="font-medium">Pending Payments</p>
-
-              <p className="text-sm">
-                Rs. {pendingPayments.toLocaleString()} pending
-              </p>
-            </div>
-          </div>
-
-          {/* Customer */}
-          <div className="bg-green-100 p-4 rounded flex-1 min-w-[200px] flex gap-2">
-            <RiseOutlined
-              style={{
-                color: "#22c55e",
-                fontSize: 22,
-              }}
-            />
-
-            <div>
-              <p className="font-medium">Customer Growth</p>
-
-              <p className="text-sm">{totalCustomers} active customers</p>
-            </div>
-          </div>
-
-          {/* Completed */}
-          <div className="bg-blue-100 p-4 rounded flex-1 min-w-[200px] flex gap-2">
-            <CheckCircleOutlined
-              style={{
-                color: "#3b82f6",
-                fontSize: 22,
-              }}
-            />
-
-            <div>
-              <p className="font-medium">Completed Orders</p>
-
-              <p className="text-sm">{completedOrders} fully completed</p>
-            </div>
-          </div>
-        </div>
-      </Card>
-    </div>
+      {/* ── Insights ── */}
+      <Row className="mt-5">
+        <Col span={24}>
+          <Card title="Business Insights">
+            <Row gutter={[12, 12]}>
+              {[
+                { bg: "#f6ffed", color: "#52c41a", icon: <TrophyOutlined />,      label: "Best Branch",        body: `${bestBranch} generated the highest revenue` },
+                { bg: "#fffbe6", color: "#faad14", icon: <WarningOutlined />,     label: "Pending Payments",   body: `${fmt(pendingPayments)} outstanding` },
+                { bg: "#f6ffed", color: "#52c41a", icon: <RiseOutlined />,        label: "Customer Growth",    body: `${uniqueCustomers} active customers` },
+                { bg: "#e6f4ff", color: "#1677ff", icon: <CheckCircleOutlined />, label: "Completed Orders",   body: `${completedOrders} fully completed` },
+              ].map((item) => (
+                <Col xs={24} sm={12} xl={6} key={item.label}>
+                  <div style={{
+                    background: item.bg,
+                    borderRadius: "var(--ve-radius-lg)",
+                    padding: "16px",
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "flex-start",
+                  }}>
+                    <span style={{ color: item.color, fontSize: 20, flexShrink: 0 }}>{item.icon}</span>
+                    <div>
+                      <p style={{ fontWeight: 600, margin: "0 0 2px", fontSize: 14 }}>{item.label}</p>
+                      <p style={{ margin: 0, fontSize: 13, color: "var(--ve-text-secondary)" }}>{item.body}</p>
+                    </div>
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          </Card>
+        </Col>
+      </Row>
+    </PageLayout>
   );
 }

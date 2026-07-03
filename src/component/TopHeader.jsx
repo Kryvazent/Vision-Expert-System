@@ -1,46 +1,46 @@
-import { Layout, Space, Avatar, Typography, Alert } from "antd";
+import { Layout } from "antd";
 import { useAuth } from "../const/functions";
+
 const { Header } = Layout;
-const { Text, Title } = Typography;
 
-const headerStyle = {
-  color: "#fff",
-  height: 64,
-  padding: "0 32 px",
-  lineHeight: "64px",
-  backgroundColor: "#FFFFFF",
-};
+/** Formats a role_name like "sales-executive" → "Sales Executive" */
+function formatRole(roleName = "") {
+  return roleName
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
-function TopHeader() {
+/** Derive initials from first + last name */
+function initials(first = "", last = "") {
+  return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
+}
+
+export default function TopHeader() {
   const { staff } = useAuth();
 
-  return (
-    <Header
-      style={headerStyle}
-      className="flex items-center justify-between border-b border-gray-200"
-    >
-      <div className="flex items-center gap-4">
-        <Title level={3} className="mb-0">
-          {staff?.role.role_name
-            ?.replace(/_/g, " ")
-            .replace(/\b\w/g, (c) => c.toUpperCase())}
-        </Title>
+  const roleLabel = formatRole(staff?.role?.role_name);
+  const branchName = staff?.branch?.branch_name;
+  const avatarInitials = initials(staff?.first_name, staff?.last_name);
+  const fullName = [staff?.first_name, staff?.last_name].filter(Boolean).join(" ");
 
-        {staff?.branch?.branch_name && (
-          <Alert title={`${staff.branch.branch_name} Branch`} type="error" />
+  return (
+    <Header className="ve-header">
+      {/* Left: role title + branch badge */}
+      <div className="ve-header-left">
+        <h1 className="ve-header-role">{roleLabel}</h1>
+        {branchName && (
+          <span className="ve-header-branch-tag">{branchName} Branch</span>
         )}
       </div>
-      <Space size={8}>
-        <Avatar style={{ backgroundColor: "#2563EB" }}>
-          {staff?.first_name && staff.first_name[0]}
-          {staff?.last_name && staff.last_name[0]}
-        </Avatar>
-        <Text strong className="p-2">
-          {staff?.first_name} {staff?.last_name}
-        </Text>
-      </Space>
+
+      {/* Right: avatar + name */}
+      <div className="ve-header-right">
+        <div className="ve-header-avatar" aria-hidden="true">
+          {avatarInitials}
+        </div>
+        {fullName && <span className="ve-header-name">{fullName}</span>}
+      </div>
     </Header>
   );
 }
-
-export default TopHeader;

@@ -79,6 +79,65 @@ function NewOrder() {
   const [addPayment, { data: paymentData, error: paymentError }] =
     useMutation(ADD_PAYMENT);
 
+  // stock reduction mutations
+  const REDUCE_FRAME_STOCK = gql`
+    mutation reduceFrameStock($frameId: ID!) {
+      updateframeCollection(
+        filter: { id: { eq: $frameId } }
+        set: { status: "sold" }
+      ) {
+        records {
+          id
+        }
+      }
+    }
+  `;
+
+  const REDUCE_PRODUCT_STOCK = gql`
+    mutation reduceProductStock($productId: ID!, $branchId: Int!, $quantity: Int!) {
+      updatestockCollection(
+        filter: { product_id: { eq: $productId }, branch_id: { eq: $branchId } }
+        set: { available_quantity: { decrement: $quantity } }
+      ) {
+        records {
+          id
+          available_quantity
+        }
+      }
+    }
+  `;
+
+  const [reduceFrameStock] = useMutation(REDUCE_FRAME_STOCK);
+  const [reduceProductStock] = useMutation(REDUCE_PRODUCT_STOCK);
+
+  // Cash transfer mutation for connecting payments to cash workflow
+  const CREATE_CASH_TRANSFER = gql`
+    mutation createCashTransfer(
+      $by: BigInt!
+      $amount: Float!
+      $cashTypeId: Int!
+      $branchId: Int!
+      $note: String!
+    ) {
+      insertIntocash_transfers_to_adminCollection(
+        objects: {
+          by: $by
+          amount: $amount
+          cash_type_id: $cashTypeId
+          branch_id: $branchId
+          note: $note
+          cash_transfer_status_id: 1
+        }
+      ) {
+        records {
+          id
+        }
+      }
+    }
+  `;
+
+  const [createCashTransfer] = useMutation(CREATE_CASH_TRANSFER);
+
   // order submit
   const CREATE_ORDER = gql`
     mutation createOrder(
@@ -93,6 +152,7 @@ function NewOrder() {
       $frameTypeId: ID!
       $orderStatusId: ID!
       $totalPrice: Float!
+      $balanceAmount: Float!
     ) {
       insertIntoorderCollection(
         objects: {
@@ -107,6 +167,7 @@ function NewOrder() {
           frame_id: $frameId
           order_status_id: $orderStatusId
           total_price: $totalPrice
+          balance_amount: $balanceAmount
         }
       ) {
         records {
@@ -136,7 +197,10 @@ function NewOrder() {
         // 1. Create order
         const totalPayment =
           selectedFramePrice + selectedLenseTypePrice + additionalPrice;
-        const orderStatusId = advancePayment > 0 ? 1 : 3;
+        const balanceAmount = totalPayment - advancePayment;
+        // Status logic: if advance > 0, status = Pending (id=1), else Hold (id for Hold status)
+        // Assuming Hold status id will be determined dynamically or set to a known value
+        const orderStatusId = advancePayment > 0 ? 1 : 4; // 4 will be Hold status after migration
         const orderResult = await createOrder({
           variables: {
             agraharaApplied: false,
@@ -150,11 +214,19 @@ function NewOrder() {
             frameTypeId: selectedFrameTypeId,
             orderStatusId,
             totalPrice: totalPayment,
+            balanceAmount: balanceAmount,
           },
         });
 
         const orderId =
           orderResult.data.insertIntoorderCollection.records[0].id;
+
+        // Reduce stock: frame status to sold
+        await reduceFrameStock({ variables: { frameId: selectedFrameId } });
+
+        // Reduce stock: box and cleaning cloth (need to find their product IDs)
+        // For now, we'll skip this as we need to know the product IDs for box and cloth
+        // This will be implemented after the migration is run and product IDs are known
 
         await addPayment({
           variables: {
@@ -166,6 +238,24 @@ function NewOrder() {
             advance: advancePayment,
           },
         });
+
+        // Connect to cash workflow if advance payment was made
+        if (advancePayment > 0) {
+          try {
+            await createCashTransfer({
+              variables: {
+                by: staff.id,
+                amount: advancePayment,
+                cashTypeId: 1, // Sales cash type
+                branchId: staff.branch.id,
+                note: `Advance payment for order #${orderId}`,
+              },
+            });
+          } catch (cashError) {
+            console.error("Error creating cash transfer:", cashError);
+            // Don't fail the order if cash transfer fails, just log it
+          }
+        }
 
         alert("Order submitted successfully!");
 

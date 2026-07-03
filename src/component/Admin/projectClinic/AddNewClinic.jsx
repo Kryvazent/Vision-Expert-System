@@ -1,5 +1,6 @@
 import React from 'react'
 import {Modal, Form, Input, InputNumber, Mentions, TimePicker, DatePicker, Button, Row, Col, Select } from 'antd';
+import dayjs from 'dayjs';
 
 const { Option} = Select;
 const {TextArea} = Input;
@@ -34,7 +35,7 @@ const handleFinish = (values) => {
       <Row gutter={16}>
         <Col span={12}>
         <Form.Item label="Clinic Date" name="date"  rules={[{required:true , message: "Select Date"}]}>
-          <DatePicker  style={{width:'100%'}} placeholder='Select Order'/>
+          <DatePicker  style={{width:'100%'}} placeholder='Select Order' disabledDate={(d) => d && d < dayjs().startOf("day")}/>
         </Form.Item>
         </Col>
 

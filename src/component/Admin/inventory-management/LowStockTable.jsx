@@ -2,7 +2,7 @@ import React from 'react'
 import { Table, Tag, Space, Button, Tooltip } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
-export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(), onReOrder }) {
+export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(), onReOrder, showReorderButton = true }) {
 
   const columns = [
     {
@@ -28,12 +28,15 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
         </Tag>
       ),
     },
-    {
+  ];
+
+  if (showReorderButton) {
+    columns.push({
       title: 'Action',
       key: 'action',
       onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
       render: (_, record) => {
-    
+
         if (record.quantity >= 100) {
           return null; // No action for items that are not low stock
         }
@@ -63,8 +66,8 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
           </Space>
         );
       },
-    },
-  ];
+    });
+  }
 
   return (
     <div>
