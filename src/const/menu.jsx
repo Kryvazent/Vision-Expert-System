@@ -134,6 +134,10 @@ export const MENU_BY_ROLE = {
       label: "Petty Cash Handling",
     },
     //{ key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
+    { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
+    { key: '/cash-approval-admin', icon:  <TransactionOutlined />,   label: 'Cash Approval' },
+    
+
     {
       key: "/lab-followup",
       icon: <ExperimentOutlined />,
@@ -173,6 +177,32 @@ export const MENU_BY_ROLE = {
     { key: "/Acreports", icon: <BarChartOutlined />, label: "Reports" },
   ],
 
+  "owner": [
+    { key: '/owner',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/project-management',        icon: <ProjectOutlined />,  label: 'Project Management' },
+    { key: '/payment-monitoring',        icon: <TransactionOutlined />,     label: 'Payment Monitoring' },
+    { key: '/reports', icon: <BarChartOutlined />,   label: 'Reports' },
+    { key: '/SystemActivity', icon: <ClockCircleOutlined />,   label: 'System Activity' },
+    { key: '/UserManagement', icon: <UserOutlined />,   label: 'User Management' },
+    { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
+
+    
+    
+  ],
+
+
+
+"manager": [
+    { key: '/manager-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
+    { key: '/clinics',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
+    { key: '/cash-handling', icon: <TransactionOutlined />,   label: 'Cash Handling' },
+    { key: '/stock-management', icon: <ShoppingCartOutlined />,   label: 'Branch Stock Management' },
+    { key: '/incoming-stock-approval', icon: <ClockCircleOutlined />,   label: 'Incoming Stock Approval' },
+    { key: '/petty-cash', icon: <AccountBookOutlined />,   label: 'Petty Cash' },
+    { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
+    { key: '/pending-payments', icon: <AccountBookOutlined />,   label: 'Pending Payments' },
+    { key: '/complaint-handling',        icon: <SafetyOutlined />,  label: 'Complaint Handling' },
+    
   owner: [
     { key: "/owner", icon: <DashboardOutlined />, label: "Dashboard" },
     {
