@@ -1,5 +1,24 @@
-import { AccountBookOutlined, MoneyCollectOutlined, BarChartOutlined, ClockCircleOutlined, DashboardOutlined, FileTextOutlined, PlusCircleOutlined, ProjectOutlined, SafetyOutlined, ShoppingOutlined, UnorderedListOutlined, UserOutlined, ShoppingCartOutlined, PhoneOutlined, WarningOutlined, ExperimentOutlined } from "@ant-design/icons";
-import {ToolOutlined, SyncOutlined, TransactionOutlined } from "@ant-design/icons";
+import {
+  AccountBookOutlined,
+  BarChartOutlined,
+  ClockCircleOutlined,
+  DashboardOutlined,
+  FileTextOutlined,
+  PlusCircleOutlined,
+  ProjectOutlined,
+  SafetyOutlined,
+  ShoppingOutlined,
+  UnorderedListOutlined,
+  UserOutlined,
+  ShoppingCartOutlined,
+  PhoneOutlined,
+  WarningOutlined,
+  ExperimentOutlined,
+  MoneyCollectOutlined,
+  ToolOutlined,
+  SyncOutlined,
+  TransactionOutlined,
+} from "@ant-design/icons";
 
 export const MENU_BY_ROLE = {
   "recovery-officer": [
@@ -26,16 +45,18 @@ export const MENU_BY_ROLE = {
 
   "admin": [
     { key: '/admin-dashboard',      icon: <DashboardOutlined />,    label: 'Dashboard' },
-    { key: '/customer-lookup',        icon: <UserOutlined />,  label: 'Customer Lookup' },
+    { key: '//customer-lookup-details',        icon: <UserOutlined />,  label: 'Customer Lookup' },
     { key: '/inventory-management',        icon: <ShoppingOutlined />,     label: 'Inventory Management' },
-    { key: '/project-clinic', icon: <ProjectOutlined />,   label: 'Project Clinics Management' },
-    {key: '/reminder-calls', icon: < PhoneOutlined />,   label: 'Reminder Calls' },
+     { key: '/clinic-details',        icon: <ProjectOutlined />,  label: 'Clinic Details' },
+    { key: '/reminder-calls', icon: <PhoneOutlined />,   label: 'Reminder Calls' },
     { key: '/complaint-management', icon: <WarningOutlined />,   label: 'Complaint Handling' },
     { key: '/batch-tracking', icon: <ClockCircleOutlined />,   label: 'Batch Tracking' },
-    { key: '/petty-cash-handling', icon:  <TransactionOutlined />,   label: 'Petty Cash Handling' },
+    { key: '/petty-cash-handling', icon: <TransactionOutlined />,   label: 'Petty Cash Handling' },
+    //{ key: '/admin-cash-handling', icon:  <MoneyCollectOutlined />,   label: 'Cash Handling' },
     { key: '/lab-followup', icon:  <ExperimentOutlined />,   label: 'Lab Follow-Up' },
     { key: '/main-stock', icon:  <ShoppingOutlined />,   label: 'Main-Stock Handling' },
     { key: '/cash-approval-admin', icon:  <TransactionOutlined />,   label: 'Cash Approval' },
+    
 
   ],
 

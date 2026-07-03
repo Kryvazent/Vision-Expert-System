@@ -55,7 +55,7 @@ export default function LowStockTable({ data = [], reOrderedTypeIds = new Set(),
               <Button
                 type="primary"
                 size="small"
-                onClick={() => onReOrder(record.productTypeId)}
+                onClick={() => onReOrder(record.productTypeId, undefined, Math.max(100 - Number(record.quantity || 0), 1))}
               >
                 Reorder
               </Button>

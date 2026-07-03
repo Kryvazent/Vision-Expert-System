@@ -1,31 +1,3 @@
-/**
- * AdminCashTransferApproval.jsx
- * ─────────────────────────────────────────────────────────────────────────
- * Admin-facing page for approving / rejecting cash transfers
- * (vision_expert.cash_transfers_to_admin + vision_expert.cash_transfer_status)
- * and, once accepted, handing that cash on to a Manager
- * (manager_proof_status column).
- *
- * FIX #1 (root cause of "no rows displayed"):
- * pg_graphql's `orderBy` argument is typed as a LIST
- * ([cash_transfers_to_adminOrderBy!]), not a bare object. The previous
- * version sent `orderBy: { created_at: DescNullsLast }`, which fails
- * GraphQL input validation on the server, the query errors out, and
- * cash_transfers_to_adminCollection comes back empty — so the table
- * always looked blank regardless of RLS or data. Fixed by wrapping it
- * in an array: `orderBy: [{ created_at: DescNullsLast }]`.
- *
- * FIX #2 (approve / reject / transfer-to-manager silently not working):
- * The mutations filtered on `id: { eq: $id }` typed as `ID!`. The `id`
- * column on cash_transfers_to_admin is `bigint`, and pg_graphql's row
- * filters expect `BigInt` for that column — `ID` is reserved for the
- * opaque Relay-style `nodeId` field, not the raw id filter. Fixed by
- * declaring `$id: BigInt!` in both mutations.
- *
- * Everything else (independent cosmetic lookups for staff/branch/type
- * names, the diagnostic banner, RLS troubleshooting hint) is unchanged.
- */
-
 import {
     Button,
     Card,
@@ -62,7 +34,7 @@ import { useLazyQuery, useMutation } from "@apollo/client/react";
 
 const { Text } = Typography;
 
-// ── Status text constants (edit if your DB uses different wording) ──
+
 const STATUS_TEXT = { PENDING: "Pending", ACCEPTED: "Accepted", REJECTED: "Rejected" };
 const ADMIN_PROOF = { AWAITING: "Awaiting", ACCEPTED: "Accepted", REJECTED: "Rejected" };
 const MANAGER_PROOF = {
@@ -186,10 +158,7 @@ const LOAD_STAFF_LOOKUP = gql`
     }
 `;
 
-// Admin accept/reject decision.
-// FIX: $id is BigInt! (matches cash_transfers_to_admin.id column type),
-// not ID! — ID is only valid for the opaque nodeId field, and using it
-// against a BigInt filter caused this mutation to fail/target nothing.
+
 const SET_ADMIN_DECISION = gql`
     mutation setAdminDecision(
         $id: BigInt!
@@ -259,14 +228,7 @@ function AdminCashTransferApproval() {
     const [bankDeposit, setBankDeposit] = useState(false);
     const [managerSubmitting, setManagerSubmitting] = useState(false);
 
-    // ── The one query that actually has to work ──
-    // NOTE: Apollo Client 4 (the "@apollo/client/react" import path) removed
-    // the onCompleted/onError callback options from useLazyQuery entirely.
-    // Passing them here is a silent no-op — the request still fires and
-    // completes, but nothing ever reads the result, which is why the page
-    // got stuck showing "Loading cash transfers…" forever with 0 records.
-    // Fix: read `data`/`error`/`loading` straight off the hook tuple and
-    // sync them into local state with useEffect.
+
     const [loadTransfers, { data: transfersData, loading: transfersLoading, error: transfersError }] =
         useLazyQuery(LOAD_ALL_TRANSFERS, { fetchPolicy: "network-only" });
 

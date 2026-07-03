@@ -28,6 +28,7 @@ import ProjectClinic from '../pages/AdministrativeOfficer/ProjectClinic';
 import BatchTracking from '../pages/AdministrativeOfficer/BatchTracking';
 import ReminderCalls from '../pages/AdministrativeOfficer/ReminderCalls';
 import ComplaintManagement from '../pages/AdministrativeOfficer/ComplaintManagement';
+import AdminCashHandling from '../pages/AdministrativeOfficer/AdminCashHandling';
 
 
 import ManagerDashboard from './../pages/Manager/ManagerDashboard';
@@ -211,6 +212,15 @@ function App() {
         }
       />
 
+       <Route
+        path="/customer-lookup-details"
+        element={
+          <Page roles={["admin"]}>
+            <CustomerDetails />
+          </Page>
+        }
+      />
+
 
       {/* Accountant */}
       <Route
@@ -331,6 +341,18 @@ function App() {
           </Page>
         }
       />
+
+       {/* Admin */}
+      <Route
+        path="/cash-approval-admin"
+        element={
+          <Page roles={["admin"]}>
+            <AdminCashTransferApproval />
+          </Page>
+        }
+      />
+
+      
 
 
        {/* Owner */}
@@ -471,7 +493,11 @@ function App() {
         </Page>
       } />
 
-
+      <Route path="/clinic-details" element={
+        <Page roles={["admin"]}>
+          <ClinicDetails />
+        </Page>
+      } />
 
       <Route
         path="/sales-reports"

@@ -2,7 +2,7 @@ import React, {useState, useEffect, useMemo} from 'react'
 import { Typography, Row, Col, Card, Button, message, Layout, DatePicker, Select, Alert,  } from 'antd'
 import { icons } from '../../assets/icons/AdminIcons'
 import StatCard from '../../component/Admin/StatCard'
-import AddLabOrder from '../../component/Admin/lab-follow/AddLabOrder'
+// import AddLabOrder from '../../component/Admin/lab-follow/AddLabOrder'
 import LabFollowUpTable from '../../component/Admin/lab-follow/LabFollowUpTable'
 import MarkReceivedModal from '../../component/Admin/lab-follow/MarkReceivedModal'
 import EditNoteModal from '../../component/Admin/lab-follow/EditNoteModal'
@@ -17,6 +17,8 @@ const {Content} = Layout
 const {RangePicker} = DatePicker
 
 const STATUS_OPTIONS = ['All Status', 'Sent to Lab', 'In Progress', 'Received', 'Delayed'];
+const SENT_TO_LAB_DELAY_DAYS = 2;
+const LAB_TURNAROUND_DAYS = 7;
 
 const LOAD_LAB_FOLLOW_UP = gql `
     query LoadLabFollowUp{
@@ -68,6 +70,7 @@ const LOAD_ORDERS = gql `
                  edges{
                     node{
                         id
+                        placed_at
                         order_status{
                             id
                             status
@@ -210,50 +213,219 @@ export default function LabFollowUp() {
     const [UpdateEditNote] = useMutation(UPDATE_EDIT_NOTE)
     const [UpdateLabStatus] = useMutation(UPDATE_LAB_STATUS)
 
+
+    useEffect(() => {
+        if (
+            !LabData?.lab_follow_upCollection?.edges ||
+            !statusMap["Delayed"]
+        ) {
+            return;
+        }
+        const delayedStatusId = Number(statusMap["Delayed"]);
+        const updateDelayedOrders = async () => {
+            try {
+                const overdueOrders =
+                    LabData.lab_follow_upCollection.edges.filter(
+                        ({ node }) => {
+                            const currentStatus = node.lab_follow_up_status?.status;
+                            const receivedDate = node.received_date;
+                            const expectedReturn = node.expected_return_date;
+
+                        return (
+                            currentStatus !== "Received" &&
+                            currentStatus !== "Delayed" &&
+                            !receivedDate &&
+                            expectedReturn && dayjs().isAfter( dayjs(expectedReturn),"day")
+                        );
+                    }
+                );
+
+                if (overdueOrders.length === 0) {
+                    return;
+                }
+                await Promise.all(
+                    overdueOrders.map(({ node }) =>
+                        UpdateLabStatus({
+                            variables: {
+                                id: Number(node.id),
+                                status_id: delayedStatusId
+                            }
+                        })
+                    )
+                );
+                console.log(
+                    `${overdueOrders.length} orders marked Delayed`
+                );
+                await refetchLabData();
+
+            } catch (err) {
+                console.error("Failed auto updating delayed orders",err);
+        }
+    };
+    updateDelayedOrders();
+
+    }, [
+        LabData,
+        statusMap,
+        UpdateLabStatus,
+        refetchLabData
+    ]);
+
     const [labOrders, setLabOrders] = useState([]);
     const [markReceivedOrder, setMarkReceivedOrder] = useState(null);
     const [editNoteOrder, setEditNoteOrder] = useState(null);
-    const [addModalOpen, setAddModalOpen] = useState(false);
+    // const [addModalOpen, setAddModalOpen] = useState(false);
 
     const [clinicFilter, setClinicFilter] = useState("All Centers");
     const [statusFilter, setStatusFilter] = useState("All Status")
     const [dateRange, setDateRange] =useState(null)
-  
+
+
+
     useEffect(() => {
-        if(LabData?.lab_follow_upCollection?.edges){
-            const formatted = LabData.lab_follow_upCollection.edges.map(({node}) => {
+    if (
+        !LabData?.lab_follow_upCollection?.edges ||
+        !ordersData?.orderCollection?.edges
+    ) {
+        return;
+    }
 
-                const sentToLab = node.sent_to_lab_date
-                    ? dayjs(node.sent_to_lab_date).format('YYYY-MM-DD')
-                    : null;
+    // Existing lab follow-up records
+    const existingLabOrders = LabData.lab_follow_upCollection.edges.map(
+        ({ node }) => {
+            const sentToLab = node.sent_to_lab_date
+                ? dayjs(node.sent_to_lab_date).format("YYYY-MM-DD")
+                : null;
 
-                const expectedReturn = node.expected_return_date
-                    ? dayjs(node.expected_return_date).format('YYYY-MM-DD')
-                    : null;
+            const expectedReturn = node.expected_return_date
+                ? dayjs(node.expected_return_date).format("YYYY-MM-DD")
+                : null;
 
-                const receivedDate = node.received_date
-                    ? dayjs(node.received_date).format('YYYY-MM-DD')
-                    : null;
+            const receivedDate = node.received_date
+                ? dayjs(node.received_date).format("YYYY-MM-DD")
+                : null;
 
-                let status = node.lab_follow_up_status?.status || "Sent to Lab";
+            let status =
+                node.lab_follow_up_status?.status || "Sent to Lab";
 
-                if (status !== "Received" && !receivedDate && expectedReturn && dayjs().isAfter(dayjs(expectedReturn))) {
-                    status = 'Delayed';
-                }
-                    return {
-                        id: Number(node.id),
-                        orderId: node.order_id,
-                        clinicCenter: (node.clinic?.venue || '').trim() ,
-                        sentToLab,
-                        expectedReturn,
-                        receivedDate,
-                        note: node.note || "",
-                        status
-                    }
-            })
-            setLabOrders(formatted)
+            const today = dayjs().startOf("day");
+            const expectedDate = expectedReturn
+                ? dayjs(expectedReturn).startOf("day")
+                : null;
+
+            console.log(
+                "Order:",node.order_id,
+                "Expected:",expectedReturn,
+                "Today:",today.format("YYYY-MM-DD"),
+                "Received:",receivedDate
+            );
+
+            if (
+                status !== "Received" &&
+                !receivedDate &&
+                expectedReturn &&
+                today.isAfter(expectedDate)
+            ) {
+                status = "Delayed";
+            }
+
+            return {
+                id: Number(node.id),
+                orderId: node.order_id,
+                clinicCenter: (node.clinic?.venue || "").trim(),
+                sentToLab,
+                expectedReturn,
+                receivedDate,
+                note: node.note || "",
+                status,
+                isAutoGenerated: false, 
+            };
         }
-    }, [LabData]);
+    );
+
+    const existingOrderIds = new Set(
+        existingLabOrders.map((o) => Number(o.orderId))
+    );
+
+    // Orders with status = 2 that are not yet in lab_follow_up
+    const autoGeneratedOrders = ordersData.orderCollection.edges
+        .filter(
+            ({ node }) =>
+                !existingOrderIds.has(Number(node.id))
+        )
+        .map(({ node }) => {
+            const placedDate = dayjs(node.placed_at);
+            const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
+
+            return {
+                id: `temp-${node.id}`, // CHANGED
+                orderId: Number(node.id),
+                clinicCenter:
+                    node.clinic_attend_customer?.clinic?.venue || "",
+                sentToLab: sentToLabDate.format("YYYY-MM-DD"),
+                expectedReturn: sentToLabDate
+                    .add(LAB_TURNAROUND_DAYS, "day")
+                    .format("YYYY-MM-DD"),
+                receivedDate: null,
+                note: "",
+                status: "Sent to Lab",
+                isAutoGenerated: true, // CHANGED
+            };
+        });
+
+
+    setLabOrders([
+        ...existingLabOrders,
+        ...autoGeneratedOrders,
+    ]);
+}, [LabData, ordersData]);
+
+useEffect(() => {
+    if (
+        !LabData?.lab_follow_upCollection?.edges ||
+        !ordersData?.orderCollection?.edges ||
+        !branchId
+    ) {
+        return;
+    }
+
+    const existingOrderIds = new Set(
+        LabData.lab_follow_upCollection.edges.map(({ node }) => Number(node.order_id))
+    );
+
+    const newOrdersToInsert = ordersData.orderCollection.edges.filter(
+        ({ node }) =>
+            !existingOrderIds.has(Number(node.id)) &&
+            node.clinic_attend_customer?.clinic_id
+    );
+
+    if (newOrdersToInsert.length === 0) return;
+
+    const insertAll = async () => {
+        try {
+            await Promise.all(
+                newOrdersToInsert.map(({ node }) => {
+                    const placedDate = dayjs(node.placed_at);
+                    const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
+                    return InsertLabFollowUp({
+                        variables: {
+                            order_id: Number(node.id),
+                            clinic_id: Number(node.clinic_attend_customer.clinic_id),
+                            branch_id: Number(branchId),
+                            sent_to_lab_date: sentToLabDate.format("YYYY-MM-DD"),
+                            expected_return_date: sentToLabDate.add(LAB_TURNAROUND_DAYS, "day").format("YYYY-MM-DD"),
+                        }
+                    });
+                })
+            );
+            await refetchLabData();
+        } catch (err) {
+            console.error("Failed auto-inserting new lab follow-up rows", err);
+        }
+    };
+
+    insertAll();
+}, [LabData, ordersData, branchId, InsertLabFollowUp, refetchLabData]);
 
     const CLINIC_OPTIONS = [
         'All Centers',
@@ -275,17 +447,27 @@ export default function LabFollowUp() {
     )
 
     const orderList = ordersData?.orderCollection?.edges ?? [];
+    
     const formattedOrders = orderList
         .map(({ node }) => {
 
-            if (!node.id || !node?.clinic_attend_customer?.clinic_id ) return null;
+            if (!node.id || !node?.clinic_attend_customer?.clinic_id) return null;
 
-                return {
-                    orderId: Number(node.id),
-                    clinicId: Number(node.clinic_attend_customer.clinic_id),
-                    clinicName: node.clinic_attend_customer?.clinic?.venue || "Unknown Clinic"
-                };
-            })
+            const placedDate = dayjs(node.placed_at);
+            const sentToLabDate = placedDate.add(SENT_TO_LAB_DELAY_DAYS, "day");
+
+            return {
+                orderId: Number(node.id),
+                clinicId: Number(node.clinic_attend_customer.clinic_id),
+                clinicName:
+                    node.clinic_attend_customer?.clinic?.venue ||
+                    "Unknown Clinic",
+
+                placedAt: placedDate,
+                sentToLabDate: sentToLabDate,
+                expectedReturnDate: sentToLabDate.add(LAB_TURNAROUND_DAYS, "day")
+            };
+        })
         .filter(Boolean);
 
     const total = labOrders.length || 0;
@@ -357,7 +539,7 @@ export default function LabFollowUp() {
                 variables: {
                     id: Number(order.id),
                     received_date: date,
-                    status_id: 3
+                    status_id: Number(statusMap["Received"])
                 }
             })
 
@@ -378,28 +560,28 @@ export default function LabFollowUp() {
     };
 
     const handleStatusChange = async (order, newStatus) => {
+        if (order.isAutoGenerated) {
+            message.warning("This order has not yet been saved to lab_follow_up.");
+            return;
+        }
 
         if (order.status === "Received") {
             message.warning("Received orders cannot change status.");
             return;
         }
-
     // prevent changing to Delayed manually
         if (newStatus === "Delayed") {
             message.warning("Delayed status is set automatic.");
             return;
         }
-
         if (newStatus === 'Received') {
             message.warning('Use the Mark Received button to set this status — a received date is required.')
             return
         }
-
     // prevent selecting same status
         if (order.status === newStatus) {
             return;
         }
-
         try{
             const statusId = statusMap[newStatus];
             if(!statusId){
@@ -486,7 +668,7 @@ export default function LabFollowUp() {
                     </Col>
 
                     {/* Right side button */}
-                    <Col>
+                    {/* <Col>
                     <Button
                         icon={<PlusOutlined />}
                         onClick={() => setAddModalOpen(true)}
@@ -501,7 +683,7 @@ export default function LabFollowUp() {
                     >
                         Add Lab Orders    
                     </Button>
-                    </Col>
+                    </Col> */}
                 </Row>
              </div>
                 <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>
@@ -579,8 +761,6 @@ export default function LabFollowUp() {
             onMarkReceived={setMarkReceivedOrder}
             onEditNote={setEditNoteOrder}
             onStatusChange={handleStatusChange}
-           
-
             />
         <MarkReceivedModal
             open={!!markReceivedOrder}
@@ -594,12 +774,12 @@ export default function LabFollowUp() {
             onSave={handleSaveNote}
             onCancel={() => setEditNoteOrder(null)}
         />
-        <AddLabOrder
+        {/* <AddLabOrder
             open={addModalOpen}
             onAdd={handleAddLabOrder}
             onCancel={() => setAddModalOpen(false)}
             orders={formattedOrders}
-        />
+        /> */}
        
         </Content>
     </Layout>

@@ -1,5 +1,5 @@
 import React , { useState } from 'react'
-import { Table, Tag, Typography, Select, Input, DatePicker, Space } from 'antd'
+import { Table, Typography, Select, Input, Button,DatePicker } from 'antd'
 import { CheckCircleOutlined,CloseCircleOutlined, ClockCircleOutlined, SearchOutlined } from '@ant-design/icons' 
 
 const {Text} = Typography
@@ -44,7 +44,7 @@ const BranchTag = ({ branch }) => (
         {branch}
     </span>
 )
-export default function DistributionHistoryTable({data}) {
+export default function DistributionHistoryTable({data, onApprove}) {
     const [statusFilter, setStatusFilter ] = useState("All")
     const [search, setSearch] = useState('')
 
@@ -103,6 +103,21 @@ export default function DistributionHistoryTable({data}) {
             key: 'status',
             width: 160,
             render: (val) => <StatusBadge status={val} />,
+        },
+        {
+            title: 'Action',
+            key: 'action',
+            width: 140,
+            render: (_, record) => (
+                <Button
+                    type="primary"
+                    size="small"
+                    disabled={record.status === 'Approved'}
+                    onClick={() => onApprove?.(record)}
+                >
+                    {record.status === 'Approved' ? 'Approved' : 'Approve'}
+                </Button>
+            ),
         },
     ]
   return (

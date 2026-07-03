@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { SpectacleVisualization } from "../../component/sales-executive/dashboard/SpectacleVisualization";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
-import { useAuth } from "../../const/functions";
+import { getOrderStatusLabel, normalizeOrderStatus, useAuth } from "../../const/functions";
 
 function Orders() {
 
@@ -43,13 +43,14 @@ function Orders() {
             key: 'orderStatus',
             render: (v) => {
                 const statusColors = {
-                    Active: "green",
-                    Hold: "orange",
-                    Cancelled: "red",
-                    Completed: "green",
-                    Pending: "blue",
+                    active: "green",
+                    hold: "orange",
+                    canceled: "red",
+                    completed: "green",
+                    pending: "blue",
                 };
-                return <Tag color={statusColors[v] || "blue"}>{v}</Tag>;
+                const statusKey = normalizeOrderStatus(v);
+                return <Tag color={statusColors[statusKey] || "blue"}>{getOrderStatusLabel(v)}</Tag>;
             },
         },
         {
@@ -208,6 +209,7 @@ function Orders() {
                                 ? new Date(order.placed_at).toLocaleDateString()
                                 : clinicDate,
                             orderStatus: order?.order_status?.status || '-',
+                            orderStatusKey: normalizeOrderStatus(order?.order_status?.status),
                             paymentStatus: '-',
                             totalAmount: '-',
 
@@ -260,7 +262,7 @@ function Orders() {
     const filteredData = filterStatus === "All"
         ? searchFilteredData
         : searchFilteredData.filter(
-            (row) => row.orderStatus?.toLowerCase() === filterStatus.toLowerCase()
+            (row) => row.orderStatusKey === normalizeOrderStatus(filterStatus)
         );
 
     return (
@@ -270,7 +272,7 @@ function Orders() {
                     title="Orders"
                     extra={
                         <Space wrap>
-                            {["All", "Active", "Pending", "Hold", "Cancelled"].map((status) => (
+                            {['All', 'Active', 'Pending', 'Hold', 'Completed', 'Canceled'].map((status) => (
                                 <Button
                                     key={status}
                                     size="small"

@@ -146,7 +146,9 @@ const saveRecord = async (orderId, updateFields) => {
 
             insertedThisSession.current.add(String(orderId));
         }
-        onRefetch && onRefetch()
+        if (onRefetch) {
+            await onRefetch()
+        }
     } catch (err){
         console.error("Save reminder call failed:", err);
         message.error('Failed to save. Please try again.');
