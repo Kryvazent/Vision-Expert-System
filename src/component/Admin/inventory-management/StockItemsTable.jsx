@@ -225,7 +225,11 @@ export default function StockItemsTable({
           background: '#fff7e6', padding: 10, borderRadius: 8, marginBottom: 15, border: '1px solid #ffd591',
         }}>
           <b>Damage Report</b>
-          <p style={{ margin: 0 }}>The damaged quantity will be recorded and removed from central stock.</p>
+          <p style={{ margin: 0 }}>
+            {deductImmediately
+              ? 'The damaged quantity will be recorded and removed from stock.'
+              : 'The damaged quantity will be submitted for owner approval before stock is deducted.'}
+          </p>
         </div>
         <p>Product</p>
         <Input value={selectedItem?.productName} disabled />

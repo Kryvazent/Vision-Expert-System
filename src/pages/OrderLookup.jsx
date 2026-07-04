@@ -60,7 +60,7 @@ const GET_ORDER_BY_ID = gql`
                         left_add
                         pupillary_distance
                     }
-                    lens_type {
+                    lense_type {
                         id
                         type
                     }
@@ -557,7 +557,7 @@ export default function OrderLookup() {
                                 {dayjs(selectedOrder.estimated_delivery).format("YYYY-MM-DD")}
                             </Descriptions.Item>
                             <Descriptions.Item label="Lens Type">
-                                {selectedOrder.lens_type?.type}
+                                {selectedOrder.lense_type?.type}
                             </Descriptions.Item>
                             <Descriptions.Item label="Frame Type">
                                 {selectedOrder.frame_type?.type}
