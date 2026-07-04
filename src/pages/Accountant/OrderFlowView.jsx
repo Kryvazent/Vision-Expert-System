@@ -1,4 +1,4 @@
-import { Button, Card, Col, DatePicker, Row, Space, Table, Tag, message, Statistic, Select, Timeline } from "antd";
+import { Button, Card, Col, DatePicker, Row, Table, Tag, message, Statistic, Select, Timeline, Modal } from "antd";
 import { ShoppingCartOutlined, ClockCircleOutlined, CheckCircleOutlined, FilterOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
@@ -9,17 +9,8 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const GET_ORDERS = gql`
-    query getOrders($branchId: Int, $statusId: BigInt, $dateFrom: Datetime, $dateTo: Datetime) {
-        orderCollection(
-            filter: {
-                clinic_attend_customer: {
-                    clinic: { branch_id: { eq: $branchId } }
-                }
-                order_status_id: { eq: $statusId }
-                created_at: { gte: $dateFrom, lte: $dateTo }
-            }
-            orderBy: [{ created_at: DescNullsLast }]
-        ) {
+    query getOrders {
+        orderCollection(orderBy: [{ placed_at: DescNullsLast }]) {
             edges {
                 node {
                     id
@@ -118,8 +109,7 @@ const GET_BRANCHES = gql`
             edges {
                 node {
                     id
-                    name
-                    location
+                    branch_name
                 }
             }
         }
@@ -149,7 +139,7 @@ export default function OrderFlowView() {
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
 
-    const [getOrders, { data: ordersData, refetch }] = useLazyQuery(GET_ORDERS);
+    const [getOrders, { data: ordersData }] = useLazyQuery(GET_ORDERS);
     const [getBranches, { data: branchesData }] = useLazyQuery(GET_BRANCHES);
     const [getStatuses, { data: statusesData }] = useLazyQuery(GET_ORDER_STATUSES);
 
@@ -160,22 +150,30 @@ export default function OrderFlowView() {
 
     useEffect(() => {
         if (ordersData?.orderCollection?.edges) {
-            setOrders(ordersData.orderCollection.edges.map((e) => e.node));
+            const filteredOrders = ordersData.orderCollection.edges
+                .map((e) => e.node)
+                .filter((order) => {
+                    if (selectedBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(selectedBranch)) {
+                        return false;
+                    }
+                    if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
+                        return false;
+                    }
+                    if (dateRange.length === 2) {
+                        const placedAt = dayjs(order.placed_at);
+                        if (placedAt.isBefore(dayjs(dateRange[0]).startOf("day")) || placedAt.isAfter(dayjs(dateRange[1]).endOf("day"))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            setOrders(filteredOrders);
         }
-    }, [ordersData]);
+    }, [ordersData, selectedBranch, selectedStatus, dateRange]);
 
     const handleLoadOrders = () => {
         setLoading(true);
-        const variables = {};
-
-        if (selectedBranch) variables.branchId = selectedBranch;
-        if (selectedStatus) variables.statusId = selectedStatus;
-        if (dateRange.length === 2) {
-            variables.dateFrom = dayjs(dateRange[0]).startOf('day').toISOString();
-            variables.dateTo = dayjs(dateRange[1]).endOf('day').toISOString();
-        }
-
-        getOrders({ variables }).then(() => {
+        getOrders().then(() => {
             setLoading(false);
         }).catch((error) => {
             console.error("Error loading order flow data:", error);
@@ -328,8 +326,8 @@ export default function OrderFlowView() {
         },
         {
             title: "Created Date",
-            dataIndex: "created_at",
-            key: "created_at",
+            dataIndex: "placed_at",
+            key: "placed_at",
             render: (v) => dayjs(v).format("YYYY-MM-DD"),
         },
         {
@@ -414,7 +412,7 @@ export default function OrderFlowView() {
                             >
                                 {branchesData?.branchCollection?.edges?.map((edge) => (
                                     <Option key={edge.node.id} value={edge.node.id}>
-                                        {edge.node.name} - {edge.node.location}
+                                        {edge.node.branch_name || `Branch ${edge.node.id}`}
                                     </Option>
                                 ))}
                             </Select>
@@ -488,7 +486,7 @@ export default function OrderFlowView() {
                                     <p><strong>Contact:</strong> {selectedOrder.clinic_attend_customer?.customer_has_branch?.customer?.contact_no}</p>
                                 </Col>
                                 <Col span={12}>
-                                    <p><strong>Branch:</strong> {selectedOrder.clinic_attend_customer?.clinic?.branch?.name}</p>
+                                    <p><strong>Branch:</strong> {selectedOrder.clinic_attend_customer?.clinic?.branch?.branch_name}</p>
                                     <p><strong>Total:</strong> {formatCurrency(selectedOrder.total_price)}</p>
                                 </Col>
                             </Row>

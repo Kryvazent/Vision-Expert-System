@@ -19,6 +19,9 @@ import { useAuth } from "../../const/functions";
 import PageLayout from "../../component/shared/PageLayout";
 import StatCard from "../../component/shared/StatCard";
 
+// Performance query: branch info + clinics + their customer/order data
+// Orders are reached via clinic → clinic_attend_customer → order to avoid
+// top-level orderCollection filters that pg_graphql may not support.
 const GET_BRANCH_PERFORMANCE = gql`
   query GetBranchPerformance($branchId: Int!, $monthStart: Datetime!, $monthEnd: Datetime!) {
     branchCollection(filter: { id: { eq: $branchId } }) {
@@ -38,24 +41,22 @@ const GET_BRANCH_PERFORMANCE = gql`
             edges {
               node {
                 id
+                orderCollection(
+                  orderBy: [{ placed_at: DescNullsLast }]
+                ) {
+                  edges {
+                    node {
+                      id
+                      placed_at
+                      total_price
+                      delivery_orderCollection {
+                        edges { node { status } }
+                      }
+                    }
+                  }
+                }
               }
             }
-          }
-        }
-      }
-    }
-    orderCollection(
-      filter: {
-        placed_at: { gte: $monthStart, lt: $monthEnd }
-      }
-    ) {
-      edges {
-        node {
-          id
-          total_price
-          clinic_attend_customer_id
-          delivery_orderCollection {
-            edges { node { status } }
           }
         }
       }
@@ -106,37 +107,40 @@ export default function ManagerDashboard() {
   const hasTarget = branch?.revenue_target != null && branch?.order_target != null;
 
   const performance = useMemo(() => {
-    if (!branch || !data?.orderCollection) return null;
-    
-    // Get clinic_attend_customer IDs for this branch
-    const clinicAttendCustomerIds = new Set(
-      data?.clinicCollection?.edges
-        .flatMap(clinic => clinic.node.clinic_attend_customerCollection.edges)
-        .map(cac => cac.node.id) || []
-    );
-    
-    // Filter orders by branch
-    const orders = data.orderCollection.edges
-      .map((e) => e.node)
-      .filter(order => clinicAttendCustomerIds.has(order.clinic_attend_customer_id));
-    
+    if (!branch || !data?.clinicCollection) return null;
+
+    // Walk clinic → clinic_attend_customer → order
+    // Filter orders to the current month in JS (date range vars kept for
+    // potential future server-side use but not sent to orderCollection filter)
+    const allOrders = [];
+    data.clinicCollection.edges.forEach(({ node: clinic }) => {
+      (clinic.clinic_attend_customerCollection?.edges ?? []).forEach(({ node: cac }) => {
+        (cac.orderCollection?.edges ?? []).forEach(({ node: order }) => {
+          const placed = order.placed_at ? dayjs(order.placed_at) : null;
+          if (!placed) return;
+          if (placed.isBefore(monthStart) || placed.isAfter(monthEnd)) return;
+          allOrders.push(order);
+        });
+      });
+    });
+
     let revenueAchieved = 0, deliveriesAchieved = 0;
-    orders.forEach((order) => {
+    allOrders.forEach((order) => {
       const isDelivered = order.delivery_orderCollection.edges.some((d) => d.node.status === DELIVERED);
       if (isDelivered) { deliveriesAchieved += 1; revenueAchieved += order.total_price || 0; }
     });
     return {
-      revenue_target:    branch.revenue_target,
-      revenue_achieved:  revenueAchieved,
-      revenue_pct:       pct(revenueAchieved, branch.revenue_target),
-      order_target:      branch.order_target,
-      orders_achieved:   orders.length,
-      order_pct:         pct(orders.length, branch.order_target),
+      revenue_target:      branch.revenue_target,
+      revenue_achieved:    revenueAchieved,
+      revenue_pct:         pct(revenueAchieved, branch.revenue_target),
+      order_target:        branch.order_target,
+      orders_achieved:     allOrders.length,
+      order_pct:           pct(allOrders.length, branch.order_target),
       deliveries_achieved: deliveriesAchieved,
-      total_orders:      orders.length,
-      delivery_pct:      pct(deliveriesAchieved, orders.length),
+      total_orders:        allOrders.length,
+      delivery_pct:        pct(deliveriesAchieved, allOrders.length),
     };
-  }, [branch, data]);
+  }, [branch, data, monthStart, monthEnd]);
 
   const overallPct = performance
     ? Math.min(Math.round((performance.revenue_pct + performance.order_pct + performance.delivery_pct) / 3), 100)

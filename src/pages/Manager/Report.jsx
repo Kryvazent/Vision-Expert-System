@@ -19,8 +19,7 @@ const { RangePicker } = DatePicker
 // ── GraphQL ────────────────────────────────────────────────────────────────
 
 const GET_REPORT_DATA = gql`
-  query GetManagerReportData($branchId: Int!, $dateStart: Datetime!, $dateEnd: Datetime!) {
-    # Orders via clinic → clinic_attend_customer chain
+  query GetManagerReportData($branchId: Int!) {
     clinicCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
@@ -48,16 +47,16 @@ const GET_REPORT_DATA = gql`
                           }
                         }
                       }
-                    }
-                  }
-                }
-                complaintCollection {
-                  edges {
-                    node {
-                      id
-                      complaint
-                      created_at
-                      complaint_status { status }
+                      complaintCollection {
+                        edges {
+                          node {
+                            id
+                            complaint
+                            created_at
+                            complaint_status { status }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -87,7 +86,6 @@ const GET_REPORT_DATA = gql`
     }
   }
 `
-
 // ── Helpers ────────────────────────────────────────────────────────────────
 const fmt = (n) =>
   `LKR ${Number(n ?? 0).toLocaleString('en-LK', { maximumFractionDigits: 0 })}`
@@ -108,11 +106,7 @@ function Report() {
   ])
 
   const { data, loading, refetch } = useQuery(GET_REPORT_DATA, {
-    variables: {
-      branchId,
-      dateStart: dateRange[0]?.startOf('day').toISOString(),
-      dateEnd:   dateRange[1]?.endOf('day').toISOString(),
-    },
+    variables: { branchId },
     skip: !branchId,
     fetchPolicy: 'network-only',
   })
@@ -153,15 +147,16 @@ function Report() {
             balance:      Number(order.balance_amount ?? 0),
             status:       order.order_status?.status || 'Unknown',
           })
-        })
 
-        ;(cac.complaintCollection?.edges ?? []).forEach(({ node: c }) => {
-          complaintList.push({
-            key:       c.id,
-            date:      dayjs(c.created_at).format('YYYY-MM-DD'),
-            complaint: c.complaint,
-            venue:     clinic.venue,
-            status:    c.complaint_status?.status || 'Unknown',
+          // Complaints are a reverse relation on order
+          ;(order.complaintCollection?.edges ?? []).forEach(({ node: c }) => {
+            complaintList.push({
+              key:       c.id,
+              date:      dayjs(c.created_at).format('YYYY-MM-DD'),
+              complaint: c.complaint,
+              venue:     clinic.venue,
+              status:    c.complaint_status?.status || 'Unknown',
+            })
           })
         })
       })
