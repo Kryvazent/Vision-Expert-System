@@ -1,50 +1,134 @@
-import React, { useState } from 'react'
-import { Modal, Form, Input, Select, Button, Space, InputNumber, message, DatePicker } from 'antd'
-import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons'
+import React, { useEffect, useState } from 'react'
+import { 
+  Modal, 
+  Form,  
+  Select, 
+  Button, 
+  Space, 
+  message, 
+  DatePicker,
+  Typography,
+  Checkbox,  
+} from 'antd'
+import dayjs from 'dayjs';
+
 
 const { Option } = Select;
+const { Text } = Typography
 
 const BRANCH_CODES = {
-    "Mahiyanganaya": "MAHI",
-    "Nuwara Eliya": "NELI",
-    "Kandy": "KAN",
-    "Dambulla": "DMB",
-  }
-  
-export default function AddBatchModal({ open, onClose, onAddBatch, branchList = [] }) {
+  "mahiyanganaya": "MAHI",
+  "nuwaraeliya": "NELI",
+  "nuwara-eliya": "NELI",
+  "nuwara eliya": "NELI",
+  "kandy": "KAN",
+  "dambulla": "DMB",
+}
+
+const normalizeBranchName = (value = '') => {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '')
+}
+
+const getBranchCode = (branchName = '') => {
+  return BRANCH_CODES[normalizeBranchName(branchName)] || 'BR'
+}
+
+const buildBatchNumber = (branchName, branchId) => {
+  const branchCode = getBranchCode(branchName)
+  const today = new Date()
+  const formattedDate = [
+    String(today.getDate()).padStart(2, '0'),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    today.getFullYear(),
+  ].join('')
+  const suffix = String(Date.now()).slice(-4)
+  return `${branchCode}${formattedDate}${suffix}`
+}
+
+export default function AddBatchModal({ open, onClose, onAddBatch, branchList = [] , loadOrdersByBranchAndDate,}) {
 
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+
+  const [availableOrders, setAvailableOrders] = useState([])
+  const [loadingOrders, setLoadingOrders] = useState(false)
+
+  useEffect(() => {
+    if (!open) {
+      form.resetFields()
+      setAvailableOrders([])
+    }
+  }, [open, form])
+
+  const handleLoadOrders = async () => {
+    try {
+      const values = await form.validateFields(['branchId', 'placedDate'])
+      const branchId = values.branchId
+      const placedDate = values.placedDate?.format?.('YYYY-MM-DD')
+
+      if (!branchId || !placedDate) return
+
+      setLoadingOrders(true)
+      setAvailableOrders([])
+
+      const res = await loadOrdersByBranchAndDate({
+        branchId,
+        placedDate,
+      })
+
+      setAvailableOrders(Array.isArray(res) ? res : [])
+    } catch (err) {
+      if (err?.errorFields) {
+        return
+      }
+      console.error(err)
+      message.error('Failed to load orders')
+    } finally {
+      setLoadingOrders(false)
+    }
+  }
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
       const values = await form.validateFields();
+      const selectedOrders = values.selectedOrders || [];
 
-      const today = new Date();
-      const formattedDate = 
-        String(today.getDate()).padStart(2, '0') +
-        String(today.getMonth() + 1).padStart(2, '0') +
-        today.getFullYear();
+      if (selectedOrders.length === 0) {
+        message.error('Select at least one order')
+        return
+      }
 
-        const branchName = branchList.find(b => b.id === values.branchId)?.branch_name || ''
-        const batchNumber =(BRANCH_CODES[branchName] || 'BR')  + formattedDate;      
+  const formattedOrders = selectedOrders
+    .map(orderId => availableOrders.find(o => o.id === orderId))
+    .filter(Boolean)
+    .map(order => ({
+        orderID: order.orderID,
+        placedDate: order.placedDate,
+  }));
 
-        onAddBatch({
-          batchNumber,
-          branchId:  values.branchId,
-          orderData: values.orderIDs || [],
-        })
+      const branchName =
+        branchList.find(b => b.id === values.branchId)?.branch_name || '';
 
-    
-        form.resetFields()
-        onClose()
+      const batchNumber = buildBatchNumber(branchName, values.branchId);
+
+      await onAddBatch({
+        batchNumber,
+        branchId: values.branchId,
+        orderData: formattedOrders,
+      });
+
+      form.resetFields();
+      setAvailableOrders([]);
+      onClose();
 
     } catch (error) {
       console.error("Validation or submit error:", error);
       message.error("Please fill in all required fields.");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -64,82 +148,74 @@ export default function AddBatchModal({ open, onClose, onAddBatch, branchList = 
             name="branchId"
             label="Branch"
             rules={[{required: true,message: "Please select branch"}]}
-          >
-            <Select placeholder="Select Branch">
+        >
+            <Select placeholder="Select Branch"   onChange={handleLoadOrders} >
               {branchList.map(b => (
                 <Option key={b.id} value={b.id}>{b.branch_name}</Option>
               ))}
             </Select>
-          </Form.Item>
-
-        {/* Dynamic Order List */}
-        <Form.Item label="Orders in this Batch">
-          <Form.List
-            name="orderIDs"
-            rules={[{
-              validator: async (_, orderIDs) => {
-                if (!orderIDs || orderIDs.length < 1) {
-                  return Promise.reject(new Error('Add at least one order'));
-                }
-              }
-            }]}
-          >
-            {(fields, { add, remove }, { errors }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <Space
-                    key={key}
-                    style={{ display: 'flex', marginBottom: 8 }}
-                    align="baseline"
-                  >
-                    {/* Order ID */}
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'orderID']}
-                      rules={[{ required: true, message: "Enter Order ID" }]}
-                    >
-                      <Input placeholder="e.g. ORD-2026-0794" style={{ width: 200 }} />
-                    </Form.Item>
-
-                    {/* Placed Date */}
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'placedDate']}
-                      label={<Text style={{ fontSize: 12 }}>Placed Date</Text>}
-                      rules={[
-                        { required: true, message: "Enter Placed Date" },
-                      ]}
-                      style={{ margin: 0, flex: 1 }}
-                      getValueFromEvent={(date) => date ? date.format('YYYY-MM-DD') : null}
-                    >
-                      <DatePicker
-                        style={{ width: '100%', borderRadius: 6 }}
-                        placeholder="Select date"
-                        format="YYYY-MM-DD"
-                      />
-                      
-                    </Form.Item>
-                    <MinusCircleOutlined onClick={() => remove(name)} style={{ color: '#ff4d4f' }} />
-                  </Space>
-                ))}
-
-                {/* Add Order button */}
-                <Form.Item>
-                  <Button
-                    type="dashed"
-                    onClick={() => add()}
-                    icon={<PlusOutlined />}
-                    style={{ width: '100%' }}
-                  >
-                    Add Order
-                  </Button>
-                </Form.Item>  
-                <Form.ErrorList errors={errors} />
-  
-              </>
-            )}
-          </Form.List>
         </Form.Item>
+
+        <Form.Item
+          name="placedDate"
+          label="Order Placed Date"
+          rules={[{ required: true, message: "Please select order placed date" }]}
+        >
+          <DatePicker
+            style={{ width: '100%' }}
+            format="YYYY-MM-DD"
+            onChange={handleLoadOrders}
+            disabledDate={(d) => d && d < dayjs().startOf("day")}
+          />
+        </Form.Item>
+
+        <div style={{ marginBottom: 16 }}>
+          <Button onClick={handleLoadOrders} loading={loadingOrders}>
+            Load Orders
+          </Button>
+        </div>
+
+        <Form.Item
+          name="selectedOrders"
+          label="Available Orders"
+          rules={[{required: true, message: "Select at least one order"}]}    
+        >
+          <Checkbox.Group style={{ width: "100%" }}>
+            <Space direction="vertical" style={{ width: "100%" }}>
+              {loadingOrders ? (
+                <Text type="secondary">Loading orders...</Text>
+              ) : availableOrders.length === 0 ? (
+                <Text type="secondary">No orders found for the selected branch and date.</Text>
+              ) : (
+                availableOrders.map(order => (
+                  <Checkbox key={order.id} value={order.id} disabled={!order.canForward}>
+                    <div>
+                      <b>{order.orderID}</b>
+                        {"  |  "}
+                        {order.customerName}
+                        {"  |  "}
+                        {order.placedDate}
+                      <div style={{ color: order.canForward ? '#52c41a' : '#cf1322', fontSize: 12, marginTop: 2 }}>
+                        {order.forwardReason}
+                      </div>
+                      {order.reminderStatus && (
+                        <div style={{ fontSize: 12, color: '#595959', marginTop: 2 }}>
+                          Before lab: {order.reminderStatus}{order.reminderReason ? ` • ${order.reminderReason}` : ''}
+                        </div>
+                      )}
+                      {order.deliveryStatus && (
+                        <div style={{ fontSize: 12, color: '#595959', marginTop: 2 }}>
+                          Before delivery: {order.deliveryStatus}{order.deliveryReason ? ` • ${order.deliveryReason}` : ''}
+                        </div>
+                      )}
+                    </div>
+                  </Checkbox>
+                ))
+              )}
+            </Space>
+          </Checkbox.Group>
+        </Form.Item>
+        
       </Form>
     </Modal>
   );

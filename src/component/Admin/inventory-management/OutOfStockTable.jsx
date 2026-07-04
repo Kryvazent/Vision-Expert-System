@@ -2,7 +2,7 @@ import React from 'react'
 import { Table, Tag, Space, Button } from 'antd';
 import { CheckCircleOutlined } from '@ant-design/icons';
 
-export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(), onReOrder }) {
+export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(), onReOrder, showReorderButton = true }) {
 
   const columns = [
     {
@@ -28,15 +28,18 @@ export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(
         </Tag>
       ),
     },
-    {
+  ];
+
+  if (showReorderButton) {
+    columns.push({
       title: 'Actions',
       key: 'actions',
       onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
       render: (_, record) => {
 
-        if (record.quantity >= 100) 
+        if (record.quantity >= 100)
           return null; // No action for items that are not out of stock
-        
+
         // ─── Check if this product type is already reordered ──────────────
         const alreadyOrdered = reOrderedTypeIds.has(String(record.productTypeId));
 
@@ -57,7 +60,7 @@ export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(
                 type="primary"
                 size="small"
                 danger
-                onClick={() => onReOrder(record.productTypeId)}
+                onClick={() => onReOrder(record.productTypeId, undefined, 100)}
               >
                 Reorder
               </Button>
@@ -65,8 +68,8 @@ export default function OutOfStockTable({ data = [], reOrderedTypeIds = new Set(
           </Space>
         );
       },
-    },
-  ];
+    });
+  }
 
   return (
     <div>

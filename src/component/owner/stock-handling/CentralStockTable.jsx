@@ -70,8 +70,16 @@ export default function CentralStockTable({data, onDistribute}) {
             render: (val, record) => (
                 <div>
                     <Text strong style={{ fontSize: 14 }}>{val}</Text>
-                     <br />
+                    <br />
                     <Text type="secondary" style={{ fontSize: 12 }}>{record.brand}</Text>
+                    {record.sku && (
+                      <>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+                          SKU: {record.sku}
+                        </Text>
+                      </>
+                    )}
                 </div>
             ),
         },

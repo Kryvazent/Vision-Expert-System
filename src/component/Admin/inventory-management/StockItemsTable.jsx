@@ -1,295 +1,252 @@
 import React, { useState } from 'react'
-import { Table, Tag, Tabs, Button, Dropdown, Modal, InputNumber, Input, message } from 'antd';
-import { EditOutlined, MoreOutlined, WarningOutlined } from '@ant-design/icons';
+import { Table, Tag, Tabs, Button, Dropdown, Modal, InputNumber, Input, message, Typography, Row, Col, Card } from 'antd'
+import { MoreOutlined, WarningOutlined, SendOutlined } from '@ant-design/icons'
 
-const { TextArea } = Input;
+const { Text } = Typography
+const { TextArea } = Input
 
-export default function StockItemsTable({ data = [], updateStock, insertDamageStock, onRefetch, productTypeList = [] }) {
+export default function StockItemsTable({
+  data = [],
+  insertDamageStock,
+  onDistribute,
+  deductImmediately = true,
+  updateStock,
+  onRefetch,
+  productTypeList = [],
+}) {
+  const [activeTab, setActiveTab] = useState('')
+  const [isDamagedOpen, setIsDamagedOpen] = useState(false)
+  const [selectedItem, setSelectedItem] = useState(null)
+  const [damagedQty, setDamagedQty] = useState(0)
+  const [damagedReason, setDamagedReason] = useState('')
 
-  //  Set first tab from DB types dynamically 
-  const [activeTab, setActiveTab] = useState('');
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isDamagedOpen, setIsDamagedOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-
-  const [updateQty, setUpdateQty] = useState(0);
-  const [damagedQty, setDamagedQty] = useState(0);
-  const [damagedReason, setDamagedReason] = useState('');
-
-  //  Set active tab once productTypeList loads 
   React.useEffect(() => {
     if (productTypeList.length > 0 && !activeTab) {
-      setActiveTab(productTypeList[0].type); // default to first tab from DB
+      setActiveTab(productTypeList[0].type)
     }
-  }, [productTypeList]);
+  }, [productTypeList, activeTab])
 
-  // Build tabs dynamically from DB product types 
-  const tabItems = productTypeList.map((pt) => ({
-    label: pt.type,   // Display name from DB e.g. "PlasticFrame"
-    key: pt.type,     // Key matches category in data
-  }));
+  const tabItems = productTypeList.map(pt => ({ label: pt.type, key: pt.type }))
+  const filteredData = activeTab ? data.filter(item => item.category === activeTab) : data
 
-  // Handle Edit Submit
-  const handleEditPopup = async () => {
-    try {
-      const newQty = selectedItem.stockQuantity + updateQty;
-      if (newQty < 0) {
-        message.error("Quantity cannot be negative!");
-        return;
-      }
-      await updateStock({
-        variables: {
-          id: selectedItem.id,
-          quantity: newQty,
-        }
-      });
-      message.success("Stock Updated!");
-      setIsEditOpen(false);
-      setUpdateQty(0);
-      onRefetch && onRefetch(); //single call updates all tables with new data
-    } catch (err) {
-      message.error('Update failed!');
-    }
-  };
+  const totalUnits = data.reduce((sum, item) => sum + Number(item.stockQuantity || 0), 0)
+  const lowStockItems = data.filter(item => Number(item.stockQuantity || 0) > 0 && Number(item.stockQuantity || 0) <= 100).length
+  const outOfStockItems = data.filter(item => Number(item.stockQuantity || 0) === 0).length
 
-  // ─── Handle Damaged Submit 
   const handleDamagedSubmit = async () => {
     if (!damagedQty || damagedQty <= 0) {
-      message.error("Enter valid damaged quantity!");
-      return;
+      message.error('Enter valid damaged quantity!')
+      return
     }
     if (damagedQty > selectedItem.stockQuantity) {
-      message.error("Damaged quantity cannot exceed current stock!");
-      return;
+      message.error('Exceeds current stock!')
+      return
     }
     if (!damagedReason.trim()) {
-      message.error("Please enter a reason");
-      return;
+      message.error('Please enter a reason')
+      return
     }
+
     try {
-      //  Insert damaged record for owner approval 
       await insertDamageStock({
-        variables: {
-          stock_id: selectedItem.id,
-          quantity: damagedQty,
-          reason: damagedReason,
-        }
-      });
+        variables: { stock_id: selectedItem.id, quantity: damagedQty, reason: damagedReason },
+      })
 
-      //  Step 2: Update stock quantity (reduced damaged quantity) 
-      const newQuantity = selectedItem.stockQuantity - damagedQty;
-      await updateStock({
-        variables: {
-          id: selectedItem.id,
-          quantity: newQuantity,
-        }
-      });
+      if (deductImmediately) {
+        await updateStock({
+          variables: { id: selectedItem.id, quantity: selectedItem.stockQuantity - damagedQty },
+        })
+        message.success('Damage report submitted and stock updated.')
+      } else {
+        message.success('Damage report submitted for approval.')
+      }
 
-      message.success("Submitted for owner approval and stock updated!");
-      setIsDamagedOpen(false);
-      setDamagedQty(0);
-      setDamagedReason('');
-      onRefetch && onRefetch();  //  Refresh all tables with new data
-
-    } catch (err) {
-      message.error("Submission failed!");
-      console.error(err);
+      setIsDamagedOpen(false)
+      setDamagedQty(0)
+      setDamagedReason('')
+      onRefetch?.()
+    } catch {
+      message.error('Submission failed!')
     }
-  };
+  }
 
-  // ─── Dropdown Menu 
   const getMenu = (record) => ({
     items: [
       {
-        key: 'edit',
-        label: (
-          <span>
-            <EditOutlined style={{ marginRight: 8 }} />
-            Edit Quantity
-          </span>
-        ),
-        onClick: () => {
-          setSelectedItem(record);
-          setUpdateQty(0);
-          setIsEditOpen(true);
-        },
+        key: 'distribute',
+        label: <span><SendOutlined style={{ marginRight: 8 }} />Distribute to Branch</span>,
+        onClick: () => onDistribute?.(record),
       },
       {
         key: 'damage',
         danger: true,
-        label: (
-          <span>
-            <WarningOutlined style={{ marginRight: 8 }} />
-            Mark as Damaged
-          </span>
-        ),
+        label: <span><WarningOutlined style={{ marginRight: 8 }} />Mark as Damaged</span>,
         onClick: () => {
-          setSelectedItem(record);
-          setDamagedQty(0);
-          setDamagedReason('');
-          setIsDamagedOpen(true);
+          setSelectedItem(record)
+          setDamagedQty(0)
+          setDamagedReason('')
+          setIsDamagedOpen(true)
         },
       },
     ],
-  });
+  })
 
-  // ─── Table Columns 
-  const stockItemsColumns = [
+  const hdr = { style: { backgroundColor: '#092258', color: 'white', fontWeight: 600 } }
+
+  const columns = [
     {
-      title: 'Product Name',
+      title: 'Product',
       dataIndex: 'productName',
       key: 'productName',
-      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      onHeaderCell: () => hdr,
       render: (_, record) => (
         <div>
-          <div style={{ fontWeight: 'bold' }}>{record.productName}</div>
+          <div style={{ fontWeight: 700 }}>{record.productName}</div>
+          <Text type="secondary" style={{ fontSize: 11, fontFamily: 'monospace' }}>
+            SKU: {record.sku || '-'}
+          </Text>
         </div>
       ),
+    },
+    {
+      title: 'Brand',
+      dataIndex: 'brand',
+      key: 'brand',
+      width: 160,
+      onHeaderCell: () => hdr,
+      render: (value) => value ? <Tag color="blue">{value}</Tag> : <Text type="secondary">-</Text>,
     },
     {
       title: 'Category',
       dataIndex: 'category',
       key: 'category',
-      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      width: 170,
+      onHeaderCell: () => hdr,
+      render: (value) => <Tag color="geekblue" style={{ fontWeight: 600 }}>{value}</Tag>,
     },
     {
-      title: 'Date',
+      title: 'Date Added',
       dataIndex: 'date',
       key: 'date',
-      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      width: 130,
+      onHeaderCell: () => hdr,
     },
     {
-      title: 'Stock Quantity',
+      title: 'Stock Qty',
       dataIndex: 'stockQuantity',
       key: 'stockQuantity',
-      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
-      render: (qty) => {
-        let color = 'green';
-        if (qty === 0) {
-          color = '#d20d0dc5';
-        } else if (qty <= 100) {
-          color = 'orange';
-        }
-        return <Tag color={color} style={{ fontWeight: 'bold' }}>{qty} units</Tag>;
+      width: 130,
+      align: 'center',
+      onHeaderCell: () => hdr,
+      sorter: (a, b) => a.stockQuantity - b.stockQuantity,
+      render: qty => {
+        const color = qty === 0 ? '#d20d0dc5' : qty <= 100 ? 'orange' : 'green'
+        return <Tag color={color} style={{ fontWeight: 700 }}>{qty} units</Tag>
       },
     },
     {
       title: 'Actions',
       key: 'actions',
-      onHeaderCell: () => ({ style: { backgroundColor: "#092258", color: "white", fontWeight: 600 } }),
+      width: 120,
+      align: 'center',
+      onHeaderCell: () => hdr,
       render: (_, record) => (
-        <Dropdown menu={getMenu(record)} trigger={['click']}>
+        <Dropdown menu={getMenu(record)} trigger={['click']} placement="bottomRight">
           <Button icon={<MoreOutlined />}>More</Button>
         </Dropdown>
       ),
     },
-  ];
-
-  //  Filter data by active tab 
-  const filteredData = activeTab ?  data.filter((item) => item.category === activeTab) : data;
+  ]
 
   return (
-    <div style={{ borderRadius: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}>
+    <div style={{ borderRadius: 16, background: '#fff', border: '1px solid #E5E7EB', boxShadow: '0 8px 30px rgba(15, 23, 42, 0.06)', overflow: 'hidden' }}>
+      <div style={{ padding: '18px 20px 8px' }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #EFF6FF 0%, #FFFFFF 100%)',
+          border: '1px solid #BFDBFE',
+          borderRadius: 12,
+          padding: 16,
+          marginBottom: 16,
+        }}>
+          <Row gutter={[12, 12]}>
+            <Col xs={24} sm={8}>
+              <Card size="small" bordered={false} style={{ borderRadius: 10, background: '#fff' }}>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>Stock Items</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#1D4ED8' }}>{data.length}</div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card size="small" bordered={false} style={{ borderRadius: 10, background: '#fff' }}>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>Total Units</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#059669' }}>{totalUnits}</div>
+              </Card>
+            </Col>
+            <Col xs={24} sm={8}>
+              <Card size="small" bordered={false} style={{ borderRadius: 10, background: '#fff' }}>
+                <div style={{ fontSize: 12, color: '#6B7280' }}>Needs Attention</div>
+                <div style={{ fontSize: 24, fontWeight: 800, color: '#7C3AED' }}>{lowStockItems + outOfStockItems}</div>
+              </Card>
+            </Col>
+          </Row>
+          <div style={{ marginTop: 12, fontSize: 12, color: '#3B82F6' }}>
+            Select a category, then use More to distribute stock or report damaged quantity.
+          </div>
+        </div>
 
-      {/* Dynamic Tabs from DB */}
-      <Tabs
-        activeKey={activeTab}
-        onChange={setActiveTab}
-        type="card"
-        size="large"
-        style={{ marginBottom: 16 }}
-        items={tabItems}
-      />
-
-      <Table
-        columns={stockItemsColumns}
-        dataSource={filteredData}
-        pagination={false}
-        locale={{ emptyText: 'No stock items found for this category' }}
-      />
-
-      {/* ── Edit Modal ── */}
-      <Modal
-        title='Edit Quantity'
-        open={isEditOpen}
-        onCancel={() => { setIsEditOpen(false); setUpdateQty(0); }}
-        onOk={handleEditPopup}
-        okText='Update Quantity'
-      >
-        <p>Product Name</p>
-        <Input value={selectedItem?.productName} disabled />
-
-        <p style={{ marginTop: 10 }}>Current Quantity</p>
-        <Input value={`${selectedItem?.stockQuantity} units`} disabled />
-
-        <p style={{ marginTop: 10 }}>Add Stock</p>
-        <InputNumber
-          style={{ width: '100%' }}
-          placeholder='+10'
-          value={updateQty}
-          onChange={(val) => setUpdateQty(val || 0)}
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          type="card"
+          size="large"
+          style={{ marginBottom: 16 }}
+          items={tabItems}
         />
-        {updateQty !== 0 && (
-          <p style={{ marginTop: 8, color: '#1890ff' }}>
-            New quantity: <b>{(selectedItem?.stockQuantity || 0) + updateQty} units</b>
-          </p>
-        )}
-      </Modal>
+      </div>
 
-      {/* ── Damaged Modal ── */}
+      <div style={{ padding: '0 20px 20px' }}>
+        <Table
+          columns={columns}
+          dataSource={filteredData}
+          rowKey={(record) => record.id}
+          pagination={{ pageSize: 10, showTotal: t => `${t} items` }}
+          locale={{ emptyText: 'No stock items found for this category' }}
+        />
+      </div>
+
       <Modal
         title="Mark Item as Damaged"
         open={isDamagedOpen}
-        onCancel={() => {
-          setIsDamagedOpen(false);
-          setDamagedQty(0);
-          setDamagedReason('');
-        }}
+        onCancel={() => { setIsDamagedOpen(false); setDamagedQty(0); setDamagedReason('') }}
         onOk={handleDamagedSubmit}
-        okText="Submit for Approval"
+        okText="Submit"
         okButtonProps={{ danger: true }}
       >
         <div style={{
-          background: "#fff7e6",
-          padding: "10px",
-          borderRadius: "8px",
-          marginBottom: "15px",
-          border: "1px solid #ffd591"
+          background: '#fff7e6', padding: 10, borderRadius: 8, marginBottom: 15, border: '1px solid #ffd591',
         }}>
-          <b>Owner Approval Required</b>
-          <p style={{ margin: 0 }}>
-            This will be submitted for owner approval. Once approved, the damaged quantity will be removed from the branch stock.
-          </p>
+          <b>Damage Report</b>
+          <p style={{ margin: 0 }}>The damaged quantity will be recorded and removed from central stock.</p>
         </div>
-
-        <p>Product Name</p>
+        <p>Product</p>
         <Input value={selectedItem?.productName} disabled />
-
         <p style={{ marginTop: 10 }}>Current Stock</p>
-        <Input value={`${selectedItem?.stockQuantity} units`} disabled />
-
+        <Input value={`${selectedItem?.stockQuantity ?? 0} units`} disabled />
         <p style={{ marginTop: 10 }}>Damaged Quantity</p>
         <InputNumber
           style={{ width: '100%' }}
           min={1}
           max={selectedItem?.stockQuantity}
           value={damagedQty}
-          onChange={(val) => setDamagedQty(val || 0)}
+          onChange={v => setDamagedQty(v || 0)}
         />
-        {damagedQty > 0 && (
-          <p style={{ marginTop: 8, color: 'orange' }}>
-            Stock after approval: <b>{(selectedItem?.stockQuantity || 0) - damagedQty} units</b>
-          </p>
-        )}
-
         <p style={{ marginTop: 10 }}>Reason</p>
         <TextArea
           rows={3}
-          placeholder="Enter reason for damaged"
           value={damagedReason}
-          onChange={(e) => setDamagedReason(e.target.value)}
+          onChange={e => setDamagedReason(e.target.value)}
+          placeholder="Describe the damage..."
         />
       </Modal>
     </div>
-  );
+  )
 }

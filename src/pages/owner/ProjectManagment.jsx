@@ -10,6 +10,7 @@ import {
 } from "antd";
 
 import { useState } from "react";
+import dayjs from "dayjs";
 
 import {
   FileTextOutlined,
@@ -17,8 +18,6 @@ import {
   EditOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
-
-import dayjs from "dayjs";
 
 import { gql } from "@apollo/client";
 import { useQuery, useMutation } from "@apollo/client/react";
@@ -566,6 +565,7 @@ export default function ProjectManagement() {
               onChange={(date, dateString) =>
                 updateValue("startDate", dateString)
               }
+              disabledDate={(d) => d && d < dayjs().startOf("day")}
             />
           </div>
 

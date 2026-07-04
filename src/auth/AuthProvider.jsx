@@ -11,12 +11,20 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [staff, setStaff] = useState(null);
   const [role, setRole] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   async function loadStaffProfile(authUserId) {
 
     // console.log("Loading staff profile for authUserId:", authUserId);
 
-    if (!authUserId) { setStaff(null); return; }
+    if (!authUserId) {
+      setStaff(null);
+      setRole(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
 
     const GET_STAFF_PROFILE = gql`
       query GetStaffProfile($authUserId: UUID!) {
@@ -59,6 +67,9 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Failed to fetch staff profile:", error.message);
       setStaff(null);
+      setRole(null);
+    } finally {
+      setProfileLoading(false);
     }
 
   }
@@ -70,6 +81,10 @@ export function AuthProvider({ children }) {
 
       if (session?.user?.id) {
         loadStaffProfile(session.user.id); // ✅ only when ready
+      } else {
+        setStaff(null);
+        setRole(null);
+        setProfileLoading(false);
       }
     });
 
@@ -82,6 +97,8 @@ export function AuthProvider({ children }) {
           loadStaffProfile(session.user.id); // ✅ safe
         } else {
           setStaff(null);
+          setRole(null);
+          setProfileLoading(false);
           await apolloSupabaseGraphqlClient.clearStore();
         }
       }
@@ -102,7 +119,7 @@ export function AuthProvider({ children }) {
     user,
     staff,
     role,
-    isLoading: session === undefined,
+    isLoading: session === undefined || (!!session && profileLoading),
     isAuthenticated: !!session,
     homeRoute: MENU_BY_ROLE[role]?.[0]?.key ?? "/",
     signOut,

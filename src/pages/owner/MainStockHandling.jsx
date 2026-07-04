@@ -19,11 +19,12 @@ import LowStockTable from '../../component/Admin/inventory-management/LowStockTa
 import OutOfStockTable  from '../../component/Admin/inventory-management/OutOfStockTable'
 import StockItemsTable from '../../component/Admin/inventory-management/StockItemsTable'
 
-import CentralStockTable from '../../component/owner/stock-handling/CentralStockTable'
 import DistributionHistoryTable from '../../component/owner/stock-handling/DistributionHistoryTable'
 import BranchStockTable from '../../component/owner/stock-handling/BranchStockTable'
 import DistributionModal from '../../component/owner/stock-handling/DistributionModal'
 import AddStockModal from '../../component/owner/stock-handling/AddStockModal'
+import StockMovementHistoryTable from '../../component/owner/stock-handling/StockMovementHistoryTable'
+import DamageHistoryTable from '../../component/owner/stock-handling/DamageHistoryTable'
 
 const { Title, Text } = Typography
 const { Content } = Layout
@@ -68,6 +69,7 @@ const LOAD_MAIN_STOCK = gql`
             product{
               id
               name
+              sku
               brand{
                 brand
               }
@@ -79,6 +81,34 @@ const LOAD_MAIN_STOCK = gql`
           }
         }
       }
+  }
+`;
+
+const LOAD_MAIN_FRAMES = gql`
+  query LoadMainFrames($branch_id: Int!) {
+    frameCollection(
+      filter: { branch_id: { eq: $branch_id } }
+      orderBy: [{ created_at: DescNullsLast }]
+    ) {
+      edges {
+        node {
+          id
+          serial_no
+          color
+          status
+          created_at
+          product_id
+          product {
+            id
+            name
+            sku
+          }
+          frame_type {
+            type
+          }
+        }
+      }
+    }
   }
 `;
 
@@ -163,6 +193,70 @@ const LOAD_MAIN_DAMAGED_STOCK = gql `
   }
 `;
 
+const LOAD_DAMAGED_FRAMES = gql`
+  query LoadDamagedFrames($branch_id: Int!) {
+    frameCollection(
+      filter: { 
+        branch_id: { eq: $branch_id },
+        status: { eq: "damaged" }
+      }
+      orderBy: [{ created_at: DescNullsLast }]
+    ) {
+      edges {
+        node {
+          id
+          serial_no
+          color
+          created_at
+          product_id
+          frame_type_id
+          branch_id
+          status
+          product {
+            id
+            name
+            sku
+          }
+          frame_type {
+            type
+          }
+        }
+      }
+    }
+  }
+`;
+
+const LOAD_DAMAGE_HISTORY = gql`
+  query LoadDamageHistory {
+    damage_historyCollection(orderBy: [{ created_at: DescNullsLast }]) {
+      edges {
+        node {
+          id
+          reference_table
+          reference_id
+          event_type
+          stock_id
+          branch_id
+          quantity
+          reason
+          approved
+          approved_by
+          approved_at
+          created_at
+          stock {
+            id
+            product {
+              id
+              name
+              sku
+            }
+          }
+        }
+      }
+    }
+  }
+`
+
 const LOAD_BRANCHES = gql `
   query LoadBranches{
     branchCollection(
@@ -190,16 +284,106 @@ const LOAD_DISTRIBUTIONS = gql`
           created_at
           status
           notes
+          frame_id
+          frame {
+            id
+            serial_no
+          }
           stock {
             id
             product {
+              id
               name
+              sku
+              product_type {
+                id
+                type
+              }
             }
           }
           branch {
             id
             branch_name
           }
+        }
+      }
+    }
+  }
+`
+
+const LOAD_STOCK_MOVEMENT_HISTORY = gql`
+  query LoadStockMovementHistory {
+    stock_movement_historyCollection(orderBy: [{ created_at: DescNullsLast }]) {
+      edges {
+        node {
+          id
+          reference_table
+          reference_id
+          movement_type
+          stock_id
+          frame_id
+          source_branch_id
+          target_branch_id
+          quantity
+          status
+          notes
+          created_at
+          stock {
+            id
+            product {
+              id
+              name
+              sku
+            }
+          }
+          frame {
+            id
+            serial_no
+          }
+        }
+      }
+    }
+  }
+`
+
+// ── branch_frame_stock view: real-time per-branch frame counts ─────────────
+const LOAD_BRANCH_FRAME_STOCK = gql`
+  query LoadBranchFrameStock($branch_id: Int!) {
+    branch_frame_stockCollection(
+      filter: { branch_id: { eq: $branch_id } }
+    ) {
+      edges {
+        node {
+          branch_id
+          product_id
+          product_name
+          product_sku
+          frame_type
+          in_stock_count
+          reserved_count
+          sold_count
+          damaged_count
+          transferred_count
+        }
+      }
+    }
+  }
+`
+
+// ── branch_low_stock view: products below threshold ────────────────────────
+const LOAD_BRANCH_LOW_FRAME_STOCK = gql`
+  query LoadBranchLowFrameStock($branch_id: Int!) {
+    branch_low_stockCollection(
+      filter: { branch_id: { eq: $branch_id } }
+    ) {
+      edges {
+        node {
+          branch_id
+          product_id
+          product_name
+          product_sku
+          frame_type
+          in_stock_count
         }
       }
     }
@@ -219,6 +403,7 @@ const LOAD_BRANCH_STOCK = gql `
           product{
             id
             name
+            sku
             brand{
               brand
             }
@@ -233,27 +418,6 @@ const LOAD_BRANCH_STOCK = gql `
   }
 `;
 
-const CHECK_BRANCH_STOCK = gql `
-  query CheckBranchStock(
-    $product_id: BigInt!,
-     $branch_id: Int!
-  ){
-    stockCollection(
-      filter: {
-        product_id: {eq: $product_id}
-        branch_id: {eq: $branch_id}
-      }
-     ){
-        edges{
-          node{
-            id
-            available_quantity
-          }
-        }
-     }
-  }
-`;
-
 const LOAD_PRODUCT_TYPES = gql`
   query LoadProductTypes {
     product_typeCollection {
@@ -262,6 +426,47 @@ const LOAD_PRODUCT_TYPES = gql`
           id 
           type 
         }
+      }
+    }
+  }
+`;
+
+const LOAD_FRAME_TYPES = gql`
+  query LoadFrameTypes {
+    frame_typeCollection {
+      edges {
+        node {
+          id
+          type
+        }
+      }
+    }
+  }
+`;
+
+const INSERT_FRAME = gql`
+  mutation InsertFrame(
+    $product_id: BigInt!
+    $branch_id: Int!
+    $serial_no: String!
+    $frame_type_id: BigInt!
+    $color: String
+    $status: String!
+  ) {
+    insertIntoframeCollection(
+      objects: [{
+        product_id: $product_id
+        branch_id: $branch_id
+        serial_no: $serial_no
+        frame_type_id: $frame_type_id
+        color: $color
+        status: $status
+      }]
+    ) {
+      records {
+        id
+        serial_no
+        status
       }
     }
   }
@@ -338,7 +543,7 @@ const UPDATE_STOCK_QUANTITY = gql`
     }
   }
 `;
- 
+
 const INSERT_DAMAGED_STOCK = gql`
   mutation InsertDamagedStock(
     $stock_id: BigInt!, 
@@ -418,6 +623,7 @@ const INSERT_DISTRIBUTION = gql`
     $quantity: BigInt!
     $status: String!
     $notes: String
+    $frame_id: BigInt
   ) {
     insertIntostock_distributionCollection(
       objects: [{
@@ -426,11 +632,32 @@ const INSERT_DISTRIBUTION = gql`
         quantity: $quantity
         status: $status
         notes: $notes
+        frame_id: $frame_id
       }]
     ) {
-      records {
-        id
-      }
+      records { id }
+    }
+  }
+`;
+
+const UPDATE_FRAME_STATUS = gql`
+  mutation UpdateFrameStatusOwner($id: BigInt!, $status: String!) {
+    updateframeCollection(
+      set: { status: $status }
+      filter: { id: { eq: $id } }
+    ) {
+      records { id status }
+    }
+  }
+`;
+
+const UPDATE_FRAME_BRANCH = gql`
+  mutation UpdateFrameBranchOwner($id: BigInt!, $branch_id: Int!, $status: String!) {
+    updateframeCollection(
+      set: { branch_id: $branch_id, status: $status }
+      filter: { id: { eq: $id } }
+    ) {
+      records { id branch_id status }
     }
   }
 `;
@@ -474,6 +701,7 @@ const INSERT_SUPPLIER = gql`
 const INSERT_PRODUCT = gql`
   mutation InsertProduct(
     $name: String!
+    $sku: String!
     $product_type_id: BigInt!
     $brand_id: BigInt!
     $purchase_price: Float!
@@ -484,6 +712,7 @@ const INSERT_PRODUCT = gql`
     insertIntoproductCollection(
       objects: [{
         name: $name
+        sku: $sku
         product_type_id: $product_type_id
         brand_id: $brand_id
         purchase_price: $purchase_price
@@ -507,12 +736,30 @@ const LOAD_BRANDS = gql`
   }
 `;
 
-const DELETE_REORDER = gql`
-  mutation DeleteReorder($id: BigInt!) {
-    deleteFromre_orderCollection(
+const LOAD_CATEGORY_BRAND_MAP = gql`
+  query LoadCategoryBrandMap {
+    product_type_brandCollection(orderBy: [{ id: AscNullsLast }]) {
+      edges {
+        node {
+          id
+          product_type_id
+          brand_id
+        }
+      }
+    }
+  }
+`;
+
+const UPDATE_DAMAGED_STOCK_STATUS = gql`
+  mutation UpdateDamagedStockStatus($id: BigInt!, $status_bool: Boolean!) {
+    updatedamaged_stockCollection(
+      set: { status_bool: $status_bool }
       filter: { id: { eq: $id } }
     ) {
-      records { id }
+      records {
+        id
+        status_bool
+      }
     }
   }
 `
@@ -574,6 +821,20 @@ export default function MainStockHandling() {
         brand: e.node.brand,
     })) || []
 
+    const { data: categoryBrandMapData } = useQuery(LOAD_CATEGORY_BRAND_MAP, { fetchPolicy: 'network-only' })
+    const categoryBrandMap = categoryBrandMapData?.product_type_brandCollection?.edges.map(e => ({
+      id: e.node.id,
+      productTypeId: e.node.product_type_id,
+      brandId: e.node.brand_id,
+    })) || []
+
+    const { data: frameTypesData } = useQuery(LOAD_FRAME_TYPES, { fetchPolicy: 'network-only' })
+    const frameTypeList = frameTypesData?.frame_typeCollection?.edges.map(e => ({
+      id: e.node.id,
+      type: e.node.type,
+    })) || []
+
+    // keep supplier query so existing distribution logic isn't broken
     const { data: suppliersData, refetch: refetchSuppliers } = useQuery(LOAD_SUPPLIERS)
     const supplierList = suppliersData?.supplierCollection?.edges.map(e => ({
       id: e.node.id,
@@ -585,6 +846,13 @@ export default function MainStockHandling() {
  
     const {data: mainStockData, refetch: refetchMain} = useQuery(LOAD_MAIN_STOCK,{
       variables: {branch_id: headOfficeBranchId},
+      skip: !headOfficeBranchId,
+      fetchPolicy: 'network-only',
+      pollInterval: 5000,
+    })
+
+    const { data: mainFrameData, refetch: refetchFrames } = useQuery(LOAD_MAIN_FRAMES, {
+      variables: { branch_id: headOfficeBranchId },
       skip: !headOfficeBranchId,
       fetchPolicy: 'network-only',
       pollInterval: 5000,
@@ -610,7 +878,24 @@ export default function MainStockHandling() {
       pollInterval: 5000,
     })
 
+    const { data: damagedFramesData, refetch: refetchDamagedFrames } = useQuery(LOAD_DAMAGED_FRAMES, {
+      variables: { branch_id: headOfficeBranchId },
+      skip: !headOfficeBranchId,
+      fetchPolicy: 'network-only',
+      pollInterval: 5000,
+    })
+
+    const { data: damageHistoryData, refetch: refetchDamageHistory } = useQuery(LOAD_DAMAGE_HISTORY, {
+      fetchPolicy: 'network-only',
+      pollInterval: 5000,
+    })
+
     const { data: distributionData, refetch: refetchDistribution } = useQuery(LOAD_DISTRIBUTIONS, {
+      fetchPolicy: 'network-only',
+      pollInterval: 5000,
+    })
+
+    const { data: movementHistoryData, refetch: refetchMovementHistory } = useQuery(LOAD_STOCK_MOVEMENT_HISTORY, {
       fetchPolicy: 'network-only',
       pollInterval: 5000,
     })
@@ -630,12 +915,19 @@ export default function MainStockHandling() {
       //  Branch stock
     const [loadBranchStock, {data: branchStockData}] = useLazyQuery(LOAD_BRANCH_STOCK,{fetchPolicy: 'network-only'})
 
-    useEffect(() => {
-      if(selectedBranch !== null && selectedBranch !== undefined) {
+    const refreshBranchStock = () => {
+      if (selectedBranchId) {
         loadBranchStock({
           variables: {
-            branch_id: Number(selectedBranch)
-          }})
+            branch_id: selectedBranchId,
+          },
+        })
+      }
+    }
+
+    useEffect(() => {
+      if(selectedBranch !== null && selectedBranch !== undefined) {
+        refreshBranchStock()
       }
     }, [selectedBranch, loadBranchStock])
 
@@ -643,6 +935,8 @@ export default function MainStockHandling() {
       fetchPolicy: 'network-only',
       pollInterval: 5000,
     })
+
+    const selectedBranchId = selectedBranch !== null && selectedBranch !== undefined ? Number(selectedBranch) : null
 
     useEffect(() => {
         loadReOrders()
@@ -661,37 +955,66 @@ export default function MainStockHandling() {
         .map(e => String(e.node.product_type_id)) || []
     )
 
-    const[CheckBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
+    const branchReorderKeys = new Set(
+      selectedBranchId
+        ? (reOrderData?.re_orderCollection?.edges || [])
+            .filter(e => Number(e.node.branch_id) === selectedBranchId)
+            .map(e => `${e.node.branch_id}-${e.node.product_type_id}`)
+        : []
+    )
+
+    // ── frame stock
+    const headOfficeFrameRows = mainFrameData?.frameCollection?.edges.map((item) => ({
+      id: item.node.id,
+      product_id: item.node.product_id,
+      serial_no: item.node.serial_no,
+      color: item.node.color,
+      status: item.node.status,
+      created_at: item.node.created_at,
+      frame_type: item.node.frame_type?.type || '—',
+      product_name: item.node.product?.name || '—',
+      product_sku: item.node.product?.sku || '',
+    })) || []
 
     const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
     const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK)
+    const [updateDamagedStockStatus] = useMutation(UPDATE_DAMAGED_STOCK_STATUS)
     const [insertReOrder] = useMutation(INSERT_REORDER)
     const [insertStock] = useMutation(INSERT_STOCK)
     const [InsertDistribution] = useMutation(INSERT_DISTRIBUTION)
     const [InsertProductType] = useMutation(INSERT_PRODUCT_TYPE)
     const [InsertSupplier] = useMutation(INSERT_SUPPLIER)
     const [InsertProduct] = useMutation(INSERT_PRODUCT)
+    const [insertFrame] = useMutation(INSERT_FRAME)
+    const [updateFrameStatus] = useMutation(UPDATE_FRAME_STATUS)
+    const [updateFrameBranch] = useMutation(UPDATE_FRAME_BRANCH)
 
     const refetchAll = () => {
       refetchMain()
+      refetchFrames()
       refetchLow()
       refetchOut()
       refetchDamaged()
+      refetchDamagedFrames()
+      refetchMovementHistory()
+      refetchDamageHistory()
     }
 
     const stockList = mainStockData?.stockCollection?.edges.map((item, index) => ({
       key: index,
       id: item.node.id,
       productId: item.node.product.id, 
+      branchRawId: headOfficeBranchId,
       branchName: 'Central Warehouse',
       productCode: `STK-${String(item.node.id).padStart(4,'0')}`,
       productName: item.node.product.name,
+      sku: item.node.product.sku || '',
       brand: item.node.product.brand?.brand || '',  
       productTypeId: item.node.product.product_type?.id,
       category: mapCategory(item.node.product.product_type?.type),
       date: item.node.created_at?.split('T')[0],
       quantity: Number(item.node.available_quantity),
-      stockQuantity: Number(item.node.available_quantity), //  keep for StockItemsTable
+      stockQuantity: Number(item.node.available_quantity),
       supplierName: item.node.supplier?.name || '',
       supplierContact: item.node.supplier?.contact_no || '',
       supplierEmail: item.node.supplier?.email || '',
@@ -719,6 +1042,7 @@ export default function MainStockHandling() {
       key: index,
       id: item.node.id,
       stock_id: item.node.stock_id,
+      branch_id: item.node.stock?.branch_id,
       productName: item.node.stock?.product?.name || 'Unknown',
       category: mapCategory(item.node.stock?.product?.product_type?.type),
       damaged_quantity: Number(item.node.damaged_quantity),
@@ -727,10 +1051,22 @@ export default function MainStockHandling() {
       status_bool: item.node.status_bool,
   })) || []
 
+  const damagedFramesList = damagedFramesData?.frameCollection?.edges?.map((item, index) => ({
+    key: index,
+    id: item.node.id,
+    serial_no: item.node.serial_no,
+    color: item.node.color,
+    frame_type: item.node.frame_type?.type || '—',
+    product_name: item.node.product?.name || '—',
+    product_sku: item.node.product?.sku || '',
+    created_at: item.node.created_at,
+  })) || []
+
   const branchStockList = branchStockData?.stockCollection?.edges.map((item, index) => ({
     key: index,
     id: item.node.id,
     productName: item.node.product.name,
+    sku: item.node.product.sku || '',
     brand: item.node.product.brand?.brand || '',
     date: item.node.created_at?.split('T')[0],
     productTypeId: item.node.product.product_type?.id,
@@ -738,17 +1074,63 @@ export default function MainStockHandling() {
     stockQuantity: Number(item.node.available_quantity),
   })) || []
 
-  const distributionList = distributionData?.stock_distributionCollection?.edges.map((item, index) => ({
+  const distributionList = distributionData?.stock_distributionCollection?.edges.map((item, index) => {
+    const sourceStock = stockList.find((stock) => String(stock.id) === String(item.node.stock?.id))
+
+    return {
       key: index,
       distributionId: `DST-${String(item.node.id).padStart(4, '0')}`,
+      rawId: item.node.id,
       date: item.node.created_at?.split('T')[0],
-      productName:item.node.stock?.product?.name || 'Unknown Product',
-      branch:item.node.branch?.branch_name || 'Unknown Branch',
+      productName: item.node.stock?.product?.name || 'Unknown Product',
+      productId: item.node.stock?.product?.id,
+      productTypeId: item.node.stock?.product?.product_type?.id,
+      stockId: item.node.stock?.id,
+      mainStockQuantity: sourceStock?.stockQuantity ?? 0,
+      branch: item.node.branch?.branch_name || 'Unknown Branch',
+      branchId: item.node.branch?.id,
       quantity: Number(item.node.quantity),
       status: item.node.status || 'Pending Approval',
       notes: item.node.notes || '',
-    })
-  ) || []
+      frameId: item.node.frame_id || null,
+      frameSerialNo: item.node.frame?.serial_no || null,
+    }
+  }) || []
+
+  const damageHistoryList = damageHistoryData?.damage_historyCollection?.edges?.map((item) => ({
+    id: item.node.id,
+    reference_table: item.node.reference_table,
+    reference_id: item.node.reference_id,
+    event_type: item.node.event_type,
+    stock_id: item.node.stock_id,
+    branch_id: item.node.branch_id,
+    quantity: Number(item.node.quantity ?? 0),
+    reason: item.node.reason,
+    approved: Boolean(item.node.approved),
+    approved_by: item.node.approved_by,
+    approved_at: item.node.approved_at,
+    created_at: item.node.created_at,
+    productName: item.node.stock?.product?.name || '—',
+    productSku: item.node.stock?.product?.sku || '',
+  })) || []
+
+  const movementHistoryList = movementHistoryData?.stock_movement_historyCollection?.edges?.map((item, index) => ({
+    id: item.node.id,
+    reference_table: item.node.reference_table,
+    reference_id: item.node.reference_id,
+    movement_type: item.node.movement_type,
+    stock_id: item.node.stock_id,
+    frame_id: item.node.frame_id,
+    source_branch_id: item.node.source_branch_id,
+    target_branch_id: item.node.target_branch_id,
+    quantity: Number(item.node.quantity ?? 0),
+    status: item.node.status,
+    notes: item.node.notes,
+    created_at: item.node.created_at,
+    productName: item.node.stock?.product?.name || '—',
+    productSku: item.node.stock?.product?.sku || '',
+    frameSerialNo: item.node.frame?.serial_no || '',
+  })) || []
 
   //STATCARDS
   const totalProducts = productTypeList.length
@@ -758,13 +1140,46 @@ export default function MainStockHandling() {
   const pendingDist = distributionList.filter(d => d.status === 'Pending Approval').length
   const pendingDamaged = damagedStockList.filter(i => i.status_bool === false).length
 
+  const handleApproveDamage = async (record) => {
+    try {
+      const sourceStock = stockList.find((item) => String(item.id) === String(record.stock_id))
+
+      if (!sourceStock) {
+        message.error('Source stock not found for this damage report.')
+        return
+      }
+
+      const nextQuantity = Number(sourceStock.stockQuantity ?? 0) - Number(record.damaged_quantity ?? 0)
+
+      await updateStock({
+        variables: {
+          id: Number(record.stock_id),
+          quantity: nextQuantity,
+        },
+      })
+
+      await updateDamagedStockStatus({
+        variables: {
+          id: Number(record.id),
+          status_bool: true,
+        },
+      })
+
+      refetchAll()
+      message.success('Damage report approved and stock updated.')
+    } catch (err) {
+      console.error('Approve damage failed:', err)
+      message.error('Unable to approve damaged stock.')
+    }
+  }
+
   //Handlers
-  const handleReOrders = async(productTypeId) => {
+  const handleReOrders = async(productTypeId, branchIdValue = headOfficeBranchId) => {
     try{
       await insertReOrder({
         variables: {
           product_type_id: productTypeId,
-          branch_id: headOfficeBranchId,
+          branch_id: Number(branchIdValue),
         }
       })
       refetchAll()
@@ -775,65 +1190,100 @@ export default function MainStockHandling() {
     }
   }
 
+    const handleMarkFrameDamaged = async (frameId, _reason) => {
+      try {
+        await updateFrameStatus({
+          variables: {
+            id: Number(frameId),
+            status: 'damaged',
+          },
+        })
+
+        refetchAll()
+        message.success('Frame marked as damaged.')
+      } catch (err) {
+        console.error('Mark frame damaged failed:', err)
+        message.error('Unable to mark frame as damaged.')
+      }
+    }
+
+    const handleTransferFrame = async (frame, targetBranchId) => {
+      try {
+        await updateFrameBranch({
+          variables: {
+            id: Number(frame.id),
+            branch_id: Number(targetBranchId),
+            status: 'in_stock',
+          },
+        })
+
+        const sourceStock = stockList.find((item) => String(item.productId) === String(frame.product_id))
+
+        if (sourceStock) {
+          await InsertDistribution({
+            variables: {
+              stock_id: Number(sourceStock.id),
+              branch_id: Number(targetBranchId),
+              quantity: 1,
+              status: 'Transferred',
+              notes: `Frame transfer: ${frame.serial_no}`,
+              frame_id: Number(frame.id),
+            },
+          })
+        }
+
+        refetchAll()
+        message.success('Frame transferred successfully.')
+      } catch (err) {
+        console.error('Transfer frame failed:', err)
+        message.error('Unable to transfer frame.')
+      }
+    }
+
     const handleDistribute = (product) => setDistributeProduct(product)
 
     const handleDistributeSubmit = async(values) => {
       try{
         const product = distributeProduct
-        const targetBranchId = values.branch
-        const qty = Number(values.quantity)
+        const targetBranchId = Number(values.branch)
 
         if(!product){
           message.error("No product selected")
           return
         }
-        //Reduce central stock
-        const newCentralQty = product.stockQuantity  - qty
 
-        if(newCentralQty < 0 ){
+        // ── Frame mode: one distribution record per selected frame ──────────
+        if (values.frameMode === 'frame' && values.selectedFrameIds?.length > 0) {
+          for (const frameId of values.selectedFrameIds) {
+            await InsertDistribution({
+              variables: {
+                stock_id: product.id,
+                branch_id: targetBranchId,
+                quantity: 1,
+                status: 'Pending Approval',
+                notes: values.notes || '',
+                frame_id: Number(frameId),
+              }
+            })
+          }
+          setDistributeProduct(null)
+          refreshBranchStock()
+          refetchDistribution()
+          refetchAll()
+          message.success(`${values.selectedFrameIds.length} frame distribution request(s) submitted for manager approval. Stock will be deducted once the manager approves.`)
+          return
+        }
+
+        // ── Quantity mode ────────────────────────────────────────────────────
+        const qty = Number(values.quantity)
+
+        if((product.stockQuantity ?? 0) < qty){
           message.error('Not enough stock to distribute!')
           return
         }
 
-        await updateStock({
-          variables: {
-            id: product.id,
-            quantity: newCentralQty
-          }
-        })
-
-        const result = await CheckBranchStock({
-          variables: {
-            product_id: product.productId,
-            branch_id: targetBranchId
-          }
-        })
-
-        const existingStock = result?.data?.stockCollection?.edges?.[0]?.node
-
-        if(existingStock){
-          const updatedQty = 
-            Number(existingStock.available_quantity) + qty
-
-            await updateStock({
-              variables: {
-                id: existingStock.id,
-                quantity: updatedQty
-              }
-            })
-
-        }else{
-          await insertStock({
-            variables: {
-              product_id: product.productId,
-              branch_id: targetBranchId,
-              quantity: qty,
-              added_by: Number(staff?.id),
-              supplier_id: null,
-            }
-          })
-        }
-
+        // Do NOT deduct central stock here — deduction happens when the
+        // branch manager approves the allocation.
         await InsertDistribution({
           variables: {
             stock_id: product.id,
@@ -844,25 +1294,11 @@ export default function MainStockHandling() {
           }
         })
 
-        // Then in handleDistributeSubmit, after successful distribution:
-        // Find the matching reorder and delete it
-        const matchingReorder = reOrderData?.re_orderCollection?.edges?.find(
-          e => Number(e.node.branch_id) === targetBranchId
-            && Number(e.node.product_type_id) === product.productTypeId
-        )
-
-        if (matchingReorder) {
-          await deleteReorder({
-              variables: { 
-                id: matchingReorder.node.id 
-              }
-          })
-        }
-
+        refreshBranchStock()
         refetchDistribution()
         refetchAll()
         setDistributeProduct(null)
-        message.success('Stock distributed successfully.')
+        message.success('Distribution request submitted. Stock will be deducted once the manager approves.')
 
       }catch(err){
         console.error("Distribution failed:"+err)
@@ -870,61 +1306,67 @@ export default function MainStockHandling() {
       }
     }
 
-    const handleAddStock = async(values) => {
-      try{
-        let finalProductTypeId = values.productTypeId
-
-        if (values.newCategory) {
-          const catResult = await InsertProductType({ variables: { type: values.newCategory } })
+    const handleAddStock = async ({ product: productValues, frames = [], quantity = 0, stockMode = 'serialised' }) => {
+      try {
+        // ── Step 1: optionally create a new category ──────────────────────
+        let finalProductTypeId = productValues.productTypeId
+        if (productValues.newCategory) {
+          const catResult = await InsertProductType({ variables: { type: productValues.newCategory } })
           finalProductTypeId = catResult.data?.insertIntoproduct_typeCollection?.records?.[0]?.id
-          refetchProductTypes()  // refresh category tabs immediately
-          message.success(`New category "${values.newCategory}" added.`)
+          refetchProductTypes()
+          message.success(`New category "${productValues.newCategory}" added.`)
         }
 
-        let supplierId = values.supplierId || null
-        if (values.supplierName && !values.supplierId) {
-          const supResult = await InsertSupplier({
-            variables: {
-              name: values.supplierName,
-              contact_no: values.supplierContact || null,
-              email: values.supplierEmail || null,
-              address: values.supplierAddress || null,
-            }
-          })
-          supplierId = supResult.data?.insertIntosupplierCollection?.records?.[0]?.id
-          refetchSuppliers()
-         }
+        // ── Step 2: create the product catalog entry ───────────────────────
         const productResult = await InsertProduct({
-                variables: {
-                    name: values.productName,
-                    product_type_id: Number(finalProductTypeId),
-                    brand_id: Number(values.brandId),
-                    purchase_price: Number(values.purchasePrice),
-                    selling_price: Number(values.sellingPrice || values.purchasePrice),
-                    purchased_quantity: Number(values.quantity),
-                    warranty_in_months: Number(values.warrantyMonths || 0),
-                }
-            })
-            const newProductId = productResult.data?.insertIntoproductCollection?.records?.[0]?.id
+          variables: {
+            name: productValues.sku,
+            sku: productValues.sku,
+            product_type_id: Number(finalProductTypeId),
+            brand_id: Number(productValues.brandId),
+            purchase_price: Number(productValues.purchasePrice),
+            selling_price: Number(productValues.sellingPrice || productValues.purchasePrice),
+            purchased_quantity: stockMode === 'serialised' ? frames.length : Number(quantity),
+            warranty_in_months: Number(productValues.warrantyMonths || 0),
+          },
+        })
+        const newProductId = productResult.data?.insertIntoproductCollection?.records?.[0]?.id
+        if (!newProductId) { message.error('Failed to create product'); return }
 
-            if (!newProductId) { message.error('Failed to create product'); return }
+        // ── Step 3: create stock record ─
+        await insertStock({
+          variables: {
+            product_id: Number(newProductId),
+            branch_id: headOfficeBranchId,
+            quantity: stockMode === 'serialised' ? frames.length : Number(quantity),
+            added_by: Number(staff?.id),
+            supplier_id: null,
+          },
+        })
 
-            await insertStock({
-                variables: {
-                    product_id: Number (newProductId),
-                    branch_id: headOfficeBranchId,
-                    quantity: Number(values.quantity),
-                    added_by: Number(staff?.id),
-                    supplier_id: supplierId ? Number(supplierId) : null,
-                }
+        if (stockMode === 'serialised') {
+          // ── Step 4: insert each individual frame row ─────────────────────
+          const frameInserts = frames.map(f =>
+            insertFrame({
+              variables: {
+                product_id: Number(newProductId),
+                branch_id: headOfficeBranchId,
+                serial_no: f.serial_no.trim(),
+                frame_type_id: Number(f.frame_type_id),
+                color: f.color?.trim() || null,
+                status: 'in_stock',
+              },
             })
+          )
+          await Promise.all(frameInserts)
+        }
+
         setAddStockOpen(false)
         refetchAll()
-        message.success('Stock added to central warehouse successfully.')
-        
-      }catch(err){
-        console.error('Add stock failed:',err)
-        message.error('Failed to add stock.')
+        message.success(`${frames.length} stock item${frames.length !== 1 ? 's' : ''} added to central warehouse.`)
+      } catch (err) {
+        console.error('Add stock failed:', err)
+        message.error('Failed to add stock: ' + (err?.message || 'unknown error'))
       }
     }
 
@@ -934,13 +1376,20 @@ export default function MainStockHandling() {
         label: 
           <TabLabel
             icon={<AppstoreOutlined />}
-            text={`Central Stock (${stockList.length} items)`}
+            text={`Stock Items (${stockList.length})`}
           />,
         
         children: (
-          <CentralStockTable
+          <StockItemsTable
             data={stockList}
+            branches={distributionBranches}
+            currentBranchId={headOfficeBranchId}
+            updateStock={updateStock}
+            insertDamageStock={insertDamageStock}
             onDistribute={handleDistribute}
+            deductImmediately={true}
+            onRefetch={refetchAll}
+            productTypeList={productTypeList}
           />
         ),
       },
@@ -954,7 +1403,28 @@ export default function MainStockHandling() {
             color="#7C3AED"
           />
         ),
-        children: (<DistributionHistoryTable data={distributionList} /> ),
+        // Read-only for owner — approval is handled by the branch manager.
+        // Do NOT pass onApprove or onReject here.
+        children: (
+          <DistributionHistoryTable
+            data={distributionList}
+          />
+        ),
+      },
+      {
+        key: 'movementhistory',
+        label: (
+          <TabLabel
+            icon={<ClockCircleOutlined />}
+            text="Movement History"
+          />
+        ),
+        children: (
+          <StockMovementHistoryTable
+            data={movementHistoryList}
+            branches={allBranchesForStock}
+          />
+        ),
       },
       {
         key: 'branch',
@@ -968,7 +1438,8 @@ export default function MainStockHandling() {
             onBranchChange={setSelectedBranch}
             data={branchStockList}
             productTypeList={productTypeList}
-
+            reOrderedKeys={branchReorderKeys}
+            onReOrder={handleReOrders}
           />
         ),
       },
@@ -987,6 +1458,7 @@ export default function MainStockHandling() {
             data={lowStockList}
             reOrderedTypeIds={reOrderedTypeIds}
             onReOrder={handleReOrders}
+            showReorderButton={false}
           />
         ),
       },
@@ -1005,6 +1477,7 @@ export default function MainStockHandling() {
             data={outOfStockList}
             reOrderedTypeIds={reOrderedTypeIds}
             onReOrder={handleReOrders}
+            showReorderButton={false}
           />
         ),
       },
@@ -1021,7 +1494,25 @@ export default function MainStockHandling() {
         children: (
           <DamagedStockTable
             data={damagedStockList}
+            damagedFrames={damagedFramesList}
+            onApproveDamage={handleApproveDamage}
+            ownerBranchId={headOfficeBranchId}
          />
+        ),
+      },
+      {
+        key: 'damagehistory',
+        label: (
+          <TabLabel
+            icon={<ExclamationCircleOutlined />}
+            text="Damage History"
+          />
+        ),
+        children: (
+          <DamageHistoryTable
+            data={damageHistoryList}
+            branches={allBranchesForStock}
+          />
         ),
       },
     ]
@@ -1032,39 +1523,51 @@ export default function MainStockHandling() {
 
   return (
     <Layout>
-      <Content style={{ padding: '24px', background: '#F9FAFB', minHeight: '100vh' }}>
-        <div style={{
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'flex-start', 
-          marginBottom: 24,
-        }}>
-          <div>
-            <Title level={3} style={{ margin: 0, fontWeight: 700, color: '#111827' }}>
-              Central Stock Management
-            </Title>
-
-            <Text type="secondary" style={{ fontSize: 13 }}>
-              Manage main warehouse inventory
-            </Text>
-
-          </div>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setAddStockOpen(true)}
-            style={{
-              background: '#1D4ED8', 
-              borderColor: '#1D4ED8',
-              borderRadius: 8, 
-              height: 38, 
-              fontWeight: 500, 
-              fontSize: 14,
-            }}
-          >
-            Add New Stock
-          </Button>
-        </div>
+      <Content style={{ padding: '24px', background: 'linear-gradient(180deg, #F8FAFF 0%, #F9FAFB 100%)', minHeight: '100vh' }}>
+        <Card
+          bordered={false}
+          style={{
+            borderRadius: 18,
+            marginBottom: 24,
+            background: 'linear-gradient(135deg, #0F172A 0%, #1D4ED8 60%, #2563EB 100%)',
+            color: '#fff',
+            boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)',
+          }}
+          bodyStyle={{ padding: 24 }}
+        >
+          <Row justify="space-between" align="middle" gutter={[16, 16]}>
+            <Col>
+              <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                Owner stock control
+              </Text>
+              <Title level={2} style={{ margin: '8px 0 6px', color: '#fff' }}>
+                Central Stock Management
+              </Title>
+              <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+                Track stock items, distribute inventory, and review branch stock levels from one simpler screen.
+              </Text>
+            </Col>
+            <Col>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setAddStockOpen(true)}
+                style={{
+                  background: '#fff',
+                  borderColor: '#fff',
+                  color: '#1D4ED8',
+                  borderRadius: 10,
+                  height: 42,
+                  fontWeight: 600,
+                  fontSize: 14,
+                  boxShadow: '0 8px 20px rgba(255,255,255,0.16)',
+                }}
+              >
+                Add New Stock
+              </Button>
+            </Col>
+          </Row>
+        </Card>
         
 
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
@@ -1131,15 +1634,18 @@ export default function MainStockHandling() {
     />
   </Col>
 </Row>
-        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: '0 20px 20px',boxShadow: '0 1px 4px rgba(0,0,0,0.06)'}}>
-          
+        <Card
+          bordered={false}
+          style={{ borderRadius: 16, border: '1px solid #E5E7EB', boxShadow: '0 8px 30px rgba(15, 23, 42, 0.06)' }}
+          bodyStyle={{ padding: '0 20px 20px' }}
+        >
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
             items={tabItems}
             style={{ fontWeight: 500 }}
           />
-        </div>
+        </Card>
 
         <DistributionModal 
           open={!!distributeProduct}
@@ -1154,8 +1660,9 @@ export default function MainStockHandling() {
           onCancel={() => setAddStockOpen(false)}
           onAdd={handleAddStock}
           productTypeList={productTypeList}
-          supplierList={supplierList}
-          brandList = {brandList}
+          frameTypeList={frameTypeList}
+          brandList={brandList}
+          categoryBrandMap={categoryBrandMap}
         />
       </Content>
     </Layout>

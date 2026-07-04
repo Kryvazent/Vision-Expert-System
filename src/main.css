@@ -1,1 +1,640 @@
 @import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Vision Expert — Global Design System
+   All custom utility classes and CSS variables live here so every role's
+   UI draws from the same source of truth.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Design tokens ────────────────────────────────────────────────────────── */
+:root {
+  /* Brand */
+  --ve-primary:        #1677ff;
+  --ve-primary-hover:  #4096ff;
+  --ve-primary-active: #0958d9;
+
+  /* Semantic */
+  --ve-success:  #52c41a;
+  --ve-warning:  #faad14;
+  --ve-error:    #ff4d4f;
+  --ve-info:     #1677ff;
+
+  /* Neutrals */
+  --ve-text-primary:   #1f1f1f;
+  --ve-text-secondary: #595959;
+  --ve-text-muted:     #8c8c8c;
+  --ve-text-disabled:  #bfbfbf;
+
+  /* Backgrounds */
+  --ve-bg-app:       #f0f2f5;
+  --ve-bg-card:      #ffffff;
+  --ve-bg-subtle:    #fafafa;
+  --ve-bg-hover:     #f5f5f5;
+
+  /* Borders */
+  --ve-border:       #e8e8e8;
+  --ve-border-light: #f0f0f0;
+
+  /* Layout */
+  --ve-sidebar-width:  260px;
+  --ve-header-height:  64px;
+  --ve-page-padding-x: 28px;
+  --ve-page-padding-y: 28px;
+
+  /* Elevation */
+  --ve-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
+  --ve-shadow-md: 0 2px 12px rgba(0, 0, 0, 0.08);
+  --ve-shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.10);
+
+  /* Radii */
+  --ve-radius-sm: 6px;
+  --ve-radius-md: 8px;
+  --ve-radius-lg: 12px;
+  --ve-radius-xl: 16px;
+
+  /* Role accent colours (used for sidebar gradient & avatar badge) */
+  --ve-role-owner:           #1677ff;
+  --ve-role-admin:           #52c41a;
+  --ve-role-accountant:      #722ed1;
+  --ve-role-sales-executive: #faad14;
+  --ve-role-recovery:        #ff4d4f;
+  --ve-role-manager:         #13c2c2;
+  --ve-role-optometrist:     #eb2f96;
+}
+
+/* ── Base reset helpers ───────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--ve-bg-app);
+  color: var(--ve-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5714;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+/* Ant Layout root — full viewport, no overflow */
+.ant-layout {
+  min-height: 100vh;
+  background: var(--ve-bg-app) !important;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.ve-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--ve-sidebar-width) !important;
+  min-width: var(--ve-sidebar-width) !important;
+  max-width: var(--ve-sidebar-width) !important;
+  background: linear-gradient(165deg, #0f2554 0%, #1677ff 100%) !important;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Subtle radial glow behind logo */
+.ve-sidebar::before {
+  content: "";
+  position: absolute;
+  top: -60px;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+}
+
+.ve-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  flex-shrink: 0;
+}
+
+.ve-sidebar-logo-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  flex-shrink: 0;
+}
+
+.ve-sidebar-logo-text {
+  color: #ffffff !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2px;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.ve-sidebar-logo-sub {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  margin-top: 1px;
+  letter-spacing: 0.3px;
+}
+
+.ve-sidebar-menu-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 12px;
+}
+
+/* Thin custom scrollbar for the menu area */
+.ve-sidebar-menu-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+.ve-sidebar-menu-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ve-sidebar-menu-wrap::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+/* Override Ant Menu tokens inside the dark sidebar */
+.ve-sidebar-menu-wrap .ant-menu {
+  background: transparent !important;
+  border: none !important;
+}
+
+.ve-sidebar-menu-wrap .ant-menu-item {
+  border-radius: var(--ve-radius-md) !important;
+  margin-bottom: 2px !important;
+  height: 42px !important;
+  line-height: 42px !important;
+  color: rgba(255, 255, 255, 0.75) !important;
+  font-size: 14px !important;
+  transition: background 0.15s, color 0.15s !important;
+}
+
+.ve-sidebar-menu-wrap .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.10) !important;
+  color: #ffffff !important;
+}
+
+.ve-sidebar-menu-wrap .ant-menu-item-selected {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.ve-sidebar-menu-wrap .ant-menu-item .anticon {
+  font-size: 16px !important;
+  opacity: 0.85;
+}
+
+.ve-sidebar-menu-wrap .ant-menu-item-selected .anticon {
+  opacity: 1;
+}
+
+.ve-sidebar-logout {
+  padding: 16px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.10);
+  flex-shrink: 0;
+}
+
+.ve-sidebar-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.70);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: var(--ve-radius-md);
+  transition: background 0.15s, color 0.15s;
+  font-size: 14px;
+}
+
+.ve-sidebar-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+}
+
+/* ── Top header ───────────────────────────────────────────────────────────── */
+.ve-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--ve-header-height) !important;
+  background: var(--ve-bg-card) !important;
+  padding: 0 24px !important;
+  border-bottom: 1px solid var(--ve-border);
+  box-shadow: var(--ve-shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.ve-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ve-header-role {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: var(--ve-text-primary) !important;
+  margin: 0 !important;
+}
+
+.ve-header-branch-tag {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 20px;
+  background: #e6f4ff;
+  color: var(--ve-primary);
+  border: 1px solid #bae0ff;
+  line-height: 20px;
+}
+
+.ve-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ve-header-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ve-primary);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.ve-header-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ve-text-primary);
+}
+
+/* ── Page content area ────────────────────────────────────────────────────── */
+/*
+ * .ve-page-content  — used by the shared PageLayout component.
+ * .ve-content-wrap  — applied directly on the <main> in CommonPageStructure
+ *                     so every page gets the padding regardless of whether it
+ *                     uses PageLayout or renders <Content> directly.
+ *
+ * Ant Design v5 uses CSS-in-JS so the old `.ant-layout-content` class is not
+ * reliably present; owning the wrapper ourselves is more robust.
+ */
+.ve-page-content,
+.ve-content-wrap {
+  padding: var(--ve-page-padding-y) var(--ve-page-padding-x);
+  overflow-y: auto;
+  /* Fill the remaining height below the sticky header */
+  height: calc(100vh - var(--ve-header-height));
+  background: var(--ve-bg-app);
+  /* Keep all children from touching the edges */
+  box-sizing: border-box;
+}
+
+/* Page header block (title + subtitle + optional action) */
+.ve-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ve-page-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--ve-text-primary) !important;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.ve-page-subtitle {
+  font-size: 13px;
+  color: var(--ve-text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.ve-page-header-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Universal StatCard ───────────────────────────────────────────────────── */
+.ve-stat-card {
+  position: relative;
+  background: var(--ve-bg-card);
+  border-radius: var(--ve-radius-xl);
+  border-left: 4px solid var(--ve-accent, var(--ve-primary));
+  box-shadow: var(--ve-shadow-md);
+  padding: 20px;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+  height: 100%;
+  min-height: 100px;
+}
+
+.ve-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--ve-shadow-lg);
+}
+
+.ve-stat-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ve-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ve-stat-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ve-text-muted);
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+.ve-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--ve-text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ve-stat-subtitle {
+  font-size: 12px;
+  color: var(--ve-text-muted);
+  margin-top: 2px;
+}
+
+.ve-stat-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--ve-radius-lg);
+  background: var(--ve-accent-wash, rgba(22, 119, 255, 0.10));
+  color: var(--ve-accent, var(--ve-primary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+/* ── Shared Card overrides ────────────────────────────────────────────────── */
+/* Standardise all Ant Design Card borders / radii / shadows sitewide */
+.ant-card {
+  border-radius: var(--ve-radius-xl) !important;
+  box-shadow: var(--ve-shadow-md) !important;
+  border-color: var(--ve-border) !important;
+}
+
+.ant-card-head {
+  border-bottom-color: var(--ve-border-light) !important;
+  font-weight: 600 !important;
+  font-size: 15px !important;
+  min-height: 52px !important;
+  padding: 0 20px !important;
+}
+
+.ant-card-body {
+  padding: 20px !important;
+}
+
+/* ── Shared Table overrides ───────────────────────────────────────────────── */
+.ant-table-thead > tr > th {
+  background: #f0f4f8 !important;
+  color: var(--ve-text-primary) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  border-bottom: 1px solid var(--ve-border) !important;
+  padding: 12px 16px !important;
+}
+
+.ant-table-thead > tr > th::before {
+  background-color: var(--ve-border) !important;
+}
+
+.ant-table-tbody > tr > td {
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--ve-border-light) !important;
+  color: var(--ve-text-secondary) !important;
+  font-size: 14px !important;
+}
+
+.ant-table-tbody > tr:hover > td {
+  background: #f5f8ff !important;
+}
+
+.ant-table-tbody > tr:last-child > td {
+  border-bottom: none !important;
+}
+
+.ant-table {
+  border-radius: var(--ve-radius-lg) !important;
+  overflow: hidden !important;
+}
+
+/* ── Shared Form overrides ────────────────────────────────────────────────── */
+.ant-form-item-label > label {
+  font-weight: 600 !important;
+  color: var(--ve-text-primary) !important;
+  font-size: 13px !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  border-radius: var(--ve-radius-md) !important;
+  border-color: var(--ve-border) !important;
+  font-size: 14px !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: var(--ve-primary) !important;
+}
+
+/* ── Shared Button overrides ─────────────────────────────────────────────── */
+.ant-btn {
+  border-radius: var(--ve-radius-md) !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  height: 36px !important;
+  padding: 0 16px !important;
+  transition: all 0.15s ease !important;
+}
+
+.ant-btn-sm {
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 13px !important;
+}
+
+.ant-btn-lg {
+  height: 44px !important;
+  padding: 0 20px !important;
+  font-size: 15px !important;
+}
+
+/* ── Shared Modal overrides ───────────────────────────────────────────────── */
+.ant-modal-content {
+  border-radius: var(--ve-radius-xl) !important;
+  overflow: hidden;
+}
+
+.ant-modal-header {
+  border-bottom: 1px solid var(--ve-border-light) !important;
+  padding: 16px 24px !important;
+}
+
+.ant-modal-title {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.ant-modal-body {
+  padding: 20px 24px !important;
+}
+
+.ant-modal-footer {
+  border-top: 1px solid var(--ve-border-light) !important;
+  padding: 12px 24px !important;
+}
+
+/* ── Shared Tag overrides ─────────────────────────────────────────────────── */
+.ant-tag {
+  border-radius: 20px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  padding: 0 10px !important;
+  line-height: 22px !important;
+}
+
+/* ── Dashboard section heading ────────────────────────────────────────────── */
+.ve-section-title {
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: var(--ve-text-primary) !important;
+  margin: 0 0 16px !important;
+}
+
+/* ── Loading / Error states ───────────────────────────────────────────────── */
+.ve-loading-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: var(--ve-text-muted);
+}
+
+/* ── Login page ───────────────────────────────────────────────────────────── */
+.ve-login-root {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e8f0fe 0%, #dbeafe 50%, #ede9fe 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ve-login-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: var(--ve-radius-xl) !important;
+  box-shadow: var(--ve-shadow-lg) !important;
+  overflow: hidden;
+}
+
+.ve-login-logo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.ve-login-logo-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--ve-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(22, 119, 255, 0.35);
+}
+
+.ve-login-title {
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: var(--ve-primary) !important;
+  margin: 0 0 4px !important;
+}
+
+.ve-login-subtitle {
+  font-size: 13px;
+  color: var(--ve-text-muted);
+}
+
+/* ── Responsive tweaks ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  :root {
+    --ve-page-padding-x: 16px;
+    --ve-page-padding-y: 16px;
+  }
+
+  .ve-stat-value {
+    font-size: 20px;
+  }
+
+  .ve-header {
+    padding: 0 16px !important;
+  }
+}
+/* ── Reduced-motion safety ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ve-stat-card,
+  .ant-btn {
+    transition: none !important;
+  }
+  .ve-stat-card:hover {
+    transform: none;
+  }
+}

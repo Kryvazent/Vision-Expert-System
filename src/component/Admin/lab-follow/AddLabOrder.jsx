@@ -1,12 +1,24 @@
 import React, {useState} from 'react'
 import { Modal, Form, Input, DatePicker, Select, Button, Typography, Divider,message } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs';
 
 const { Text } = Typography;
 const {Option} = Select;
 
 export default function AddLabOrder({open, onCancel, onAdd, orders}) {
     const [form] = Form.useForm();
+
+    const handleOrderChange = (value) => {
+        const selected = JSON.parse(value);
+        form.setFieldsValue({
+            sentToLab: dayjs(selected.sentToLabDate)
+                .format("YYYY-MM-DD"),
+
+            expectedReturn: dayjs(selected.expectedReturnDate)
+                .format("YYYY-MM-DD")
+        });
+    };
 
     const handleAdd = () => {
         form.validateFields().then((values) => {
@@ -17,16 +29,15 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
                 return;
             }
 
-            if (!values.sentToLab || !values.expectedReturn) {
-                message.error("Please select dates");
-                return;
-            }
+           
 
             const newOrder = {
                 orderId: Number(selected.orderId),
                 clinicId: Number(selected.clinicId),
-                sentToLab: values.sentToLab.format('YYYY-MM-DD'),
-                expectedReturn: values.expectedReturn.format('YYYY-MM-DD'),
+                sentToLab: dayjs(selected.sentToLabDate)
+                    .format("YYYY-MM-DD"),
+                expectedReturn: dayjs(selected.expectedReturnDate)
+                    .format("YYYY-MM-DD"),
                 note: ''
             };
 
@@ -40,7 +51,6 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
         onCancel()
     }
 
-    
   return (
     <Modal 
         title=
@@ -56,7 +66,7 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
         <Form form={form} layout="vertical" style={{marginTop: 12}}>
 
             <Form.Item label={<span style={{ fontWeight: 500 }}>Order ID</span>} name="order"rules={[{ required: true , message: 'Please select an order!' }]}>
-                <Select placeholder="Select Order" showSearch>
+                <Select placeholder="Select Order" showSearch  onChange={handleOrderChange}>
                     {(orders || []).map((order) => (
                         <Select.Option
                             key={order.orderId}
@@ -75,7 +85,7 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
                 name="sentToLab"
                 rules={[{ required: true, message: 'Please select the date sent to lab!' }]}
             >
-                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
             </Form.Item>
 
             <Form.Item
@@ -83,8 +93,10 @@ export default function AddLabOrder({open, onCancel, onAdd, orders}) {
                 name="expectedReturn"
                 rules={[{ required: true, message: 'Please select the expected return date!' }]}
             >
-                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+                <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" disabledDate={(d) => d && d < dayjs().startOf("day")} />
             </Form.Item>
+
+            
 
         </Form>
 

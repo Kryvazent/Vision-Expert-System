@@ -1,46 +1,65 @@
-import React from "react";
-import { Flex, Layout } from "antd";
+import { Layout } from "antd";
+import { LogoutOutlined } from "@ant-design/icons";
+import { useNavigate, useLocation } from "react-router";
+import { Menu } from "antd";
+
 import logo from "../assets/images/logo.jpeg";
-import SideMenu from "./SideMenu"; 
-import LogOut from "./LogOut";
+import { useAuth } from "../const/functions";
+import { MENU_BY_ROLE } from "../const/menu";
 
 const { Sider } = Layout;
 
-const siderStyle = {
-  textAlign: "center",
-  lineHeight: "120px",
-  color: "#fff",
-  backgroundColor: "#2563EB",
-  minHeight: "100vh",
-};
+export default function Sidebar() {
+  const { role, signOut } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-function Sidebar() {
+  const items = MENU_BY_ROLE[role] ?? [];
 
   return (
-        <Sider width="280" style={siderStyle} className="flex flex-col">
-          {/*Logo*/}
-          <div className="flex items-center gap-3 px-6 py-5">
-            <div className="w-20 h-20 rounded-full flex items-center justify-center">
-              <img
-                src={logo}
-                alt="Vision Expert Logo"
-                className="w-16 h-16 rounded-full object-cover"
-              />
-            </div>
-            <h3 className="text-xl font-bold text-white">Vision Expert</h3>
-          </div>
+    <Sider
+      width={260}
+      className="ve-sidebar"
+      // Prevent Ant from injecting its own inline background
+      style={{ background: undefined }}
+    >
+      {/* ── Logo ── */}
+      <div className="ve-sidebar-logo">
+        <img
+          src={logo}
+          alt="Vision Expert"
+          className="ve-sidebar-logo-img"
+        />
+        <div>
+          <p className="ve-sidebar-logo-text">Vision Expert</p>
+          <p className="ve-sidebar-logo-sub">Eye Care Management</p>
+        </div>
+      </div>
 
-          {/* Side Menu */}
-          <div className="flex-1 px-3">
-            <SideMenu /> 
-          </div>
+      {/* ── Navigation ── */}
+      <div className="ve-sidebar-menu-wrap">
+        <Menu
+          selectedKeys={[location.pathname]}
+          mode="inline"
+          theme="dark"
+          items={items}
+          onClick={({ key }) => navigate(key)}
+          style={{
+            background: "transparent",
+            border: "none",
+            fontSize: 14,
+          }}
+        />
+      </div>
 
-            {/* Logout */}
-            <LogOut />
-
-        </Sider>
+      {/* ── Logout ── */}
+      <div className="ve-sidebar-logout">
+        <div className="ve-sidebar-logout-btn" onClick={signOut} role="button" tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && signOut()}>
+          <LogoutOutlined style={{ fontSize: 16 }} />
+          <span>Logout</span>
+        </div>
+      </div>
+    </Sider>
   );
 }
-
-
-export default Sidebar;

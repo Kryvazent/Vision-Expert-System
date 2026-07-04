@@ -6,7 +6,8 @@ import CallDetailsTable from '../../component/Admin/reminder-calls/CallDetailsTa
 
 import {gql } from '@apollo/client';
 import { useQuery, useMutation } from '@apollo/client/react/compiled';
-import { useAuth } from '../../const/functions'
+import { isOrderStatus } from '../../const/functions'
+import { useMemo } from 'react'
 
 const {Content} = Layout
 const {Title} = Typography
@@ -64,19 +65,22 @@ const LOAD_REMINDER_DATA = gql `
         } 
 `;
 
-const EXCLUDED_ORDER_STATUSES = ["completed", "Canceled"]
+const EXCLUDED_ORDER_STATUSES = ["completed", "canceled", "hold"]
 
 export default function ReminderCalls() {
 
   const {data, loading, refetch} = useQuery(LOAD_REMINDER_DATA, {fetchPolicy: 'network-only'})
 
-  const reminderMap = {}
-    data?.reminder_callCollection?.edges.forEach(e => {
-    reminderMap[String(e.node.order_id)] = e.node
-  })
+  const reminderMap = useMemo(() => {
+    const map = {}
+    data?.reminder_callCollection?.edges?.forEach(e => {
+      map[String(e.node.order_id)] = e.node
+    })
+    return map
+  }, [data])
 
   const orders = (data?.orderCollection?.edges || [])
-    .filter(e => !EXCLUDED_ORDER_STATUSES.includes(e.node.order_status?.status))
+    .filter(e => !EXCLUDED_ORDER_STATUSES.some(status => isOrderStatus(e.node.order_status?.status, status)))
     .map(e => ({ node: e.node }));
  
     //true if this order has not been sent to the lab yet (no lab_follow_up row)
@@ -92,10 +96,10 @@ export default function ReminderCalls() {
   }
 
     //  now only counts orders that are actually in the "before lab" stage
-  const beforeLabAnswer    = orders.filter(e => isBeforeLab(e.node) && reminderMap[String(e.node.id)]?.before_lab_status === 'answer').length;
-  const beforeLabNotAnswer = orders.filter(e => isBeforeLab(e.node) && reminderMap[String(e.node.id)]?.before_lab_status === 'not_answer').length;
+  const beforeLabAnswer    = data?.reminder_callCollection?.edges?.filter(e => e.node.before_lab_status === 'answer').length || 0;
+  const beforeLabNotAnswer = data?.reminder_callCollection?.edges?.filter(e => e.node.before_lab_status === 'not_answer').length || 0;
 
- const beforeLabPending   = orders.filter(e => {
+  const beforeLabPending = orders.filter(e => {
     if (!isBeforeLab(e.node)) return false
     const r = reminderMap[String(e.node.id)]
     return !r || !r.before_lab_status
@@ -103,8 +107,8 @@ export default function ReminderCalls() {
  
 
   //now only counts orders that are actually in the "before delivery" stage
-  const beforeDeliveryAnswer    = orders.filter(e => isBeforeDelivery(e.node) && reminderMap[String(e.node.id)]?.before_delivery_status === 'answer').length;
-  const beforeDeliveryNotAnswer = orders.filter(e => isBeforeDelivery(e.node) && reminderMap[String(e.node.id)]?.before_delivery_status === 'not_answer').length;
+  const beforeDeliveryAnswer    = data?.reminder_callCollection?.edges?.filter(e => e.node.before_delivery_status === 'answer').length || 0;
+  const beforeDeliveryNotAnswer = data?.reminder_callCollection?.edges?.filter(e => e.node.before_delivery_status === 'not_answer').length || 0;
   const beforeDeliveryPending   = orders.filter(e => {
     if (!isBeforeDelivery(e.node)) return false
     const r = reminderMap[String(e.node.id)]
