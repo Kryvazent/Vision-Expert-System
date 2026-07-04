@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react'
 import { Card, Col, Layout, Row, Typography, message } from 'antd'
 import { gql } from '@apollo/client'
-import { useMutation, useQuery } from '@apollo/client/react'
+import { useMutation, useQuery, useLazyQuery } from '@apollo/client/react'
 import { useAuth } from '../../const/functions'
 import DistributionHistoryTable from '../../component/owner/stock-handling/DistributionHistoryTable'
 
@@ -95,7 +95,7 @@ export default function IncomingStockApproval() {
     fetchPolicy: 'network-only',
   })
 
-  const [checkBranchStock] = useMutation(CHECK_BRANCH_STOCK)
+  const [checkBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
   const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
   const [updateDistributionStatus] = useMutation(UPDATE_DISTRIBUTION_STATUS)
   const [insertStock] = useMutation(INSERT_STOCK)

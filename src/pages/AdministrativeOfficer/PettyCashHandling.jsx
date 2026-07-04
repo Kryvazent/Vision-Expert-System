@@ -41,12 +41,6 @@ export default function PettyCashHandling({transactions = []}) {
                         date
                         category
                         allocation_id
-                        allocation {
-                            id
-                            month
-                            year
-                            amount
-                        }
                     }
                 }
             }
@@ -136,7 +130,7 @@ const UPDATE_PETTY_CASH = gql`
             category: item.node.category,
             received_by: item.node.received_by,
             allocation_id: item.node.allocation_id,
-            allocation: item.node.allocation,
+            allocation: null, // Will be fetched separately if needed
         })) || [];
 
     //Model State
@@ -153,10 +147,7 @@ const UPDATE_PETTY_CASH = gql`
          const totalReplenishment = pettyCashList
             .filter((item) => item.type === "Replenishment")
             .reduce((sum, item) => {
-                // If it's linked to an allocation, use the allocation amount
-                if (item.allocation) {
-                    return sum + Number(item.allocation.amount || 0);
-                }
+                // Use the transaction amount directly
                 return sum + Number(item.amount || 0);
             }, 0);
 

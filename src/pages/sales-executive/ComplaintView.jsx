@@ -125,7 +125,7 @@ export default function ComplaintView() {
 
     useEffect(() => {
         if (complaintsData) {
-            const edges = complaintsData?.complaint_collectionCollection?.edges || [];
+            const edges = complaintsData?.complaintCollection?.edges || [];
             setComplaints(edges.map((e) => e.node));
         }
     }, [complaintsData]);
