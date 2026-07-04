@@ -1,4 +1,4 @@
-import { Layout, Button, Row, Col, Card, Typography, Select, DatePicker, message, Modal, Input } from 'antd'
+import { Layout, Button, Row, Col, Card, Typography, Select, DatePicker, message, Modal, Input, Alert } from 'antd'
 import React, {useState, useEffect} from 'react'
 import { IssuesCloseOutlined, ClockCircleOutlined, CloseOutlined, CheckCircleOutlined, EditOutlined, PlusOutlined, CloseCircleOutlined, UserOutlined } from '@ant-design/icons'
 import StatCard from '../../component/Admin/StatCard'
@@ -431,11 +431,22 @@ const count = {
 };
 
 if(loading && !complaintsData) return <p>Loading...</p>
-if(error) return <p>Error loading complaints.</p>
+// Don't hard-bail on error — render with whatever data is available
+// and show an inline alert so the rest of the page still works.
 
   return (
     <Layout>
         <Content style={{ padding: 24 }}>
+            {error && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message="Some complaint data could not be loaded"
+                    description={error.message}
+                    closable
+                />
+            )}
             <div style={headerStyles.container}>
                 <Row align="middle" justify="space-between">
                     <Col>

@@ -109,8 +109,7 @@ const GET_ORDER_PAYMENTS = gql`
                             clinic {
                                 branch {
                                     id
-                                    name
-                                    location
+                                    branch_name
                                 }
                             }
                             customer_has_branch {
@@ -133,8 +132,7 @@ const GET_BRANCHES = gql`
             edges {
                 node {
                     id
-                    name
-                    location
+                    branch_name
                 }
             }
         }
@@ -415,7 +413,7 @@ export default function CashflowView() {
                             >
                                 {branchesData?.branchCollection?.edges?.map((edge) => (
                                     <Option key={edge.node.id} value={edge.node.id}>
-                                        {edge.node.name} - {edge.node.location}
+                                        {edge.node.branch_name || `Branch ${edge.node.id}`}
                                     </Option>
                                 ))}
                             </Select>

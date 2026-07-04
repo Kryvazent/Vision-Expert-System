@@ -113,17 +113,8 @@ const GET_ORDER_BY_ID = gql`
 `;
 
 const GET_ALL_ORDERS = gql`
-    query getAllOrders($branchId: Int, $statusId: BigInt, $dateFrom: Datetime, $dateTo: Datetime) {
-        orderCollection(
-            filter: {
-                clinic_attend_customer: {
-                    clinic: { branch_id: { eq: $branchId } }
-                }
-                order_status_id: { eq: $statusId }
-                created_at: { gte: $dateFrom, lte: $dateTo }
-            }
-            orderBy: [{ created_at: DescNullsLast }]
-        ) {
+    query getAllOrders {
+        orderCollection(orderBy: [{ placed_at: DescNullsLast }]) {
             edges {
                 node {
                     id
@@ -197,7 +188,7 @@ export default function OrderLookup() {
     const [allOrders, setAllOrders] = useState([]);
 
     const [getOrderById, { data: orderData }] = useLazyQuery(GET_ORDER_BY_ID);
-    const [getAllOrders, { data: ordersData, refetch }] = useLazyQuery(GET_ALL_ORDERS);
+    const [getAllOrders, { data: ordersData }] = useLazyQuery(GET_ALL_ORDERS);
     const [getBranches, { data: branchesData }] = useLazyQuery(GET_BRANCHES);
     const [getStatuses, { data: statusesData }] = useLazyQuery(GET_ORDER_STATUSES);
 
@@ -216,9 +207,26 @@ export default function OrderLookup() {
 
     useEffect(() => {
         if (ordersData?.orderCollection?.edges) {
-            setAllOrders(ordersData.orderCollection.edges.map((e) => e.node));
+            const filteredOrders = ordersData.orderCollection.edges
+                .map((e) => e.node)
+                .filter((order) => {
+                    if (selectedBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(selectedBranch)) {
+                        return false;
+                    }
+                    if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
+                        return false;
+                    }
+                    if (dateRange.length === 2) {
+                        const placedAt = dayjs(order.placed_at);
+                        if (placedAt.isBefore(dayjs(dateRange[0]).startOf("day")) || placedAt.isAfter(dayjs(dateRange[1]).endOf("day"))) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            setAllOrders(filteredOrders);
         }
-    }, [ordersData]);
+    }, [ordersData, selectedBranch, selectedStatus, dateRange]);
 
     const handleSearch = () => {
         if (!searchOrderId) {
@@ -240,16 +248,7 @@ export default function OrderLookup() {
 
     const handleLoadAllOrders = () => {
         setLoading(true);
-        const variables = {};
-
-        if (selectedBranch) variables.branchId = selectedBranch;
-        if (selectedStatus) variables.statusId = selectedStatus;
-        if (dateRange.length === 2) {
-            variables.dateFrom = dayjs(dateRange[0]).startOf('day').toISOString();
-            variables.dateTo = dayjs(dateRange[1]).endOf('day').toISOString();
-        }
-
-        getAllOrders({ variables }).then(() => {
+        getAllOrders().then(() => {
             setLoading(false);
         }).catch((error) => {
             console.error("Error loading orders:", error);
@@ -299,7 +298,7 @@ export default function OrderLookup() {
         {
             title: "Branch",
             key: "branch",
-            render: (_, record) => record.clinic_attend_customer?.clinic?.branch?.name || "-",
+            render: (_, record) => record.clinic_attend_customer?.clinic?.branch?.branch_name || "-",
         },
         {
             title: "Total",
@@ -315,8 +314,8 @@ export default function OrderLookup() {
         },
         {
             title: "Date",
-            dataIndex: "created_at",
-            key: "created_at",
+            dataIndex: "placed_at",
+            key: "placed_at",
             render: (v) => dayjs(v).format("YYYY-MM-DD"),
         },
         {
@@ -423,7 +422,7 @@ export default function OrderLookup() {
                                 >
                                     {branchesData?.branchCollection?.edges?.map((edge) => (
                                         <Option key={edge.node.id} value={edge.node.id}>
-                                            {edge.node.name} - {edge.node.location}
+                                            {edge.node.branch_name || `Branch ${edge.node.id}`}
                                         </Option>
                                     ))}
                                 </Select>
