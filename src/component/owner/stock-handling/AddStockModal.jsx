@@ -8,6 +8,13 @@ import { PlusOutlined, DeleteOutlined, BarcodeOutlined, AppstoreOutlined } from 
 const { Text } = Typography
 const { Step } = Steps
 
+const normalizeFrameTypeName = (value) =>
+  String(value || '')
+    .toLowerCase()
+    .replace(/bride/g, 'bridge')
+    .replace(/frame/g, '')
+    .replace(/[^a-z0-9]/g, '')
+
 // A single editable frame-item row in the stock list
 function FrameRow({ index, item, selectedFrameTypeName, onChange, onRemove }) {
   return (
@@ -76,10 +83,21 @@ export default function AddStockModal({
   const selectedCategoryName =
     productTypeList.find(pt => String(pt.id) === String(selectedTypeId))?.type || newCategoryName || ''
   const isFrameCategory = /frame/i.test(selectedCategoryName)
-  const selectedFrameType = React.useMemo(
-    () => frameTypeList.find(ft => String(ft.type).toLowerCase() === String(selectedCategoryName).toLowerCase()),
-    [frameTypeList, selectedCategoryName]
-  )
+  const selectedFrameType = React.useMemo(() => {
+    if (!isFrameCategory) return null
+
+    const normalizedCategory = normalizeFrameTypeName(selectedCategoryName)
+    const matchedType = frameTypeList.find((ft) => {
+      const normalizedType = normalizeFrameTypeName(ft.type)
+      return (
+        String(ft.type).toLowerCase() === String(selectedCategoryName).toLowerCase() ||
+        normalizedType === normalizedCategory ||
+        String(ft.id) === String(selectedTypeId)
+      )
+    })
+
+    return matchedType || { id: selectedTypeId, type: selectedCategoryName }
+  }, [frameTypeList, isFrameCategory, selectedCategoryName, selectedTypeId])
 
   const brandOptionsForCategory = React.useMemo(() => {
     if (!selectedTypeId) return brandList
