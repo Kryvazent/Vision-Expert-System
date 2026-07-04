@@ -5,6 +5,7 @@ import {
      Button ,
      Typography,
      Card,
+     Alert,
      message
     } from 'antd'
 import React, { useState , useMemo, useEffect} from 'react'
@@ -24,7 +25,16 @@ export default function PettyCashHandling({transactions = []}) {
 
     const { staff } = useAuth();
     const staffID = staff?.id;
-    const branchID = staff?.branch?.id;
+    const branchID = staff?.branch?.id || staff?.branch_id;
+    const [categoryFilter, setCategoryFilter] = useState("All");
+    const [dateRange, setDateRange] = useState(null);
+
+    const normalizeTransactionType = (type) => {
+        const normalized = String(type || '').trim().toLowerCase();
+        if (normalized === 'expense') return 'Expense';
+        if (normalized === 'replenishment' || normalized === 'allocation') return 'Replenishment';
+        return type || 'Expense';
+    };
 
     const LOAD_PETTY_CASH_DATA = gql`
         query LoadPettyCashData($branchId: Int!){
@@ -123,28 +133,61 @@ const UPDATE_PETTY_CASH = gql`
     const pettyCashList =
         pettyCash?.petty_cashCollection?.edges?.map((item) => ({
             id: item.node.id,
-            type: item.node.type,
-            amount: item.node.amount,
+            type: normalizeTransactionType(item.node.type),
+            amount: Number(item.node.amount || 0),
             description: item.node.description,
             date: item.node.date,
-            category: item.node.category,
+            category: (item.node.category || '').trim(),
             received_by: item.node.received_by,
             allocation_id: item.node.allocation_id,
             allocation: null, // Will be fetched separately if needed
         })) || [];
+
+    const filteredPettyCashList = useMemo(() => {
+        return pettyCashList.filter((item) => {
+            const categoryMatch =
+                categoryFilter === "All" ||
+                item.category.trim().toLowerCase() === categoryFilter.trim().toLowerCase();
+
+            if (!categoryMatch) return false;
+
+            if (dateRange?.[0] && dateRange?.[1]) {
+                const itemDate = dayjs(item.date).startOf('day');
+                const start = dateRange[0].startOf('day');
+                const end = dateRange[1].endOf('day');
+
+                return (
+                    (itemDate.isAfter(start) || itemDate.isSame(start)) &&
+                    (itemDate.isBefore(end) || itemDate.isSame(end))
+                );
+            }
+
+            return true;
+        });
+    }, [pettyCashList, categoryFilter, dateRange]);
+
+    const categoryOptions = useMemo(() => {
+        const categories = Array.from(
+            new Set(pettyCashList.map((item) => item.category).filter(Boolean))
+        ).sort((a, b) => a.localeCompare(b));
+
+        return [
+            { value: "All", label: "All Categories" },
+            ...categories.map((category) => ({ value: category, label: category })),
+        ];
+    }, [pettyCashList]);
 
     //Model State
     const [isModelOpen, setIsModelOpen]= useState(false)
     //selected record for editing
     const [editingTransaction, setEditingTransaction] = useState(null);
 
-    //prevents unnecessary recalculations.
-    const totals = useMemo(() => {
-        const totalExpenses = pettyCashList
+    const calculateTotals = (items) => {
+        const totalExpenses = items
             .filter((item) => item.type === "Expense")
             .reduce((sum, item) => sum + Number(item.amount || 0) , 0);
 
-         const totalReplenishment = pettyCashList
+         const totalReplenishment = items
             .filter((item) => item.type === "Replenishment")
             .reduce((sum, item) => {
                 // Use the transaction amount directly
@@ -157,9 +200,18 @@ const UPDATE_PETTY_CASH = gql`
             totalExpenses,
             totalReplenishment,
             currentBalance,
-            totalTransactions: pettyCashList.length,
+            totalTransactions: items.length,
         };
+    };
+
+    //prevents unnecessary recalculations.
+    const totals = useMemo(() => {
+        return calculateTotals(pettyCashList);
     }, [pettyCashList]) ;
+
+    const filteredTotals = useMemo(() => {
+        return calculateTotals(filteredPettyCashList);
+    }, [filteredPettyCashList]);
 
     const handleAdd = () => {
         setEditingTransaction(null);
@@ -228,9 +280,6 @@ const UPDATE_PETTY_CASH = gql`
         message.success("Transaction deleted successfully");
     }
 
-    if(loading) return <p>Loading...</p>;
-    if(error) return <p>Error loading petty cash data</p>;
-
   return (
     <Layout>
         <Content style={{
@@ -277,9 +326,39 @@ const UPDATE_PETTY_CASH = gql`
                 <StatCard title="Total Transactions" value={totals.totalTransactions} iconType="total" color="#1890FF" bgColor="#E6F7FF" />
             </div> 
 
+            {!branchID && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message="No branch assigned to this staff account."
+                    description="Petty cash records are loaded by branch, so this admin account needs a branch before records can be shown."
+                />
+            )}
+            {error && (
+                <Alert
+                    type="error"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    message="Error loading petty cash data"
+                    description={error.message}
+                />
+            )}
+
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
             {/* Low of Stock Table */}
-          <PettyCashTable transactions={pettyCashList} onEdit={handleEdit} onDelete={handleDeleteTransaction}/>
+          <PettyCashTable
+            transactions={filteredPettyCashList}
+            loading={loading}
+            category={categoryFilter}
+            dateRange={dateRange}
+            categoryOptions={categoryOptions}
+            filteredTotal={filteredTotals.totalExpenses + filteredTotals.totalReplenishment}
+            onCategoryChange={setCategoryFilter}
+            onDateRangeChange={setDateRange}
+            onEdit={handleEdit}
+            onDelete={handleDeleteTransaction}
+          />
         </Card>
 
         {/* add/ edit model */}

@@ -73,7 +73,7 @@ const CHANGEABLE_STATUSES = [
     
 ]
 
-export default function LabFollowUpTable({orders,onStatusChange, onMarkReceived, onEditNote }) {
+export default function LabFollowUpTable({orders, loading = false, onStatusChange, onMarkReceived, onEditNote }) {
   const columns = [
     {
       title: 'Order ID',
@@ -178,6 +178,7 @@ export default function LabFollowUpTable({orders,onStatusChange, onMarkReceived,
       <Table
         columns={columns}
         dataSource={orders}
+        loading={loading}
         rowKey={(record) => record.id}
         pagination={{
           pageSize: 10,

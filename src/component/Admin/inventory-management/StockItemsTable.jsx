@@ -70,23 +70,25 @@ export default function StockItemsTable({
     }
   }
 
+  const openDamageModal = (record) => {
+    setSelectedItem(record)
+    setDamagedQty(0)
+    setDamagedReason('')
+    setIsDamagedOpen(true)
+  }
+
   const getMenu = (record) => ({
     items: [
-      {
+      ...(onDistribute ? [{
         key: 'distribute',
         label: <span><SendOutlined style={{ marginRight: 8 }} />Distribute to Branch</span>,
-        onClick: () => onDistribute?.(record),
-      },
+        onClick: () => onDistribute(record),
+      }] : []),
       {
         key: 'damage',
         danger: true,
         label: <span><WarningOutlined style={{ marginRight: 8 }} />Mark as Damaged</span>,
-        onClick: () => {
-          setSelectedItem(record)
-          setDamagedQty(0)
-          setDamagedReason('')
-          setIsDamagedOpen(true)
-        },
+        onClick: () => openDamageModal(record),
       },
     ],
   })
@@ -151,9 +153,15 @@ export default function StockItemsTable({
       align: 'center',
       onHeaderCell: () => hdr,
       render: (_, record) => (
-        <Dropdown menu={getMenu(record)} trigger={['click']} placement="bottomRight">
-          <Button icon={<MoreOutlined />}>More</Button>
-        </Dropdown>
+        onDistribute ? (
+          <Dropdown menu={getMenu(record)} trigger={['click']} placement="bottomRight">
+            <Button icon={<MoreOutlined />}>More</Button>
+          </Dropdown>
+        ) : (
+          <Button danger icon={<WarningOutlined />} onClick={() => openDamageModal(record)}>
+            Mark Damaged
+          </Button>
+        )
       ),
     },
   ]
@@ -189,7 +197,7 @@ export default function StockItemsTable({
             </Col>
           </Row>
           <div style={{ marginTop: 12, fontSize: 12, color: '#3B82F6' }}>
-            Select a category, then use More to distribute stock or report damaged quantity.
+            Select a category, then review quantities or report damaged stock.
           </div>
         </div>
 
