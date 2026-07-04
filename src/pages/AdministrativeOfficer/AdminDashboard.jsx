@@ -30,7 +30,7 @@ const LOAD_LOW_STOCK = gql`
 `;
 
 const GET_VISIBLE_CLINICS = gql`
-  query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: ID!) {
+  query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: Int!) {
     clinicCollection(filter: { date: { gte: $startDate, lte: $endDate }, branch_id: { eq: $branchId } }) {
       edges {
         node {
@@ -52,7 +52,7 @@ const GET_VISIBLE_CLINICS = gql`
 `;
 
 const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
-  query GetProjectsAndClinicsByDate($date: Date!, $branchId: ID!) {
+  query GetProjectsAndClinicsByDate($date: Date!, $branchId: Int!) {
     projectCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
       setCalendarClinics(grouped);
     },
   });
-  const [getClinicsAndSessionsByDate, { data: selectedDateData }] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE);
+  const [getClinicsAndSessionsByDate] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE, { fetchPolicy: "network-only" });
 
   useEffect(() => {
     if (staff?.branch?.id) loadLowStock({ variables: { branchId: staff.branch.id } });
@@ -115,27 +115,50 @@ export default function AdminDashboard() {
     const startOfMonth = currentPanelDate.startOf("month");
     const start = startOfMonth.startOf("week");
     const end   = start.add(41, "day");
-    getVisibleClinics({ variables: { startDate: start, endDate: end, branchId: staff.branch.id } });
+    getVisibleClinics({
+      variables: {
+        startDate: start.format("YYYY-MM-DD"),
+        endDate: end.format("YYYY-MM-DD"),
+        branchId: Number(staff.branch.id),
+      },
+    });
   }, [currentPanelDate, staff?.branch?.id, getVisibleClinics]);
 
-  const daySelected = (date) => {
+  const daySelected = async (date) => {
+    if (!staff?.branch?.id) return;
+
     setModelType("date");
     const formattedDate = date.format("YYYY-MM-DD");
     setStartDate(formattedDate);
-    getClinicsAndSessionsByDate({ variables: { date: formattedDate, branchId: staff.branch.id } });
+    setDateClinicModalData({
+      date: formattedDate,
+      projectCount: 0,
+      clinicCount: 0,
+      description: "",
+      projectAndClinicList: [],
+    });
+    setShowModal(true);
 
-    const projectCount = selectedDateData?.projectCollection?.edges?.length ?? 0;
-    const clinicCount  = selectedDateData?.projectCollection?.edges?.reduce(
+    const result = await getClinicsAndSessionsByDate({
+      variables: { date: formattedDate, branchId: Number(staff.branch.id) },
+    });
+
+    const projectEdges = result.data?.projectCollection?.edges ?? [];
+    const projectsWithClinics = projectEdges.filter(
+      (project) => (project.node.clinicCollection?.edges?.length ?? 0) > 0
+    );
+    const clinicCount = projectsWithClinics.reduce(
       (t, p) => t + (p.node.clinicCollection?.edges?.length ?? 0), 0
-    ) ?? 0;
+    );
 
     setDateClinicModalData({
       date: formattedDate,
-      projectCount,
+      projectCount: projectsWithClinics.length,
       clinicCount,
-      description: selectedDateData?.projectCollection?.edges?.[0]?.node?.description ?? "",
-      projectAndClinicList: selectedDateData?.projectCollection?.edges?.map((project) => ({
+      description: projectsWithClinics?.[0]?.node?.description ?? "",
+      projectAndClinicList: projectsWithClinics.map((project) => ({
         projectName: project.node.project_name,
+        description: project.node.description,
         clinics: project.node.clinicCollection?.edges?.map(({ node: c }) => ({
           id: c.id, venue: c.venue, from: c.from, to: c.to,
           responsiblePerson1: c.responsible_person_01,
@@ -144,21 +167,22 @@ export default function AdminDashboard() {
           responsiblePerson2Contact: c.responsible_person_02_contact_no,
           status: c.clinic_status?.status,
         })) ?? [],
-      })) ?? [],
+      })),
     });
-
-    setShowModal(true);
   };
 
   const dateCellRender = (date) => {
     const clinics = calendarClinics[date.format("YYYY-MM-DD")] ?? [];
     if (!clinics.length) return null;
     return (
-      <div style={{ marginTop: 2 }}>
-        <Badge
-          count={`${clinics.length} Clinic${clinics.length > 1 ? "s" : ""}`}
-          style={{ backgroundColor: "var(--ve-primary)", fontSize: 10 }}
-        />
+      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+        <Badge count={`${clinics.length} clinic${clinics.length > 1 ? "s" : ""}`} style={{ backgroundColor: "#1677ff", fontSize: 10 }} />
+        {clinics.slice(0, 2).map((clinic) => (
+          <Tag key={clinic.id} color="blue" style={{ marginInlineEnd: 0, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {clinic.venue || "Clinic"}
+          </Tag>
+        ))}
+        {clinics.length > 2 && <Tag style={{ marginInlineEnd: 0 }}>+{clinics.length - 2} more</Tag>}
       </div>
     );
   };

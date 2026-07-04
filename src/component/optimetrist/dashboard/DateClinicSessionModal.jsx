@@ -1,5 +1,5 @@
 import { ClockCircleOutlined, EnvironmentOutlined, TeamOutlined } from "@ant-design/icons";
-import { Collapse, Modal, Tag, Typography } from "antd";
+import { Collapse, Empty, Modal, Tag, Typography } from "antd";
 
 
 
@@ -8,7 +8,7 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
     const { Panel } = Collapse;
     const { Text } = Typography;
 
-    console.log('DateClinicSessionModalData:', dateClinicModalData.projectAndClinicList);
+    const projects = dateClinicModalData.projectAndClinicList || [];
 
     return (
         <>
@@ -43,17 +43,15 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
 
 
 
-                <Collapse
-                    defaultActiveKey={['0', '1']}
-                    expandIconPosition="end"
-                    style={{ marginTop: 8 }}
-                >
-
-                    {dateClinicModalData.projectAndClinicList.map((project, index) => {
-                        console.log('Project:', project);
-
-                        return (
-                            <>
+                {projects.length === 0 ? (
+                    <Empty description="No clinics scheduled for this date." style={{ padding: "24px 0" }} />
+                ) : (
+                    <Collapse
+                        defaultActiveKey={projects.map((_, index) => String(index))}
+                        expandIconPosition="end"
+                        style={{ marginTop: 8 }}
+                    >
+                        {projects.map((project, index) => (
 
                                 <Panel
                                     key={index}
@@ -86,7 +84,7 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
                                         }}
                                     >
                                         <Text type="secondary" style={{ fontSize: 13, lineHeight: "18px" }}>
-                                            {dateClinicModalData.description}
+                                            {project.description || dateClinicModalData.description || "No project description."}
                                         </Text>
                                     </div>
                                     
@@ -137,10 +135,9 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
                                         ))}
                                     </div>
                                 </Panel>
-                            </>
-                        );
-                    })}
-                </Collapse>
+                        ))}
+                    </Collapse>
+                )}
             </Modal>
         </>
     )
