@@ -25,6 +25,7 @@ const LOAD_CASH_TRANSFERS = gql`
       edges {
         node {
           id
+          by
           created_at
           amount
           note
@@ -33,7 +34,6 @@ const LOAD_CASH_TRANSFERS = gql`
           manager_proof_at
 
           reviewed_at
-          reviewed_by_staff_id
           cash_transfer_status {
             id
             status
@@ -46,7 +46,7 @@ const LOAD_CASH_TRANSFERS = gql`
             id
             branch_name
           }
-          staff {
+          by_staff {
             id
             first_name
             last_name
@@ -123,8 +123,8 @@ export default function AdminCashHandling() {
         timeLabel: dayjs(node.created_at).format('hh:mm A'),
         cashType: node.cash_type?.type || 'Unknown',
         cashTypeId: node.cash_type?.id,
-        receivedFrom: `${node.staff?.first_name} ${node.staff?.last_name || ''}`.trim(),
-        roleLabel: node.staff?.role?.role_name || '',
+        receivedFrom: `${node.by_staff?.first_name || ''} ${node.by_staff?.last_name || ''}`.trim() || `Staff #${node.by || ''}`,
+        roleLabel: node.by_staff?.role?.role_name || '',
         clinic: node.branch?.branch_name || '—',
         amount: Number(node.amount),
         note: node.note,
