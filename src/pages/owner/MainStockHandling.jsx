@@ -23,7 +23,6 @@ import DistributionHistoryTable from '../../component/owner/stock-handling/Distr
 import BranchStockTable from '../../component/owner/stock-handling/BranchStockTable'
 import DistributionModal from '../../component/owner/stock-handling/DistributionModal'
 import AddStockModal from '../../component/owner/stock-handling/AddStockModal'
-import StockMovementHistoryTable from '../../component/owner/stock-handling/StockMovementHistoryTable'
 import DamageHistoryTable from '../../component/owner/stock-handling/DamageHistoryTable'
 
 const { Title, Text } = Typography
@@ -308,41 +307,6 @@ const LOAD_DISTRIBUTIONS = gql`
           branch {
             id
             branch_name
-          }
-        }
-      }
-    }
-  }
-`
-
-const LOAD_STOCK_MOVEMENT_HISTORY = gql`
-  query LoadStockMovementHistory {
-    stock_movement_historyCollection(orderBy: [{ created_at: DescNullsLast }]) {
-      edges {
-        node {
-          id
-          reference_table
-          reference_id
-          movement_type
-          stock_id
-          frame_id
-          source_branch_id
-          target_branch_id
-          quantity
-          status
-          notes
-          created_at
-          stock {
-            id
-            product {
-              id
-              name
-              sku
-            }
-          }
-          frame {
-            id
-            serial_no
           }
         }
       }
@@ -918,12 +882,6 @@ export default function MainStockHandling() {
       pollInterval: 5000,
     })
 
-    const { data: movementHistoryData, refetch: refetchMovementHistory } = useQuery(LOAD_STOCK_MOVEMENT_HISTORY, {
-      fetchPolicy: 'network-only',
-      pollInterval: 5000,
-    })
-
-
     const {data: branchesData} = useQuery(LOAD_BRANCHES, {fetchPolicy: 'network-only'})
 
     const allBranches = branchesData?.branchCollection?.edges
@@ -1019,7 +977,6 @@ export default function MainStockHandling() {
       refetchOut()
       refetchDamaged()
       refetchDamagedFrames()
-      refetchMovementHistory()
       refetchDamageHistory()
     }
 
@@ -1139,24 +1096,6 @@ export default function MainStockHandling() {
     created_at: item.node.created_at,
     productName: item.node.stock?.product?.name || '—',
     productSku: item.node.stock?.product?.sku || '',
-  })) || []
-
-  const movementHistoryList = movementHistoryData?.stock_movement_historyCollection?.edges?.map((item, index) => ({
-    id: item.node.id,
-    reference_table: item.node.reference_table,
-    reference_id: item.node.reference_id,
-    movement_type: item.node.movement_type,
-    stock_id: item.node.stock_id,
-    frame_id: item.node.frame_id,
-    source_branch_id: item.node.source_branch_id,
-    target_branch_id: item.node.target_branch_id,
-    quantity: Number(item.node.quantity ?? 0),
-    status: item.node.status,
-    notes: item.node.notes,
-    created_at: item.node.created_at,
-    productName: item.node.stock?.product?.name || '—',
-    productSku: item.node.stock?.product?.sku || '',
-    frameSerialNo: item.node.frame?.serial_no || '',
   })) || []
 
   //STATCARDS
@@ -1460,21 +1399,6 @@ export default function MainStockHandling() {
         children: (
           <DistributionHistoryTable
             data={distributionList}
-          />
-        ),
-      },
-      {
-        key: 'movementhistory',
-        label: (
-          <TabLabel
-            icon={<ClockCircleOutlined />}
-            text="Movement History"
-          />
-        ),
-        children: (
-          <StockMovementHistoryTable
-            data={movementHistoryList}
-            branches={allBranchesForStock}
           />
         ),
       },
