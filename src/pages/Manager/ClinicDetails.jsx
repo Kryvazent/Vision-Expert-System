@@ -150,6 +150,7 @@ function ClinicDetails() {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedClinic, setSelectedClinic] = useState(null);
   const [searchCenter, setSearchCenter] = useState('');
+  const [filterType, setFilterType] = useState('all'); // 'all', 'date', 'center'
 
   useEffect(() => {
     loadAllClinics();
@@ -227,24 +228,30 @@ function ClinicDetails() {
   };
 
   const handleSearch = () => {
-    if (!selectedDate) {
+    if (filterType === 'date' && !selectedDate) {
       alert('Please select a date to search.');
       return;
     }
-    loadFilteredClinics({
-      variables: { date: selectedDate.format("YYYY-MM-DD") },
-    });
+    if (filterType === 'date') {
+      loadFilteredClinics({
+        variables: { date: selectedDate.format("YYYY-MM-DD") },
+      });
+    } else if (filterType === 'center') {
+      if (!searchCenter.trim()) {
+        alert('Please enter a clinic center name to search.');
+        return;
+      }
+      loadClinicsByCenter({
+        variables: { center: searchCenter.trim() },
+      });
+    } else {
+      loadAllClinics();
+    }
   };
 
-
   const handleCenterSearch = () => {
-    if (!searchCenter.trim()) {
-      alert('Please enter a clinic center name to search.');
-      return;
-    }
-    loadClinicsByCenter({
-      variables: { center: searchCenter.trim() },
-    });
+    setFilterType('center');
+    handleSearch();
   };
 
   const columns = [
@@ -284,7 +291,9 @@ function ClinicDetails() {
 
   const allTableData      = mapData(allClinicsData);
   const filteredTableData = mapData(filteredClinicsData);
-  const centerTableData   = mapData(clinicsByCenterData); // ── NEW
+  const centerTableData   = mapData(clinicsByCenterData);
+
+  const displayData = filterType === 'date' ? filteredTableData : filterType === 'center' ? centerTableData : allTableData;
 
   return (
     <div className='bg-gray-100 p-10'>
@@ -306,12 +315,12 @@ function ClinicDetails() {
         clinicData={selectedClinic}
       />
 
-      {/* All Clinics Card */}
+      {/* Unified Clinic Details Card */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-6 py-5 border-b border-gray-100">
           <div className="grid grid-cols-2 items-center gap-4 mb-6">
             <Title level={5} className="text-gray-600 whitespace-nowrap">
-              Monthly Clinic Details
+              Clinic Details
             </Title>
             <div className="flex justify-end">
               <Button
@@ -324,50 +333,48 @@ function ClinicDetails() {
               </Button>
             </div>
           </div>
-        </div>
-        <div className="p-6">
-          <Table
-            columns={columns}
-            dataSource={allTableData}
-            scroll={{ x: 'max-content' }}
-            pagination={{
-              pageSize: 10,
-              showTotal: (total) => (
-                <span className="text-gray-500 text-sm">Total {total} clinics</span>
-              ),
-              position: ["bottomRight"],
-            }}
-            rowClassName="hover:bg-gray-50 transition-colors"
-          />
-        </div>
-      </div>
-
-      {/* Search Clinics Card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-20">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <div className="grid grid-cols-2 items-center gap-4 mb-6">
-            <Title level={5} className="text-gray-600 whitespace-nowrap">
-              Search Clinic Details
-            </Title>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                Filter by Date
-              </span>
-              <DatePicker
-                value={selectedDate}
-                onChange={(date) => setSelectedDate(date)}
-                className="w-48"
-              />
-              <Button type="primary" onClick={handleSearch}>
-                Search
-              </Button>
-            </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+              Filter:
+            </span>
+            <Button
+              type={filterType === 'all' ? 'primary' : 'default'}
+              onClick={() => {
+                setFilterType('all');
+                loadAllClinics();
+              }}
+            >
+              All Clinics
+            </Button>
+            <DatePicker
+              placeholder="Filter by Date"
+              value={selectedDate}
+              onChange={(date) => {
+                setSelectedDate(date);
+                if (date) {
+                  setFilterType('date');
+                  loadFilteredClinics({ variables: { date: date.format("YYYY-MM-DD") } });
+                }
+              }}
+              className="w-48"
+            />
+            <input
+              type="text"
+              placeholder="Filter by center"
+              value={searchCenter}
+              onChange={(e) => setSearchCenter(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCenterSearch()}
+              className="border border-gray-300 rounded-md px-3 py-2 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <Button onClick={handleCenterSearch}>
+              Search
+            </Button>
           </div>
         </div>
         <div className="p-6">
           <Table
             columns={columns}
-            dataSource={filteredTableData}
+            dataSource={displayData}
             scroll={{ x: 'max-content' }}
             pagination={{
               pageSize: 10,
@@ -380,50 +387,6 @@ function ClinicDetails() {
           />
         </div>
       </div>
-
-      {/* Search by Center Card */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mt-20">
-        <div className="px-6 py-5 border-b border-gray-100">
-          <div className="grid grid-cols-2 items-center gap-4 mb-6">
-            <Title level={5} className="text-gray-600 whitespace-nowrap">
-              Search Clinic Details
-            </Title>
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
-                Filter by center
-              </span>
-              <input
-                type="text"
-                placeholder="Enter clinic center"
-                value={searchCenter}
-                onChange={(e) => setSearchCenter(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleCenterSearch()}
-                className="border border-gray-300 rounded-md px-3 py-2 w-48 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Button type="primary" onClick={handleCenterSearch}>
-                Search
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="p-6">
-          <Table
-            columns={columns}
-            dataSource={centerTableData}
-            scroll={{ x: 'max-content' }}
-            pagination={{
-              pageSize: 10,
-              showTotal: (total) => (
-                <span className="text-gray-500 text-sm">Total {total} clinics</span>
-              ),
-              position: ["bottomRight"],
-            }}
-            rowClassName="hover:bg-gray-50 transition-colors"
-          />
-        </div>
-      </div>
-
-
     </div>
   );
 }
