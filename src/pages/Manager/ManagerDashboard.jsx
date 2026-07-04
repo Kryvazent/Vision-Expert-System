@@ -30,9 +30,22 @@ const GET_BRANCH_PERFORMANCE = gql`
         }
       }
     }
+    clinicCollection(filter: { branch_id: { eq: $branchId } }) {
+      edges {
+        node {
+          id
+          clinic_attend_customerCollection {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
     orderCollection(
       filter: {
-        clinic_attend_customer: { clinic: { branch_id: { eq: $branchId } } }
         placed_at: { gte: $monthStart, lt: $monthEnd }
       }
     ) {
@@ -40,6 +53,7 @@ const GET_BRANCH_PERFORMANCE = gql`
         node {
           id
           total_price
+          clinic_attend_customer_id
           delivery_orderCollection {
             edges { node { status } }
           }
@@ -87,7 +101,19 @@ export default function ManagerDashboard() {
 
   const performance = useMemo(() => {
     if (!branch || !data?.orderCollection) return null;
-    const orders = data.orderCollection.edges.map((e) => e.node);
+    
+    // Get clinic_attend_customer IDs for this branch
+    const clinicAttendCustomerIds = new Set(
+      data?.clinicCollection?.edges
+        .flatMap(clinic => clinic.node.clinic_attend_customerCollection.edges)
+        .map(cac => cac.node.id) || []
+    );
+    
+    // Filter orders by branch
+    const orders = data.orderCollection.edges
+      .map((e) => e.node)
+      .filter(order => clinicAttendCustomerIds.has(order.clinic_attend_customer_id));
+    
     let revenueAchieved = 0, deliveriesAchieved = 0;
     orders.forEach((order) => {
       const isDelivered = order.delivery_orderCollection.edges.some((d) => d.node.status === DELIVERED);

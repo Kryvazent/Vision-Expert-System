@@ -6,6 +6,7 @@ import {
 import { gql } from "@apollo/client";
 import { useQuery, useLazyQuery, useMutation } from "@apollo/client/react";
 import dayjs from "dayjs";
+import PaymentBill from "../../component/recoveryOfficer/PaymentBill";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -244,6 +245,8 @@ function RecoverySheet() {
   const [rowState,       setRowState]       = useState({});
   const [savingId,       setSavingId]       = useState(null);
   const [messageApi,     contextHolder]     = message.useMessage();
+  const [billModalVisible, setBillModalVisible] = useState(false);
+  const [billData,       setBillData]       = useState(null);
 
   const { data: centerData, loading: centersLoading } = useQuery(GET_CENTERS);
 
@@ -448,6 +451,23 @@ function RecoverySheet() {
         },
       }));
 
+      // Show bill modal after successful save
+      setBillData({
+        orderId: record.orderId,
+        customerName: record.customerName,
+        phone: record.phone,
+        customerAddress: record.customerAddress,
+        totalAmount: record.totalAmount,
+        advanceAmount: record.advanceAmount,
+        balanceAmount: record.balanceAmount,
+        paymentType: isFull ? "Full Payment" : "Partial Payment",
+        paidAmount: paidAmount,
+        remainingBalance: balanceAmount,
+        deliveryStatus: deliveryStatus,
+        remarks: record.remarks,
+      });
+      setBillModalVisible(true);
+
       messageApi.success(`Saved & printing bill for Order #${record.orderId}`);
     } catch (err) {
       console.error(err);
@@ -636,6 +656,12 @@ function RecoverySheet() {
           locale={{ emptyText: "Select a center and date, then click Load Orders" }}
         />
       </div>
+
+      <PaymentBill
+        visible={billModalVisible}
+        onClose={() => setBillModalVisible(false)}
+        billData={billData}
+      />
     </div>
   );
 }

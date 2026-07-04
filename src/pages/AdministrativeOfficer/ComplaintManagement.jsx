@@ -18,8 +18,21 @@ const {TextArea} = Input;
 
 const LOAD_COMPLAINTS = gql`
     query LoadComplaints($branchId: Int!) {
+        clinicCollection(filter: { branch_id: { eq: $branchId } }) {
+            edges {
+                node {
+                    id
+                    clinic_attend_customerCollection {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+            }
+        }
         complaintCollection(
-            filter: { order: { clinic_attend_customer: { clinic: { branch_id: { eq: $branchId } } } } }
             orderBy: [{ created_at: DescNullsLast }]
         ) {
             edges {
@@ -37,6 +50,7 @@ const LOAD_COMPLAINTS = gql`
                     }
                     order {
                         id
+                        clinic_attend_customer_id
                         clinic_attend_customer {
                             customer_has_branch {
                                 customer {
@@ -235,26 +249,37 @@ return map;
 //Transform GraphQL data to the table format with necessary fields like complaint, date, status, orderId and customerName. If no data, set to empty array
     useEffect(() => {
         if( complaintsData?.complaintCollection?.edges){
-            const formattedData = complaintsData.complaintCollection.edges.map((edge) => ({
-                key: edge.node.id,
-                complaint: edge.node.complaint,
-                date: new Date(edge.node.created_at)
-                            .toISOString()
-                            .split("T")[0], // Format date as YYYY-MM-DD
+            // Get clinic_attend_customer IDs for this branch
+            const clinicAttendCustomerIds = new Set(
+                complaintsData?.clinicCollection?.edges
+                    .flatMap(clinic => clinic.node.clinic_attend_customerCollection.edges)
+                    .map(cac => cac.node.id) || []
+            );
+            
+            const formattedData = complaintsData.complaintCollection.edges
+                .map((edge) => ({
+                    key: edge.node.id,
+                    complaint: edge.node.complaint,
+                    date: new Date(edge.node.created_at)
+                                .toISOString()
+                                .split("T")[0], // Format date as YYYY-MM-DD
 
-                status: edge.node.complaint_status?.status,
-                orderID: edge.node.order?.id,
-                customer: `${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.first_name || ""}
-                                   ${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.last_name || ""}`.trim(),
-                contactNo: edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.contact_no,
-                assignedTo: edge.node.assigned_to_staff
-                    ? `${edge.node.assigned_to_staff.first_name} ${edge.node.assigned_to_staff.last_name}`.trim()
-                    : "Not Assigned",
-                assignedToId: edge.node.assigned_to,
-                assignedAt: edge.node.assigned_at,
-                resolutionDescription: edge.node.resolution_description,
-                resolvedAt: edge.node.resolved_at,
-            }));
+                    status: edge.node.complaint_status?.status,
+                    orderID: edge.node.order?.id,
+                    customer: `${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.first_name || ""}
+                                       ${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.last_name || ""}`.trim(),
+                    contactNo: edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.contact_no,
+                    assignedTo: edge.node.assigned_to_staff
+                        ? `${edge.node.assigned_to_staff.first_name} ${edge.node.assigned_to_staff.last_name}`.trim()
+                        : "Not Assigned",
+                    assignedToId: edge.node.assigned_to,
+                    assignedAt: edge.node.assigned_at,
+                    resolutionDescription: edge.node.resolution_description,
+                    resolvedAt: edge.node.resolved_at,
+                    clinicAttendCustomerId: edge.node.order?.clinic_attend_customer_id,
+                }))
+                .filter(complaint => clinicAttendCustomerIds.has(complaint.clinicAttendCustomerId));
+            
             setComplaints(formattedData);
         }
     }, [complaintsData]);
