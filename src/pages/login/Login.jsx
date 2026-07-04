@@ -10,7 +10,7 @@ import { useAuth } from "../../const/functions";
 
 export default function Login() {
   const navigate  = useNavigate();
-  const { homeRoute, isAuthenticated } = useAuth();
+  const { homeRoute, isAuthenticated, isLoading } = useAuth();
 
   const [staffId,  setStaffId]  = useState(null);
   const [username, setUsername] = useState("");
@@ -21,8 +21,10 @@ export default function Login() {
   const [msg,      setMsg]      = useState("");
 
   useEffect(() => {
-    if (isAuthenticated) navigate(homeRoute, { replace: true });
-  }, [isAuthenticated, homeRoute, navigate]);
+    if (isAuthenticated && !isLoading && homeRoute !== "/") {
+      navigate(homeRoute, { replace: true });
+    }
+  }, [isAuthenticated, isLoading, homeRoute, navigate]);
 
   const SEARCH_FROM_EMAIL = gql`
     query searchFromEmail($email: String!) {
@@ -69,8 +71,7 @@ export default function Login() {
 
     await supabase.schema("vision_expert").from("login_activity").insert({ auth_user_id: session.user.id, staff_id: staffId });
 
-    setMsgType("success"); setMsg("Login successful! Redirecting…");
-    setTimeout(() => navigate(homeRoute, { replace: true }), 800);
+    setMsgType("success"); setMsg("Login successful! Redirecting...");
   };
 
   return (

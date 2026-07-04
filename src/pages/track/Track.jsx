@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, Input, Button, Tag, Steps, Descriptions } from "antd";
+import { Card, Input, Button, Tag, Steps, Descriptions, message } from "antd";
 import {
   EyeOutlined,
   SearchOutlined,
@@ -10,19 +10,136 @@ import {
   ArrowLeftOutlined,
 } from "@ant-design/icons";
 import { Link } from "react-router";
+import { gql } from "@apollo/client";
+import { useLazyQuery } from "@apollo/client/react";
+
+const TRACK_ORDER = gql`
+  query TrackOrder($orderId: BigInt!) {
+    orderCollection(filter: { id: { eq: $orderId } }) {
+      edges {
+        node {
+          id
+          total_price
+          balance_amount
+          placed_at
+          estimated_delivery
+          delivered_at
+          order_status {
+            status
+          }
+          clinic_attend_customer {
+            clinic {
+              branch {
+                branch_name
+              }
+            }
+            customer_has_branch {
+              customer {
+                first_name
+                last_name
+                contact_no
+              }
+            }
+          }
+          order_paymentCollection {
+            edges {
+              node {
+                amount
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+const parseTrackingId = (input) => {
+  const digits = String(input || "").replace(/\D/g, "");
+  return digits ? Number(digits) : null;
+};
+
+const formatDate = (value) => {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-LK", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+  });
+};
+
+const formatMoney = (value) => Number(value || 0).toLocaleString();
+
+const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
 
 export default function Track() {
   const [trackingId, setTrackingId] = useState("");
   const [order,      setOrder]      = useState(null);
   const [searched,   setSearched]   = useState(false);
+  const [trackOrder, { loading }] = useLazyQuery(TRACK_ORDER, { fetchPolicy: "network-only" });
 
-  const handleSearch = () => {
-    // Lookup logic goes here
-    setSearched(true);
+  const handleSearch = async () => {
+    const orderId = parseTrackingId(trackingId);
+    if (!orderId) {
+      message.error("Enter a valid tracking ID, e.g. OD123 or 123.");
+      return;
+    }
+
+    setSearched(false);
+    setOrder(null);
+
+    try {
+      const result = await trackOrder({ variables: { orderId } });
+      const node = result.data?.orderCollection?.edges?.[0]?.node;
+
+      if (!node) {
+        setSearched(true);
+        return;
+      }
+
+      const customer = node.clinic_attend_customer?.customer_has_branch?.customer;
+      const paidAmount = node.order_paymentCollection?.edges?.reduce(
+        (sum, edge) => sum + Number(edge.node.amount || 0),
+        0
+      ) || 0;
+      const totalAmount = Number(node.total_price || 0);
+      const remainingAmount = node.balance_amount != null
+        ? Number(node.balance_amount)
+        : Math.max(totalAmount - paidAmount, 0);
+
+      setOrder({
+        trackingId: `OD${node.id}`,
+        status: normalizeStatus(node.order_status?.status),
+        statusLabel: node.order_status?.status || "Pending",
+        customerName: `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "-",
+        customerMobile: customer?.contact_no || "-",
+        branch: node.clinic_attend_customer?.clinic?.branch?.branch_name || "-",
+        orderDate: formatDate(node.placed_at),
+        deliveryDate: formatDate(node.delivered_at || node.estimated_delivery),
+        totalAmount,
+        advancePaid: paidAmount,
+        remainingAmount,
+        paymentStatus: remainingAmount <= 0 ? "completed" : "pending",
+      });
+      setSearched(true);
+    } catch (error) {
+      console.error("Track order failed:", error);
+      message.error("Unable to load order tracking details.");
+      setSearched(true);
+    }
   };
 
   const getStatusStep = (status) => {
-    const map = { new: 0, processing: 1, shipped: 2, delivered: 3 };
+    const map = {
+      pending: 0,
+      confirmed: 1,
+      active: 1,
+      "in lab": 2,
+      "ready for delivery": 2,
+      delivered: 3,
+      "final delivered": 3,
+      completed: 3,
+    };
     return map[status] ?? 0;
   };
 
@@ -81,7 +198,7 @@ export default function Track() {
               prefix={<SearchOutlined style={{ color: "var(--ve-text-muted)" }} />}
             />
             <Button type="primary" size="large" onClick={handleSearch}>
-              Track
+              {loading ? "Tracking..." : "Track"}
             </Button>
           </div>
 
@@ -100,8 +217,8 @@ export default function Track() {
             <Card
               title={`Order ${order.trackingId}`}
               extra={
-                <Tag color={order.status === "delivered" ? "success" : "processing"}>
-                  {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                <Tag color={getStatusStep(order.status) === 3 ? "success" : "processing"}>
+                  {order.statusLabel}
                 </Tag>
               }
             >
@@ -131,14 +248,14 @@ export default function Track() {
             <Card title="Payment Information">
               <Descriptions column={1} bordered size="middle">
                 <Descriptions.Item label="Total Amount">
-                  Rs. {order.totalAmount?.toLocaleString()}
+                  Rs. {formatMoney(order.totalAmount)}
                 </Descriptions.Item>
                 <Descriptions.Item label="Advance Paid">
-                  Rs. {order.advancePaid?.toLocaleString()}
+                  Rs. {formatMoney(order.advancePaid)}
                 </Descriptions.Item>
                 <Descriptions.Item label="Remaining Amount">
                   <span style={{ color: order.remainingAmount === 0 ? "#52c41a" : "#ff4d4f", fontWeight: 600 }}>
-                    Rs. {order.remainingAmount?.toLocaleString()}
+                    Rs. {formatMoney(order.remainingAmount)}
                   </span>
                 </Descriptions.Item>
                 <Descriptions.Item label="Payment Status">
@@ -161,7 +278,7 @@ export default function Track() {
                   }}
                 >
                   <strong>Note:</strong> Remaining payment of Rs.{" "}
-                  {order.remainingAmount?.toLocaleString()} must be completed before delivery.
+                  {formatMoney(order.remainingAmount)} must be completed before delivery.
                 </div>
               )}
             </Card>
