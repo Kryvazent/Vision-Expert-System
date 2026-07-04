@@ -26,7 +26,7 @@ const LOAD_BRANCHES = gql`
                                 first_name
                                 last_name
                                 role {
-                                    role
+                                    role_name
                                 }
                             }
                         }
@@ -43,7 +43,7 @@ const LOAD_ROLES = gql`
             edges {
                 node {
                     id
-                    role
+                    role_name
                 }
             }
         }
@@ -62,7 +62,7 @@ const LOAD_UNASSIGNED_STAFF = gql`
                     last_name
                     role {
                         id
-                        role
+                        role_name
                     }
                 }
             }
@@ -389,7 +389,7 @@ export default function BranchManagement() {
         {
             title: "Role",
             key: "role",
-            render: (_, record) => record.role?.role || "-",
+            render: (_, record) => record.role?.role_name || "-",
         },
         {
             title: "Action",
@@ -580,7 +580,7 @@ export default function BranchManagement() {
                             >
                                 {unassignedStaff.map((staff) => (
                                     <Option key={staff.id} value={staff.id}>
-                                        {staff.first_name} {staff.last_name} ({staff.role?.role})
+                                        {staff.first_name} {staff.last_name} ({staff.role?.role_name})
                                     </Option>
                                 ))}
                             </Select>

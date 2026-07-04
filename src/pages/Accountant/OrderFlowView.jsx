@@ -15,7 +15,6 @@ const GET_ORDERS = gql`
                 node {
                     id
                     total_price
-                    advance_payment
                     balance_amount
                     placed_at
                     estimated_delivery
@@ -75,15 +74,15 @@ const GET_ORDERS = gql`
                     order_status_id
                     customer_confirmed_by
                     customer_confirmed_at
-                    intended_customer_confirmed_date
+                    intended_customer_confirm_date
                     sent_to_lab_at
                     intended_send_to_lab_date
                     received_from_lab_at
                     intended_receive_from_lab_date
                     first_reminder_call_at
-                    intended_first_reminder_call_date
+                    intended_first_reminder_date
                     second_reminder_call_at
-                    intended_second_reminder_call_date
+                    intended_second_reminder_date
                     delivered_at
                     intended_delivery_date
                     delivered_by
@@ -92,7 +91,7 @@ const GET_ORDERS = gql`
                             node {
                                 id
                                 amount
-                                payment_date
+                                created_at
                                 payment_method
                             }
                         }
@@ -227,7 +226,7 @@ export default function OrderFlowView() {
                 <div>
                     <p><strong>Customer Confirmed</strong></p>
                     <p>Actual: {order.customer_confirmed_at ? dayjs(order.customer_confirmed_at).format("YYYY-MM-DD HH:mm") : "Not completed"}</p>
-                    <p>Intended: {order.intended_customer_confirmed_date ? dayjs(order.intended_customer_confirmed_date).format("YYYY-MM-DD") : "-"}</p>
+                    <p>Intended: {order.intended_customer_confirm_date ? dayjs(order.intended_customer_confirm_date).format("YYYY-MM-DD") : "-"}</p>
                 </div>
             ),
         });
@@ -260,7 +259,7 @@ export default function OrderFlowView() {
                 <div>
                     <p><strong>First Reminder Call</strong></p>
                     <p>Actual: {order.first_reminder_call_at ? dayjs(order.first_reminder_call_at).format("YYYY-MM-DD HH:mm") : "Not completed"}</p>
-                    <p>Intended: {order.intended_first_reminder_call_date ? dayjs(order.intended_first_reminder_call_date).format("YYYY-MM-DD") : "-"}</p>
+                    <p>Intended: {order.intended_first_reminder_date ? dayjs(order.intended_first_reminder_date).format("YYYY-MM-DD") : "-"}</p>
                 </div>
             ),
         });
@@ -271,7 +270,7 @@ export default function OrderFlowView() {
                 <div>
                     <p><strong>Second Reminder Call</strong></p>
                     <p>Actual: {order.second_reminder_call_at ? dayjs(order.second_reminder_call_at).format("YYYY-MM-DD HH:mm") : "Not completed"}</p>
-                    <p>Intended: {order.intended_second_reminder_call_date ? dayjs(order.intended_second_reminder_call_date).format("YYYY-MM-DD") : "-"}</p>
+                    <p>Intended: {order.intended_second_reminder_date ? dayjs(order.intended_second_reminder_date).format("YYYY-MM-DD") : "-"}</p>
                 </div>
             ),
         });
