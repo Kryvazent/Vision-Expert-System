@@ -120,8 +120,9 @@ const INSERT_STOCK = gql`
 
 export default function IncomingStockApproval() {
   const { staff } = useAuth()
-  const branchId = Number(staff?.branch_id ?? staff?.branch?.id)
-  const hasBranchId = Number.isFinite(branchId)
+  // AuthProvider sets staff.branch as an object — staff.branch_id does NOT exist as a flat field
+  const branchId = Number(staff?.branch?.id)
+  const hasBranchId = Number.isFinite(branchId) && branchId > 0
 
   const { data, refetch } = useQuery(LOAD_DISTRIBUTIONS, {
     variables: { branchId },

@@ -69,7 +69,7 @@ const LOAD_COMPLAINTS = gql`
                         first_name
                         last_name
                         role {
-                            role
+                            role_name
                         }
                     }
                 }
@@ -94,10 +94,7 @@ const LOAD_COMPLAINT_STATUSES = gql`
 const LOAD_BRANCH_STAFF = gql`
     query LoadBranchStaff($branchId: Int!) {
         staffCollection(
-            filter: {
-                branch_id: { eq: $branchId }
-                role: { in: ["sales-executive", "recovery-officer"] }
-            }
+            filter: { branch_id: { eq: $branchId } }
         ) {
             edges {
                 node {
@@ -105,7 +102,7 @@ const LOAD_BRANCH_STAFF = gql`
                     first_name
                     last_name
                     role {
-                        role
+                        role_name
                     }
                 }
             }
@@ -553,7 +550,7 @@ if(error) return <p>Error loading complaints.</p>
                             >
                                 {branchStaffData?.staffCollection?.edges?.map((edge) => (
                                     <Option key={edge.node.id} value={edge.node.id}>
-                                        {edge.node.first_name} {edge.node.last_name} ({edge.node.role?.role})
+                                        {edge.node.first_name} {edge.node.last_name} ({edge.node.role?.role_name})
                                     </Option>
                                 ))}
                             </Select>
