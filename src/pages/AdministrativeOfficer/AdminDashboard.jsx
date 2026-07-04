@@ -77,6 +77,43 @@ const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
   }
 `;
 
+const GET_DASHBOARD_CARD_STATS = gql`
+  query GetDashboardCardStats($branchId: Int!, $today: Date!) {
+    damaged_stockCollection {
+      edges {
+        node {
+          id
+          damaged_quantity
+          stock {
+            branch_id
+          }
+        }
+      }
+    }
+    frameCollection(filter: { branch_id: { eq: $branchId }, status: { eq: "damaged" } }) {
+      edges {
+        node {
+          id
+        }
+      }
+    }
+    clinicCollection(filter: { branch_id: { eq: $branchId }, date: { eq: $today } }) {
+      edges {
+        node {
+          id
+          clinic_attend_customerCollection {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 export default function AdminDashboard() {
   const { staff } = useAuth();
   const [modelType, setModelType]           = useState("date");
@@ -88,6 +125,7 @@ export default function AdminDashboard() {
   const [dateClinicModalData, setDateClinicModalData] = useState(null);
 
   const [loadLowStock, { data: lowStockData }] = useLazyQuery(LOAD_LOW_STOCK, { fetchPolicy: "network-only" });
+  const [loadCardStats, { data: cardStatsData }] = useLazyQuery(GET_DASHBOARD_CARD_STATS, { fetchPolicy: "network-only" });
   const [getVisibleClinics]                    = useLazyQuery(GET_VISIBLE_CLINICS, {
     onCompleted: (data) => {
       const grouped = {};
@@ -101,8 +139,12 @@ export default function AdminDashboard() {
   const [getClinicsAndSessionsByDate] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE, { fetchPolicy: "network-only" });
 
   useEffect(() => {
-    if (staff?.branch?.id) loadLowStock({ variables: { branchId: staff.branch.id } });
-  }, [loadLowStock, staff]);
+    if (!staff?.branch?.id) return;
+
+    const branchId = Number(staff.branch.id);
+    loadLowStock({ variables: { branchId } });
+    loadCardStats({ variables: { branchId, today: dayjs().format("YYYY-MM-DD") } });
+  }, [loadLowStock, loadCardStats, staff?.branch?.id]);
 
   useEffect(() => {
     if (lowStockData) {
@@ -172,17 +214,54 @@ export default function AdminDashboard() {
   };
 
   const dateCellRender = (date) => {
-    const clinics = calendarClinics[date.format("YYYY-MM-DD")] ?? [];
-    if (!clinics.length) return null;
+    const key = date.format("YYYY-MM-DD");
+    const clinics = calendarClinics[key] ?? [];
+    const isCurrentMonth = date.month() === currentPanelDate.month();
+    const isToday = date.isSame(dayjs(), "day");
+
     return (
-      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-        <Badge count={`${clinics.length} clinic${clinics.length > 1 ? "s" : ""}`} style={{ backgroundColor: "#1677ff", fontSize: 10 }} />
-        {clinics.slice(0, 2).map((clinic) => (
-          <Tag key={clinic.id} color="blue" style={{ marginInlineEnd: 0, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {clinic.venue || "Clinic"}
-          </Tag>
-        ))}
-        {clinics.length > 2 && <Tag style={{ marginInlineEnd: 0 }}>+{clinics.length - 2} more</Tag>}
+      <div
+        style={{
+          minHeight: 118,
+          height: "100%",
+          padding: "8px 10px",
+          borderTop: isToday ? "2px solid #1677ff" : "1px solid #f0f0f0",
+          background: clinics.length ? "#F8FBFF" : "transparent",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "right",
+            color: isCurrentMonth ? "#262626" : "#bfbfbf",
+            fontWeight: isToday ? 700 : 400,
+          }}
+        >
+          {date.format("DD")}
+        </div>
+
+        {clinics.length > 0 && (
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
+            <Badge
+              count={`${clinics.length} clinic${clinics.length > 1 ? "s" : ""}`}
+              style={{ backgroundColor: "#1677ff", fontSize: 10 }}
+            />
+            {clinics.slice(0, 2).map((clinic) => (
+              <Tag
+                key={clinic.id}
+                color="blue"
+                style={{
+                  marginInlineEnd: 0,
+                  maxWidth: "100%",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {clinic.venue || "Clinic"}
+              </Tag>
+            ))}
+            {clinics.length > 2 && <Tag style={{ marginInlineEnd: 0 }}>+{clinics.length - 2} more</Tag>}
+          </div>
+        )}
       </div>
     );
   };
@@ -190,11 +269,23 @@ export default function AdminDashboard() {
   const cellRender = (current, info) =>
     info.type === "date" ? dateCellRender(current) : info.originNode;
 
+  const branchId = Number(staff?.branch?.id);
+  const damagedStockCount = cardStatsData?.damaged_stockCollection?.edges
+    ?.filter(({ node }) => Number(node.stock?.branch_id) === branchId)
+    ?.reduce((sum, { node }) => sum + Number(node.damaged_quantity || 0), 0) || 0;
+  const damagedFrameCount = cardStatsData?.frameCollection?.edges?.length || 0;
+  const todayClinicEdges = cardStatsData?.clinicCollection?.edges || [];
+  const todayClinicCount = todayClinicEdges.length;
+  const todaySessionCount = todayClinicEdges.reduce(
+    (sum, { node }) => sum + (node.clinic_attend_customerCollection?.edges?.length || 0),
+    0
+  );
+
   const statCards = [
     { title: "Low Stock Items",  value: lowStockItems.length, accent: "#faad14", subtitle: "Items below threshold" },
-    { title: "Damaged Stock",    value: 0,                    accent: "#ff4d4f", subtitle: "Reported damaged" },
-    { title: "Today's Clinics",  value: 0,                    accent: "#1677ff", subtitle: "Clinics scheduled today" },
-    { title: "Today's Sessions", value: 0,                    accent: "#52c41a", subtitle: "Sessions scheduled today" },
+    { title: "Damaged Stock",    value: damagedStockCount + damagedFrameCount, accent: "#ff4d4f", subtitle: "Reported damaged" },
+    { title: "Today's Clinics",  value: todayClinicCount, accent: "#1677ff", subtitle: "Clinics scheduled today" },
+    { title: "Today's Sessions", value: todaySessionCount, accent: "#52c41a", subtitle: "Customer sessions today" },
   ];
 
   return (
