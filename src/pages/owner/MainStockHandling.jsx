@@ -175,6 +175,10 @@ const LOAD_MAIN_DAMAGED_STOCK = gql `
           damaged_quantity
           reason
           status_bool
+          review_status
+          rejection_reason
+          reviewed_by
+          reviewed_at
           stock{
             id
             branch_id        
@@ -556,6 +560,7 @@ const INSERT_DAMAGED_STOCK = gql`
           damaged_quantity: $quantity
           reason: $reason
           status_bool: false
+          review_status: "Pending"
       }]
     ) {
       records { 
@@ -564,6 +569,7 @@ const INSERT_DAMAGED_STOCK = gql`
         damaged_quantity 
         reason 
         status_bool 
+        review_status
       }
     }
   }
@@ -751,14 +757,31 @@ const LOAD_CATEGORY_BRAND_MAP = gql`
 `;
 
 const UPDATE_DAMAGED_STOCK_STATUS = gql`
-  mutation UpdateDamagedStockStatus($id: BigInt!, $status_bool: Boolean!) {
+  mutation UpdateDamagedStockStatus(
+    $id: BigInt!
+    $status_bool: Boolean!
+    $review_status: String!
+    $reviewed_by: Int
+    $reviewed_at: Datetime
+    $rejection_reason: String
+  ) {
     updatedamaged_stockCollection(
-      set: { status_bool: $status_bool }
+      set: {
+        status_bool: $status_bool
+        review_status: $review_status
+        reviewed_by: $reviewed_by
+        reviewed_at: $reviewed_at
+        rejection_reason: $rejection_reason
+      }
       filter: { id: { eq: $id } }
     ) {
       records {
         id
         status_bool
+        review_status
+        rejection_reason
+        reviewed_by
+        reviewed_at
       }
     }
   }
@@ -1049,6 +1072,10 @@ export default function MainStockHandling() {
       reason: item.node.reason,
       created_at: item.node.created_at,
       status_bool: item.node.status_bool,
+      review_status: item.node.review_status || (item.node.status_bool ? 'Approved' : 'Pending'),
+      rejection_reason: item.node.rejection_reason,
+      reviewed_by: item.node.reviewed_by,
+      reviewed_at: item.node.reviewed_at,
   })) || []
 
   const damagedFramesList = damagedFramesData?.frameCollection?.edges?.map((item, index) => ({
@@ -1138,7 +1165,7 @@ export default function MainStockHandling() {
   const lowStockItems = lowStockList.length
   const outOfStockItems = outOfStockList.length
   const pendingDist = distributionList.filter(d => d.status === 'Pending Approval').length
-  const pendingDamaged = damagedStockList.filter(i => i.status_bool === false).length
+  const pendingDamaged = damagedStockList.filter(i => (i.review_status || 'Pending') === 'Pending').length
 
   const handleApproveDamage = async (record) => {
     try {
@@ -1162,6 +1189,10 @@ export default function MainStockHandling() {
         variables: {
           id: Number(record.id),
           status_bool: true,
+          review_status: 'Approved',
+          reviewed_by: staff?.id ? Number(staff.id) : null,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: null,
         },
       })
 
@@ -1170,6 +1201,27 @@ export default function MainStockHandling() {
     } catch (err) {
       console.error('Approve damage failed:', err)
       message.error('Unable to approve damaged stock.')
+    }
+  }
+
+  const handleRejectDamage = async (record) => {
+    try {
+      await updateDamagedStockStatus({
+        variables: {
+          id: Number(record.id),
+          status_bool: false,
+          review_status: 'Rejected',
+          reviewed_by: staff?.id ? Number(staff.id) : null,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: 'Rejected by owner',
+        },
+      })
+
+      refetchAll()
+      message.success('Damage request rejected.')
+    } catch (err) {
+      console.error('Reject damage failed:', err)
+      message.error('Unable to reject damaged stock.')
     }
   }
 
@@ -1387,7 +1439,7 @@ export default function MainStockHandling() {
             updateStock={updateStock}
             insertDamageStock={insertDamageStock}
             onDistribute={handleDistribute}
-            deductImmediately={true}
+            deductImmediately={false}
             onRefetch={refetchAll}
             productTypeList={productTypeList}
           />
@@ -1496,6 +1548,7 @@ export default function MainStockHandling() {
             data={damagedStockList}
             damagedFrames={damagedFramesList}
             onApproveDamage={handleApproveDamage}
+            onRejectDamage={handleRejectDamage}
             ownerBranchId={headOfficeBranchId}
          />
         ),
