@@ -54,7 +54,7 @@ const LOAD_BRANCH_LOOKUP = gql`
             edges {
                 node {
                     id
-                    name
+                    branch_name
                 }
             }
         }
@@ -120,7 +120,7 @@ export default function ACCashTransfer() {
         if (transfersData) {
             const edges = transfersData?.cash_transfers_to_adminCollection?.edges || [];
             const typeMap = new Map(typeLookup.map((t) => [String(t.id), t.type]));
-            const branchMap = new Map(branchLookup.map((b) => [String(b.id), b.name]));
+            const branchMap = new Map(branchLookup.map((b) => [String(b.id), b.branch_name]));
             const staffMap = new Map(
                 staffLookup.map((s) => [String(s.id), `${s.first_name ?? ""} ${s.last_name ?? ""}`.trim()])
             );
@@ -213,7 +213,7 @@ export default function ACCashTransfer() {
                             onChange={setFilterBranch}
                             options={[
                                 { value: "all", label: "All Branches" },
-                                ...branchLookup.map((b) => ({ value: b.name, label: b.name })),
+                                ...branchLookup.map((b) => ({ value: b.branch_name, label: b.branch_name })),
                             ]}
                         />
                     </div>

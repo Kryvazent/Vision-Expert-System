@@ -18,7 +18,6 @@ const GET_ORDER_BY_ID = gql`
                     balance_amount
                     placed_at
                     estimated_delivery
-                    created_at
                     remarks
                     order_status {
                         id
@@ -119,7 +118,6 @@ const GET_ALL_ORDERS = gql`
                     balance_amount
                     placed_at
                     estimated_delivery
-                    created_at
                     order_status {
                         id
                         status
@@ -529,7 +527,7 @@ export default function OrderLookup() {
 
                         <Descriptions title="Order Details" bordered column={2} style={{ marginTop: 16 }}>
                             <Descriptions.Item label="Order Date">
-                                {dayjs(selectedOrder.created_at).format("YYYY-MM-DD HH:mm")}
+                                {dayjs(selectedOrder.placed_at).format("YYYY-MM-DD HH:mm")}
                             </Descriptions.Item>
                             <Descriptions.Item label="Estimated Delivery">
                                 {dayjs(selectedOrder.estimated_delivery).format("YYYY-MM-DD")}

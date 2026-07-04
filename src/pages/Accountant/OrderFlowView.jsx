@@ -18,7 +18,6 @@ const GET_ORDERS = gql`
                     balance_amount
                     placed_at
                     estimated_delivery
-                    created_at
                     remarks
                     order_status {
                         id
@@ -211,11 +210,11 @@ export default function OrderFlowView() {
         const items = [];
 
         items.push({
-            color: order.created_at ? "green" : "gray",
+            color: order.placed_at ? "green" : "gray",
             children: (
                 <div>
                     <p><strong>Order Placed</strong></p>
-                    <p>{order.created_at ? dayjs(order.created_at).format("YYYY-MM-DD HH:mm") : "Not completed"}</p>
+                    <p>{order.placed_at ? dayjs(order.placed_at).format("YYYY-MM-DD HH:mm") : "Not completed"}</p>
                 </div>
             ),
         });

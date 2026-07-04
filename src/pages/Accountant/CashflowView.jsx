@@ -91,15 +91,15 @@ const GET_ORDER_PAYMENTS = gql`
                         clinic: { branch_id: { eq: $branchId } }
                     }
                 }
-                payment_date: { gte: $dateFrom, lte: $dateTo }
+                created_at: { gte: $dateFrom, lte: $dateTo }
             }
-            orderBy: [{ payment_date: DescNullsLast }]
+            orderBy: [{ created_at: DescNullsLast }]
         ) {
             edges {
                 node {
                     id
                     amount
-                    payment_date
+                    created_at
                     payment_method
                     notes
                     order_id
@@ -327,8 +327,8 @@ export default function CashflowView() {
         },
         {
             title: "Payment Date",
-            dataIndex: "payment_date",
-            key: "payment_date",
+            dataIndex: "created_at",
+            key: "created_at",
             render: (v) => v ? dayjs(v).format("YYYY-MM-DD HH:mm") : "-",
         },
         {
