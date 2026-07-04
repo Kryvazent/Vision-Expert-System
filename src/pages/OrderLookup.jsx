@@ -15,9 +15,6 @@ const GET_ORDER_BY_ID = gql`
                 node {
                     id
                     total_price
-                    discount
-                    additional_fee
-                    advance_payment
                     balance_amount
                     placed_at
                     estimated_delivery
@@ -82,15 +79,15 @@ const GET_ORDER_BY_ID = gql`
                     order_status_id
                     customer_confirmed_by
                     customer_confirmed_at
-                    intended_customer_confirmed_date
+                    intended_customer_confirm_date
                     sent_to_lab_at
                     intended_send_to_lab_date
                     received_from_lab_at
                     intended_receive_from_lab_date
                     first_reminder_call_at
-                    intended_first_reminder_call_date
+                    intended_first_reminder_date
                     second_reminder_call_at
-                    intended_second_reminder_call_date
+                    intended_second_reminder_date
                     delivered_at
                     intended_delivery_date
                     delivered_by
@@ -99,7 +96,7 @@ const GET_ORDER_BY_ID = gql`
                             node {
                                 id
                                 amount
-                                payment_date
+                                created_at
                                 payment_method
                                 notes
                                 received_by
@@ -119,7 +116,6 @@ const GET_ALL_ORDERS = gql`
                 node {
                     id
                     total_price
-                    advance_payment
                     balance_amount
                     placed_at
                     estimated_delivery
@@ -351,8 +347,8 @@ export default function OrderLookup() {
         },
         {
             title: "Payment Date",
-            dataIndex: "payment_date",
-            key: "payment_date",
+            dataIndex: "created_at",
+            key: "created_at",
             render: (v) => v ? dayjs(v).format("YYYY-MM-DD HH:mm") : "-",
         },
         {
@@ -494,14 +490,6 @@ export default function OrderLookup() {
                             </Col>
                             <Col span={6}>
                                 <Statistic
-                                    title="Advance Payment"
-                                    value={selectedOrder.advance_payment}
-                                    formatter={(value) => formatCurrency(value)}
-                                    valueStyle={{ color: "#52c41a" }}
-                                />
-                            </Col>
-                            <Col span={6}>
-                                <Statistic
                                     title="Balance"
                                     value={selectedOrder.balance_amount}
                                     formatter={(value) => formatCurrency(value)}
@@ -555,12 +543,6 @@ export default function OrderLookup() {
                             <Descriptions.Item label="Frame">
                                 {selectedOrder.frame?.product?.name} ({selectedOrder.frame?.product?.sku})
                             </Descriptions.Item>
-                            <Descriptions.Item label="Discount">
-                                {selectedOrder.discount ? formatCurrency(selectedOrder.discount) : "-"}
-                            </Descriptions.Item>
-                            <Descriptions.Item label="Additional Fee">
-                                {selectedOrder.additional_fee ? formatCurrency(selectedOrder.additional_fee) : "-"}
-                            </Descriptions.Item>
                             <Descriptions.Item label="Remarks">
                                 {selectedOrder.remarks || "-"}
                             </Descriptions.Item>
@@ -583,7 +565,7 @@ export default function OrderLookup() {
                                 {selectedOrder.customer_confirmed_at ? dayjs(selectedOrder.customer_confirmed_at).format("YYYY-MM-DD HH:mm") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Intended Confirmation Date">
-                                {selectedOrder.intended_customer_confirmed_date ? dayjs(selectedOrder.intended_customer_confirmed_date).format("YYYY-MM-DD") : "-"}
+                                {selectedOrder.intended_customer_confirm_date ? dayjs(selectedOrder.intended_customer_confirm_date).format("YYYY-MM-DD") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Sent to Lab At">
                                 {selectedOrder.sent_to_lab_at ? dayjs(selectedOrder.sent_to_lab_at).format("YYYY-MM-DD HH:mm") : "-"}
@@ -601,13 +583,13 @@ export default function OrderLookup() {
                                 {selectedOrder.first_reminder_call_at ? dayjs(selectedOrder.first_reminder_call_at).format("YYYY-MM-DD HH:mm") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Intended First Reminder Date">
-                                {selectedOrder.intended_first_reminder_call_date ? dayjs(selectedOrder.intended_first_reminder_call_date).format("YYYY-MM-DD") : "-"}
+                                {selectedOrder.intended_first_reminder_date ? dayjs(selectedOrder.intended_first_reminder_date).format("YYYY-MM-DD") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Second Reminder Call At">
                                 {selectedOrder.second_reminder_call_at ? dayjs(selectedOrder.second_reminder_call_at).format("YYYY-MM-DD HH:mm") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Intended Second Reminder Date">
-                                {selectedOrder.intended_second_reminder_call_date ? dayjs(selectedOrder.intended_second_reminder_call_date).format("YYYY-MM-DD") : "-"}
+                                {selectedOrder.intended_second_reminder_date ? dayjs(selectedOrder.intended_second_reminder_date).format("YYYY-MM-DD") : "-"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Delivered At">
                                 {selectedOrder.delivered_at ? dayjs(selectedOrder.delivered_at).format("YYYY-MM-DD HH:mm") : "-"}
