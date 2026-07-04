@@ -31,6 +31,7 @@ const GET_PETTY_CASH = gql`
       }
     }
   }
+`;
 
 
 const INSERT_PETTY_CASH = gql`
