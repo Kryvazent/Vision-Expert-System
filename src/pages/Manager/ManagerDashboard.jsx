@@ -63,12 +63,18 @@ const GET_BRANCH_PERFORMANCE = gql`
   }
 `;
 
+// Uses the standard pg_graphql updatebranchCollection — no custom RPC needed
 const SET_BRANCH_TARGET = gql`
   mutation SetBranchTarget($branchId: Int!, $revenueTarget: Float!, $orderTarget: BigInt!) {
-    setBranchTarget(branchId: $branchId, revenueTarget: $revenueTarget, orderTarget: $orderTarget) {
-      id
-      revenue_target
-      order_target
+    updatebranchCollection(
+      filter: { id: { eq: $branchId } }
+      set: { revenue_target: $revenueTarget, order_target: $orderTarget }
+    ) {
+      records {
+        id
+        revenue_target
+        order_target
+      }
     }
   }
 `;
@@ -136,19 +142,30 @@ export default function ManagerDashboard() {
     ? Math.min(Math.round((performance.revenue_pct + performance.order_pct + performance.delivery_pct) / 3), 100)
     : 0;
 
-  const [setBranchTarget, { loading: savingTarget }] = useMutation(SET_BRANCH_TARGET, {
-    onCompleted: (result) => {
-      if (!result?.setBranchTarget?.id) { message.error("Branch target could not be saved."); return; }
-      message.success("Monthly target saved");
+  const [setBranchTarget, { loading: savingTarget }] = useMutation(SET_BRANCH_TARGET);
+
+  const handleSaveTarget = async (values) => {
+    try {
+      const result = await setBranchTarget({
+        variables: {
+          branchId,
+          revenueTarget: values.revenue_target,
+          orderTarget: values.order_target,
+        },
+      });
+      const updated = result?.data?.updatebranchCollection?.records?.[0];
+      if (!updated?.id) {
+        message.error('Branch target could not be saved.');
+        return;
+      }
+      message.success('Monthly target saved');
       setTargetModalOpen(false);
       form.resetFields();
       refetch();
-    },
-    onError: (err) => message.error(`Failed to save target: ${err.message}`),
-  });
-
-  const handleSaveTarget = (values) =>
-    setBranchTarget({ variables: { branchId, revenueTarget: values.revenue_target, orderTarget: values.order_target } });
+    } catch (err) {
+      message.error(`Failed to save target: ${err.message}`);
+    }
+  };
 
   // Stat cards — shown even without a target
   const statCards = performance

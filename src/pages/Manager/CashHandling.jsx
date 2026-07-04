@@ -195,6 +195,9 @@ const SET_BANK_DEPOSIT = gql`
 
 function ManagerCashApproval() {
     const { staff } = useAuth();
+    // AuthProvider resolves staff.branch as an object — staff.branch_id is NOT
+    // a flat field. Normalise once here and use branchId everywhere below.
+    const branchId = staff?.branch?.id ?? staff?.branch_id ?? null;
 
     const [transfers, setTransfers] = useState([]);
     const [rawEdgeCount, setRawEdgeCount] = useState(null); // null = not run yet, -1 = errored
@@ -294,16 +297,14 @@ function ManagerCashApproval() {
 
     // ── Fire everything once we have an authenticated, branch-scoped staff record ──
     useEffect(() => {
-        const branchId = staff?.branch_id ?? staff?.branch?.id;
         if (staff?.id && branchId) {
             loadTransfers({ variables: { branchId } });
             loadTypeLookup();
             loadStaffLookup();
         }
-    }, [staff?.id, staff?.branch_id, staff?.branch?.id]);
+    }, [staff?.id, branchId]);
 
     const refreshData = () => {
-        const branchId = staff?.branch_id ?? staff?.branch?.id;
         if (!staff?.id || !branchId) {
             message.warning("Still waiting for your session to load — try again shortly.");
             return;
@@ -644,7 +645,7 @@ function ManagerCashApproval() {
                         )}
                         <div style={{ color: "#8c8c8c", marginTop: 4 }}>
                             Logged in as staff #{staff?.id}
-                            {staff?.branch_id ? ` · Branch #${staff.branch_id}` : " · No branch on your staff record — query cannot run"}
+                            {branchId ? ` · Branch #${branchId}` : " · No branch on your staff record — query cannot run"}
                         </div>
                     </div>
                 }
