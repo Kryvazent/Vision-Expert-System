@@ -11,6 +11,7 @@ import {
     Col,
 } from 'antd'
 import { PlusOutlined, SaveOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 
 
 const {TextArea} = Input;
@@ -45,7 +46,7 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         if ( initialValues ){
             form.setFieldsValue({
                 type: initialValues.type || 'Expense',
-                date: initialValues.date ? null : null, 
+                date: initialValues.date ? dayjs(initialValues.date) : null, 
                 category: initialValues.category || undefined,
                 description: initialValues.description || '',
                 received_by: initialValues.received_by || '',
@@ -53,8 +54,6 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
             });
             //adding new data
         }else{
-            const today = new Date().toISOString().split('T') [0];
-
             form.setFieldsValue({
                 type: 'Expense',
                 date: null,
