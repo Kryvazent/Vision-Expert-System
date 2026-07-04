@@ -23,7 +23,6 @@ import DistributionHistoryTable from '../../component/owner/stock-handling/Distr
 import BranchStockTable from '../../component/owner/stock-handling/BranchStockTable'
 import DistributionModal from '../../component/owner/stock-handling/DistributionModal'
 import AddStockModal from '../../component/owner/stock-handling/AddStockModal'
-import FrameStockTable from '../../component/owner/stock-handling/FrameStockTable'
 import StockMovementHistoryTable from '../../component/owner/stock-handling/StockMovementHistoryTable'
 import DamageHistoryTable from '../../component/owner/stock-handling/DamageHistoryTable'
 
@@ -797,7 +796,6 @@ export default function MainStockHandling() {
     const [distributeProduct, setDistributeProduct] = useState(null)
     const [addStockOpen, setAddStockOpen] = useState(false)
     const [selectedBranch, setSelectedBranch] = useState(null)
-    const [frameStockBranch, setFrameStockBranch] = useState(null)
     
     //Load head office branch ID first
     const {data: headOfficeData} = useQuery(LOAD_HEAD_OFFICE, {fetchPolicy: 'network-only'})
@@ -966,28 +964,6 @@ export default function MainStockHandling() {
     )
 
     // ── frame stock
-    const [loadBranchFrameStock, { data: branchFrameStockData, loading: frameStockLoading }] =
-      useLazyQuery(LOAD_BRANCH_FRAME_STOCK, { fetchPolicy: 'network-only' })
-
-    useEffect(() => {
-      if (frameStockBranch) {
-        loadBranchFrameStock({ variables: { branch_id: frameStockBranch } })
-      }
-    }, [frameStockBranch, loadBranchFrameStock])
-
-    const branchFrameStockList = branchFrameStockData?.branch_frame_stockCollection?.edges.map(e => ({
-      branch_id: e.node.branch_id,
-      product_id: e.node.product_id,
-      product_name: e.node.product_name,
-      product_sku: e.node.product_sku,
-      frame_type: e.node.frame_type,
-      in_stock_count: Number(e.node.in_stock_count ?? 0),
-      reserved_count: Number(e.node.reserved_count ?? 0),
-      sold_count: Number(e.node.sold_count ?? 0),
-      damaged_count: Number(e.node.damaged_count ?? 0),
-      transferred_count: Number(e.node.transferred_count ?? 0),
-    })) || []
-
     const headOfficeFrameRows = mainFrameData?.frameCollection?.edges.map((item) => ({
       id: item.node.id,
       product_id: item.node.product_id,
@@ -1387,10 +1363,6 @@ export default function MainStockHandling() {
 
         setAddStockOpen(false)
         refetchAll()
-        // also refresh frame stock for the currently selected branch if set
-        if (frameStockBranch) {
-          loadBranchFrameStock({ variables: { branch_id: frameStockBranch } })
-        }
         message.success(`${frames.length} stock item${frames.length !== 1 ? 's' : ''} added to central warehouse.`)
       } catch (err) {
         console.error('Add stock failed:', err)
@@ -1410,13 +1382,10 @@ export default function MainStockHandling() {
         children: (
           <StockItemsTable
             data={stockList}
-            frames={headOfficeFrameRows}
             branches={distributionBranches}
             currentBranchId={headOfficeBranchId}
             updateStock={updateStock}
             insertDamageStock={insertDamageStock}
-            onMarkFrameDamaged={handleMarkFrameDamaged}
-            onTransferFrame={handleTransferFrame}
             onDistribute={handleDistribute}
             deductImmediately={true}
             onRefetch={refetchAll}
@@ -1468,25 +1437,9 @@ export default function MainStockHandling() {
             selectedBranch={selectedBranch}
             onBranchChange={setSelectedBranch}
             data={branchStockList}
-            frameStockData={branchFrameStockList}
             productTypeList={productTypeList}
             reOrderedKeys={branchReorderKeys}
             onReOrder={handleReOrders}
-          />
-        ),
-      },
-      {
-        key: 'framestock',
-        label: (
-          <TabLabel icon={<AppstoreOutlined />} text="Frame Stock (Serialised)" />
-        ),
-        children: (
-          <FrameStockTable
-            branches={allBranchesForStock}
-            selectedBranch={frameStockBranch}
-            onBranchChange={setFrameStockBranch}
-            data={branchFrameStockList}
-            loading={frameStockLoading}
           />
         ),
       },
@@ -1591,7 +1544,7 @@ export default function MainStockHandling() {
                 Central Stock Management
               </Title>
               <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
-                Track stock items, inspect serialised frames, and move inventory across branches from one screen.
+                Track stock items, distribute inventory, and review branch stock levels from one simpler screen.
               </Text>
             </Col>
             <Col>
