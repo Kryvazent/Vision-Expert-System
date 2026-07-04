@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Layout, Col, Row, Typography, Calendar, Alert, Tag, Badge, Card } from "antd";
+import { Layout, Col, Row, Typography, Calendar, Alert, Tag, Card } from "antd";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
@@ -216,52 +216,25 @@ export default function AdminDashboard() {
   const dateCellRender = (date) => {
     const key = date.format("YYYY-MM-DD");
     const clinics = calendarClinics[key] ?? [];
-    const isCurrentMonth = date.month() === currentPanelDate.month();
-    const isToday = date.isSame(dayjs(), "day");
+    const projectCount = new Set(clinics.map((clinic) => clinic.project?.id).filter(Boolean)).size;
 
+    if (!clinics.length && !projectCount) return null;
     return (
       <div
         style={{
-          minHeight: 118,
-          height: "100%",
-          padding: "8px 10px",
-          borderTop: isToday ? "2px solid #1677ff" : "1px solid #f0f0f0",
-          background: clinics.length ? "#F8FBFF" : "transparent",
+          marginTop: 8,
+          display: "flex",
+          gap: 6,
+          flexWrap: "wrap",
+          alignItems: "center",
         }}
       >
-        <div
-          style={{
-            textAlign: "right",
-            color: isCurrentMonth ? "#262626" : "#bfbfbf",
-            fontWeight: isToday ? 700 : 400,
-          }}
-        >
-          {date.format("DD")}
-        </div>
-
-        {clinics.length > 0 && (
-          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-start" }}>
-            <Badge
-              count={`${clinics.length} clinic${clinics.length > 1 ? "s" : ""}`}
-              style={{ backgroundColor: "#1677ff", fontSize: 10 }}
-            />
-            {clinics.slice(0, 2).map((clinic) => (
-              <Tag
-                key={clinic.id}
-                color="blue"
-                style={{
-                  marginInlineEnd: 0,
-                  maxWidth: "100%",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {clinic.venue || "Clinic"}
-              </Tag>
-            ))}
-            {clinics.length > 2 && <Tag style={{ marginInlineEnd: 0 }}>+{clinics.length - 2} more</Tag>}
-          </div>
-        )}
+        <Tag color="blue" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+          {projectCount} Project{projectCount !== 1 ? "s" : ""}
+        </Tag>
+        <Tag color="green" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+          {clinics.length} Clinic{clinics.length !== 1 ? "s" : ""}
+        </Tag>
       </div>
     );
   };
