@@ -6,7 +6,7 @@ import ComplaintTable from '../../component/Admin/complaint-handling/ComplaintTa
 import AddComplaint from '../../component/Admin/complaint-handling/AddComplaint'
 
 import {gql } from '@apollo/client';
-import { useQuery, useMutation } from '@apollo/client/react/compiled';
+import { useQuery, useMutation, useLazyQuery } from '@apollo/client/react/compiled';
 import { useAuth } from '../../const/functions'
 import { headerStyles, buttonStyles, cardStyles, modalStyles, formStyles } from '../../const/designSystem'
 
@@ -64,12 +64,21 @@ const LOAD_COMPLAINTS = gql`
                             }
                         }
                     }
-                    assigned_to_staff {
-                        id
-                        first_name
-                        last_name
-                        role {
-                            role_name
+                }
+            }
+        }
+    }
+`;
+
+const CHECK_ORDER_FOR_COMPLAINT = gql`
+    query CheckOrderForComplaint($orderId: BigInt!) {
+        orderCollection(filter: { id: { eq: $orderId } }) {
+            edges {
+                node {
+                    id
+                    clinic_attend_customer {
+                        clinic {
+                            branch_id
                         }
                     }
                 }
@@ -216,6 +225,7 @@ const [insertComplaint] = useMutation(INSERT_COMPLAINT);
 const [updateComplaintStatus] = useMutation(UPDATE_COMPLAINT_STATUS);
 const [assignComplaint] = useMutation(ASSIGN_COMPLAINT);
 const [resolveComplaint] = useMutation(RESOLVE_COMPLAINT);
+const [checkOrderForComplaint] = useLazyQuery(CHECK_ORDER_FOR_COMPLAINT, { fetchPolicy: "network-only" });
 const {data:complaintStatusesData} = useQuery(LOAD_COMPLAINT_STATUSES);
 const {data:branchStaffData} = useQuery(LOAD_BRANCH_STAFF, {
     variables: { branchId },
@@ -243,6 +253,14 @@ return map;
 
 }, [complaintStatusesData]);
 
+const staffNameMap = React.useMemo(() => {
+    const map = {};
+    branchStaffData?.staffCollection?.edges?.forEach((edge) => {
+        map[edge.node.id] = `${edge.node.first_name || ""} ${edge.node.last_name || ""}`.trim();
+    });
+    return map;
+}, [branchStaffData]);
+
 //Transform GraphQL data to the table format with necessary fields like complaint, date, status, orderId and customerName. If no data, set to empty array
     useEffect(() => {
         if( complaintsData?.complaintCollection?.edges){
@@ -266,9 +284,7 @@ return map;
                     customer: `${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.first_name || ""}
                                        ${edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.last_name || ""}`.trim(),
                     contactNo: edge.node.order?.clinic_attend_customer?.customer_has_branch?.customer?.contact_no,
-                    assignedTo: edge.node.assigned_to_staff
-                        ? `${edge.node.assigned_to_staff.first_name} ${edge.node.assigned_to_staff.last_name}`.trim()
-                        : "Not Assigned",
+                    assignedTo: edge.node.assigned_to ? (staffNameMap[edge.node.assigned_to] || `Staff #${edge.node.assigned_to}`) : "Not Assigned",
                     assignedToId: edge.node.assigned_to,
                     assignedAt: edge.node.assigned_at,
                     resolutionDescription: edge.node.resolution_description,
@@ -279,11 +295,26 @@ return map;
             
             setComplaints(formattedData);
         }
-    }, [complaintsData]);
+    }, [complaintsData, staffNameMap]);
 
 //Add new complaint to the list and close the modal after submission
 const handleAddComplaints = async (values) => {
     try {
+        const orderId = Number(values.orderID);
+        const orderResult = await checkOrderForComplaint({ variables: { orderId } });
+        const order = orderResult?.data?.orderCollection?.edges?.[0]?.node;
+
+        if (!order) {
+            message.error("Order not found. Please enter a valid order ID.");
+            return;
+        }
+
+        const orderBranchId = Number(order.clinic_attend_customer?.clinic?.branch_id);
+        if (branchId && orderBranchId !== Number(branchId)) {
+            message.error("This order does not belong to your branch.");
+            return;
+        }
+
         const pendingStatusId = statusMap["Pending"]; // Get from DB dynamically
         if (!pendingStatusId) {
             message.error("Pending status not found. Cannot add complaint.");
@@ -292,7 +323,7 @@ const handleAddComplaints = async (values) => {
         await insertComplaint({
             variables: {
                 complaint: values.complaint,
-                order_id: parseInt(values.orderID),
+                order_id: orderId,
                 complaint_status_id: pendingStatusId, // Use the dynamically fetched status ID
             }
         });

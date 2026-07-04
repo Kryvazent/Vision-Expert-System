@@ -28,7 +28,7 @@ const column = [
     {title: "Customer", dataIndex: "customer", width: 180},
     {title: "Complaint", dataIndex: "complaint"},
     {title: "Date", dataIndex: "date", width: 120},
-    {title: "Assign To", dataIndex: "assignTo", width: 150},
+    {title: "Assign To", dataIndex: "assignedTo", width: 150},
     {title: "Current Status", render: (_, record) => getStatusTag(record.status)},
     {
         title: "Action",
