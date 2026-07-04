@@ -9,7 +9,7 @@ const { Text } = Typography
 const { Step } = Steps
 
 // A single editable frame-item row in the stock list
-function FrameRow({ index, item, frameTypeList, onChange, onRemove }) {
+function FrameRow({ index, item, selectedFrameTypeName, onChange, onRemove }) {
   return (
     <div style={{
       display: 'grid',
@@ -29,12 +29,10 @@ function FrameRow({ index, item, frameTypeList, onChange, onRemove }) {
         prefix={<BarcodeOutlined style={{ color: '#9CA3AF' }} />}
         style={{ borderRadius: 6 }}
       />
-      <Select
-        placeholder="Frame type"
-        value={item.frame_type_id || undefined}
-        onChange={val => onChange(index, 'frame_type_id', val)}
-        options={frameTypeList.map(ft => ({ label: ft.type, value: ft.id }))}
-        style={{ width: '100%' }}
+      <Input
+        value={selectedFrameTypeName}
+        disabled
+        style={{ borderRadius: 6 }}
       />
       <Input
         placeholder="Color (optional)"
@@ -53,7 +51,7 @@ function FrameRow({ index, item, frameTypeList, onChange, onRemove }) {
   )
 }
 
-const emptyFrame = () => ({ serial_no: '', frame_type_id: null, color: '' })
+const emptyFrame = () => ({ serial_no: '', color: '' })
 
 export default function AddStockModal({
   open,
@@ -78,6 +76,10 @@ export default function AddStockModal({
   const selectedCategoryName =
     productTypeList.find(pt => String(pt.id) === String(selectedTypeId))?.type || newCategoryName || ''
   const isFrameCategory = /frame/i.test(selectedCategoryName)
+  const selectedFrameType = React.useMemo(
+    () => frameTypeList.find(ft => String(ft.type).toLowerCase() === String(selectedCategoryName).toLowerCase()),
+    [frameTypeList, selectedCategoryName]
+  )
 
   const brandOptionsForCategory = React.useMemo(() => {
     if (!selectedTypeId) return brandList
@@ -137,10 +139,15 @@ export default function AddStockModal({
   // ── Final submit ───────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (isFrameCategory) {
-      // Validate: every frame needs a serial_no and frame_type_id
-      const invalid = frames.some(f => !f.serial_no.trim() || !f.frame_type_id)
+      if (!selectedFrameType?.id) {
+        message.error(`Frame type "${selectedCategoryName}" is not available.`)
+        return
+      }
+
+      // Validate: every frame needs a serial_no. Frame type is fixed from the selected category.
+      const invalid = frames.some(f => !f.serial_no.trim())
       if (invalid) {
-        message.error('Every frame item needs a serial number and frame type.')
+        message.error('Every frame item needs a serial number.')
         return
       }
       const dupes = new Set()
@@ -161,10 +168,14 @@ export default function AddStockModal({
     setSubmitting(true)
     try {
       const productValues = await productForm.validateFields()
+      const framesToAdd = isFrameCategory
+        ? frames.map(f => ({ ...f, frame_type_id: selectedFrameType.id }))
+        : []
+
       await onAdd({
         product: productValues,
-        frames: isFrameCategory ? frames : [],
-        quantity: isFrameCategory ? frames.length : Number(quantity),
+        frames: framesToAdd,
+        quantity: isFrameCategory ? framesToAdd.length : Number(quantity),
         stockMode: isFrameCategory ? 'serialised' : 'quantity',
       })
     } catch (err) {
@@ -351,7 +362,7 @@ export default function AddStockModal({
                   Serial No. <span style={{ color: '#DC2626' }}>*</span>
                 </Text>
                 <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  Frame Type <span style={{ color: '#DC2626' }}>*</span>
+                  Frame Type
                 </Text>
                 <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                   Color
@@ -366,7 +377,7 @@ export default function AddStockModal({
                     key={index}
                     index={index}
                     item={item}
-                    frameTypeList={frameTypeList}
+                    selectedFrameTypeName={selectedFrameType?.type || selectedCategoryName}
                     onChange={handleFrameChange}
                     onRemove={handleRemoveRow}
                   />
