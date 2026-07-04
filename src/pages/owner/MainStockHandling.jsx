@@ -419,27 +419,6 @@ const LOAD_BRANCH_STOCK = gql `
   }
 `;
 
-const CHECK_BRANCH_STOCK = gql `
-  query CheckBranchStock(
-    $product_id: BigInt!,
-     $branch_id: Int!
-  ){
-    stockCollection(
-      filter: {
-        product_id: {eq: $product_id}
-        branch_id: {eq: $branch_id}
-      }
-     ){
-        edges{
-          node{
-            id
-            available_quantity
-          }
-        }
-     }
-  }
-`;
-
 const LOAD_PRODUCT_TYPES = gql`
   query LoadProductTypes {
     product_typeCollection {
@@ -566,20 +545,6 @@ const UPDATE_STOCK_QUANTITY = gql`
   }
 `;
 
-const UPDATE_DISTRIBUTION_STATUS = gql`
-  mutation UpdateDistributionStatus($id: BigInt!, $status: String!) {
-    updatestock_distributionCollection(
-      set: { status: $status }
-      filter: { id: { eq: $id } }
-    ) {
-      records {
-        id
-        status
-      }
-    }
-  }
-`;
- 
 const INSERT_DAMAGED_STOCK = gql`
   mutation InsertDamagedStock(
     $stock_id: BigInt!, 
@@ -785,16 +750,6 @@ const LOAD_CATEGORY_BRAND_MAP = gql`
     }
   }
 `;
-
-const DELETE_REORDER = gql`
-  mutation DeleteReorder($id: BigInt!) {
-    deleteFromre_orderCollection(
-      filter: { id: { eq: $id } }
-    ) {
-      records { id }
-    }
-  }
-`
 
 const UPDATE_DAMAGED_STOCK_STATUS = gql`
   mutation UpdateDamagedStockStatus($id: BigInt!, $status_bool: Boolean!) {
@@ -1010,9 +965,7 @@ export default function MainStockHandling() {
         : []
     )
 
-    const[CheckBranchStock] = useLazyQuery(CHECK_BRANCH_STOCK)
-
-    // ── frame stock (branch_frame_stock view) ──────────────────────────────
+    // ── frame stock
     const [loadBranchFrameStock, { data: branchFrameStockData, loading: frameStockLoading }] =
       useLazyQuery(LOAD_BRANCH_FRAME_STOCK, { fetchPolicy: 'network-only' })
 
@@ -1048,13 +1001,11 @@ export default function MainStockHandling() {
     })) || []
 
     const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
-    const [updateDistributionStatus] = useMutation(UPDATE_DISTRIBUTION_STATUS)
     const [insertDamageStock] = useMutation(INSERT_DAMAGED_STOCK)
     const [updateDamagedStockStatus] = useMutation(UPDATE_DAMAGED_STOCK_STATUS)
     const [insertReOrder] = useMutation(INSERT_REORDER)
     const [insertStock] = useMutation(INSERT_STOCK)
     const [InsertDistribution] = useMutation(INSERT_DISTRIBUTION)
-    const [deleteReorder] = useMutation(DELETE_REORDER)
     const [InsertProductType] = useMutation(INSERT_PRODUCT_TYPE)
     const [InsertSupplier] = useMutation(INSERT_SUPPLIER)
     const [InsertProduct] = useMutation(INSERT_PRODUCT)
@@ -1319,18 +1270,44 @@ export default function MainStockHandling() {
       try{
         const product = distributeProduct
         const targetBranchId = Number(values.branch)
-        const qty = Number(values.quantity)
 
         if(!product){
           message.error("No product selected")
           return
         }
 
+        // ── Frame mode: one distribution record per selected frame ──────────
+        if (values.frameMode === 'frame' && values.selectedFrameIds?.length > 0) {
+          for (const frameId of values.selectedFrameIds) {
+            await InsertDistribution({
+              variables: {
+                stock_id: product.id,
+                branch_id: targetBranchId,
+                quantity: 1,
+                status: 'Pending Approval',
+                notes: values.notes || '',
+                frame_id: Number(frameId),
+              }
+            })
+          }
+          setDistributeProduct(null)
+          refreshBranchStock()
+          refetchDistribution()
+          refetchAll()
+          message.success(`${values.selectedFrameIds.length} frame distribution request(s) submitted for manager approval. Stock will be deducted once the manager approves.`)
+          return
+        }
+
+        // ── Quantity mode ────────────────────────────────────────────────────
+        const qty = Number(values.quantity)
+
         if((product.stockQuantity ?? 0) < qty){
           message.error('Not enough stock to distribute!')
           return
         }
 
+        // Do NOT deduct central stock here — deduction happens when the
+        // branch manager approves the allocation.
         await InsertDistribution({
           variables: {
             stock_id: product.id,
@@ -1345,94 +1322,11 @@ export default function MainStockHandling() {
         refetchDistribution()
         refetchAll()
         setDistributeProduct(null)
-        message.success('Distribution request submitted for approval.')
+        message.success('Distribution request submitted. Stock will be deducted once the manager approves.')
 
       }catch(err){
         console.error("Distribution failed:"+err)
         message.error('Distribution failed')
-      }
-    }
-
-    const handleApproveDistribution = async(record) => {
-      try {
-        const targetBranchId = Number(record.branchId)
-        const qty = Number(record.quantity)
-        const mainStockId = Number(record.stockId)
-        const productId = Number(record.productId)
-
-        if (!record.productId || !record.stockId || !targetBranchId) {
-          message.error('Distribution details are incomplete.')
-          return
-        }
-
-        if ((record.mainStockQuantity ?? 0) < qty) {
-          message.error('Main stock is no longer sufficient for this approval.')
-          return
-        }
-
-        const newCentralQty = Number(record.mainStockQuantity ?? 0) - qty
-        await updateStock({
-          variables: {
-            id: mainStockId,
-            quantity: newCentralQty,
-          },
-        })
-
-        const result = await CheckBranchStock({
-          variables: {
-            product_id: productId,
-            branch_id: targetBranchId,
-          },
-        })
-
-        const existingStock = result?.data?.stockCollection?.edges?.[0]?.node
-
-        if (existingStock) {
-          const updatedQty = Number(existingStock.available_quantity) + qty
-          await updateStock({
-            variables: {
-              id: existingStock.id,
-              quantity: updatedQty,
-            },
-          })
-        } else {
-          await insertStock({
-            variables: {
-              product_id: productId,
-              branch_id: targetBranchId,
-              quantity: qty,
-              added_by: Number(staff?.id),
-              supplier_id: null,
-            },
-          })
-        }
-
-        await updateDistributionStatus({
-          variables: {
-            id: Number(record.rawId),
-            status: 'Approved',
-          },
-        })
-
-        const matchingReorder = reOrderData?.re_orderCollection?.edges?.find(
-          (e) => Number(e.node.branch_id) === targetBranchId && Number(e.node.product_type_id) === record.productTypeId
-        )
-
-        if (matchingReorder) {
-          await deleteReorder({
-            variables: {
-              id: matchingReorder.node.id,
-            },
-          })
-        }
-
-        refreshBranchStock()
-        refetchDistribution()
-        refetchAll()
-        message.success('Distribution approved and branch stock updated.')
-      } catch (err) {
-        console.error('Approve distribution failed:', err)
-        message.error('Unable to approve distribution.')
       }
     }
 
@@ -1540,6 +1434,8 @@ export default function MainStockHandling() {
             color="#7C3AED"
           />
         ),
+        // Read-only for owner — approval is handled by the branch manager.
+        // Do NOT pass onApprove or onReject here.
         children: (
           <DistributionHistoryTable
             data={distributionList}
