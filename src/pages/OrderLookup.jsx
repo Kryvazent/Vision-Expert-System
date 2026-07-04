@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
+import { useAuth } from "../const/functions";
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -118,6 +119,7 @@ const GET_ALL_ORDERS = gql`
                     balance_amount
                     placed_at
                     estimated_delivery
+                    order_status_id
                     order_status {
                         id
                         status
@@ -172,6 +174,7 @@ const GET_ORDER_STATUSES = gql`
 `;
 
 export default function OrderLookup() {
+    const { staff } = useAuth();
     const [searchOrderId, setSearchOrderId] = useState("");
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -185,6 +188,10 @@ export default function OrderLookup() {
     const [getAllOrders, { data: ordersData }] = useLazyQuery(GET_ALL_ORDERS);
     const [getBranches, { data: branchesData }] = useLazyQuery(GET_BRANCHES);
     const [getStatuses, { data: statusesData }] = useLazyQuery(GET_ORDER_STATUSES);
+    const roleName = String(staff?.role?.role_name || "").toLowerCase();
+    const staffBranchId = Number(staff?.branch?.id ?? staff?.branch_id);
+    const canViewAllBranches = roleName === "owner" || roleName === "accountant";
+    const effectiveBranch = canViewAllBranches ? selectedBranch : staffBranchId;
 
     useEffect(() => {
         getBranches();
@@ -192,19 +199,29 @@ export default function OrderLookup() {
     }, [getBranches, getStatuses]);
 
     useEffect(() => {
-        if (orderData?.orderCollection?.edges?.length > 0) {
-            setSelectedOrder(orderData.orderCollection.edges[0].node);
-        } else {
+        const order = orderData?.orderCollection?.edges?.[0]?.node;
+
+        if (!order) {
             setSelectedOrder(null);
+            return;
         }
-    }, [orderData]);
+
+        const orderBranchId = Number(order.clinic_attend_customer?.clinic?.branch?.id);
+        if (!canViewAllBranches && staffBranchId && orderBranchId !== staffBranchId) {
+            setSelectedOrder(null);
+            message.error("This order does not belong to your branch.");
+            return;
+        }
+
+        setSelectedOrder(order);
+    }, [orderData, canViewAllBranches, staffBranchId]);
 
     useEffect(() => {
         if (ordersData?.orderCollection?.edges) {
             const filteredOrders = ordersData.orderCollection.edges
                 .map((e) => e.node)
                 .filter((order) => {
-                    if (selectedBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(selectedBranch)) {
+                    if (effectiveBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(effectiveBranch)) {
                         return false;
                     }
                     if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
@@ -220,7 +237,7 @@ export default function OrderLookup() {
                 });
             setAllOrders(filteredOrders);
         }
-    }, [ordersData, selectedBranch, selectedStatus, dateRange]);
+    }, [ordersData, effectiveBranch, selectedStatus, dateRange]);
 
     const handleSearch = () => {
         if (!searchOrderId) {
@@ -241,6 +258,11 @@ export default function OrderLookup() {
     };
 
     const handleLoadAllOrders = () => {
+        if (!canViewAllBranches && !staffBranchId) {
+            message.error("No branch is assigned to your account.");
+            return;
+        }
+
         setLoading(true);
         getAllOrders().then(() => {
             setLoading(false);
@@ -405,23 +427,25 @@ export default function OrderLookup() {
                 {viewMode === "list" && (
                     <Card size="small" style={{ marginBottom: 16 }}>
                         <Row gutter={16}>
-                            <Col span={6}>
-                                <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Branch</label>
-                                <Select
-                                    style={{ width: "100%" }}
-                                    placeholder="All branches"
-                                    value={selectedBranch}
-                                    onChange={setSelectedBranch}
-                                    allowClear
-                                >
-                                    {branchesData?.branchCollection?.edges?.map((edge) => (
-                                        <Option key={edge.node.id} value={edge.node.id}>
-                                            {edge.node.branch_name || `Branch ${edge.node.id}`}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Col>
-                            <Col span={6}>
+                            {canViewAllBranches && (
+                                <Col span={6}>
+                                    <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Branch</label>
+                                    <Select
+                                        style={{ width: "100%" }}
+                                        placeholder="All branches"
+                                        value={selectedBranch}
+                                        onChange={setSelectedBranch}
+                                        allowClear
+                                    >
+                                        {branchesData?.branchCollection?.edges?.map((edge) => (
+                                            <Option key={edge.node.id} value={edge.node.id}>
+                                                {edge.node.branch_name || `Branch ${edge.node.id}`}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Col>
+                            )}
+                            <Col span={canViewAllBranches ? 6 : 8}>
                                 <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Status</label>
                                 <Select
                                     style={{ width: "100%" }}
@@ -437,7 +461,7 @@ export default function OrderLookup() {
                                     ))}
                                 </Select>
                             </Col>
-                            <Col span={6}>
+                            <Col span={canViewAllBranches ? 6 : 8}>
                                 <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Date Range</label>
                                 <RangePicker
                                     style={{ width: "100%" }}
@@ -445,7 +469,7 @@ export default function OrderLookup() {
                                     onChange={setDateRange}
                                 />
                             </Col>
-                            <Col span={6}>
+                            <Col span={canViewAllBranches ? 6 : 8}>
                                 <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>&nbsp;</label>
                                 <Button
                                     type="primary"

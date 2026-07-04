@@ -39,11 +39,6 @@ const LOAD_MY_COMPLAINTS = gql`
                             }
                         }
                     }
-                    assigned_to_staff {
-                        id
-                        first_name
-                        last_name
-                    }
                 }
             }
         }
