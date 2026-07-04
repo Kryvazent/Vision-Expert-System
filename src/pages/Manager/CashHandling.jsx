@@ -294,19 +294,21 @@ function ManagerCashApproval() {
 
     // ── Fire everything once we have an authenticated, branch-scoped staff record ──
     useEffect(() => {
-        if (staff?.id && staff?.branch_id) {
-            loadTransfers({ variables: { branchId: staff.branch_id } });
+        const branchId = staff?.branch_id ?? staff?.branch?.id;
+        if (staff?.id && branchId) {
+            loadTransfers({ variables: { branchId } });
             loadTypeLookup();
             loadStaffLookup();
         }
-    }, [staff?.id, staff?.branch_id]);
+    }, [staff?.id, staff?.branch_id, staff?.branch?.id]);
 
     const refreshData = () => {
-        if (!staff?.id || !staff?.branch_id) {
+        const branchId = staff?.branch_id ?? staff?.branch?.id;
+        if (!staff?.id || !branchId) {
             message.warning("Still waiting for your session to load — try again shortly.");
             return;
         }
-        loadTransfers({ variables: { branchId: staff.branch_id } });
+        loadTransfers({ variables: { branchId } });
         loadTypeLookup();
         loadStaffLookup();
     };

@@ -133,11 +133,6 @@ export default function IncomingStockApproval() {
         return
       }
 
-      if ((record.mainStockQuantity ?? 0) < qty) {
-        message.error('Main stock is no longer sufficient for this approval.')
-        return
-      }
-
       await updateStock({
         variables: {
           id: mainStockId,

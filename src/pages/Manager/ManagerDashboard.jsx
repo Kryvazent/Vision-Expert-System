@@ -32,7 +32,7 @@ const GET_BRANCH_PERFORMANCE = gql`
     }
     orderCollection(
       filter: {
-        branch_id: { eq: $branchId }
+        clinic_attend_customer: { clinic: { branch_id: { eq: $branchId } } }
         placed_at: { gte: $monthStart, lt: $monthEnd }
       }
     ) {

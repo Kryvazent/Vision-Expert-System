@@ -194,10 +194,12 @@ export default function ComplaintManagement() {
 
 const {staff} = useAuth();
 
+const branchId = staff?.branch?.id || staff?.branch_id;
+
 const {data:complaintsData, loading, error, refetch} = useQuery(LOAD_COMPLAINTS, {
     fetchPolicy: "network-only",
-    variables: { branchId: staff?.branch?.id },
-    skip: !staff?.branch?.id
+    variables: { branchId },
+    skip: !branchId
 });
 const [insertComplaint] = useMutation(INSERT_COMPLAINT);
 const [updateComplaintStatus] = useMutation(UPDATE_COMPLAINT_STATUS);
@@ -205,8 +207,8 @@ const [assignComplaint] = useMutation(ASSIGN_COMPLAINT);
 const [resolveComplaint] = useMutation(RESOLVE_COMPLAINT);
 const {data:complaintStatusesData} = useQuery(LOAD_COMPLAINT_STATUSES);
 const {data:branchStaffData} = useQuery(LOAD_BRANCH_STAFF, {
-    variables: { branchId: staff?.branch?.id },
-    skip: !staff?.branch?.id
+    variables: { branchId },
+    skip: !branchId
 });
 
 const [complaints, setComplaints] = useState([])
