@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react'
-import { Typography, Layout, Collapse } from 'antd';
+import { Typography, Layout, Collapse, message } from 'antd';
 import {
   AppstoreOutlined,
   WarningOutlined,
@@ -479,8 +479,9 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
   const totalOutOfStock = outOfStockList.length;
   const pendingDamaged = damagedStockList.filter((item) => item.status_bool === false).length;
 
-  //  Handle Reorder 
-  const handleReOrder = async (productTypeId) => {   //async means database want to some time to response
+  //  Handle Reorder — submits a request to the owner via the re_order table.
+  //  The owner sees all branch reorders in their main-stock page via LOAD_ALL_REORDERS.
+  const handleReOrder = async (productTypeId) => {
     try {
       await insertReOrder({
         variables: {
@@ -488,9 +489,11 @@ const { data: productTypesData } = useQuery(PRODUCT_TYPES);
           branch_id: branchId,
         },
       });
-      refetchAll(); // Refresh all tables to reflect new reorder status
+      refetchAll();
+      message.success('Reorder request submitted to the owner.');
     } catch (err) {
       console.error('Reorder failed:', err);
+      message.error('Failed to submit reorder request.');
     }
   };
 

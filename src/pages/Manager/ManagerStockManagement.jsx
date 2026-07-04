@@ -12,7 +12,10 @@ const { Title, Text } = Typography
 
 const LOAD_DISTRIBUTIONS = gql`
   query LoadManagerDistributions($branchId: Int!) {
-    stock_distributionCollection(filter: { branch_id: { eq: $branchId } }, orderBy: [{ id: DescNullsLast }]) {
+    stock_distributionCollection(
+      filter: { branch_id: { eq: $branchId } }
+      orderBy: [{ id: DescNullsLast }]
+    ) {
       edges {
         node {
           id
@@ -50,7 +53,10 @@ const LOAD_DISTRIBUTIONS = gql`
 
 const LOAD_BRANCH_STOCK = gql`
   query LoadBranchStock($branchId: Int!) {
-    stockCollection(filter: { branch_id: { eq: $branchId } }, orderBy: [{ created_at: DescNullsLast }]) {
+    stockCollection(
+      filter: { branch_id: { eq: $branchId } }
+      orderBy: [{ created_at: DescNullsLast }]
+    ) {
       edges {
         node {
           id
@@ -61,9 +67,7 @@ const LOAD_BRANCH_STOCK = gql`
             id
             name
             sku
-            brand {
-              brand
-            }
+            brand { brand }
             product_type {
               id
               type
@@ -94,11 +98,7 @@ const LOAD_STOCK_MOVEMENT_HISTORY = gql`
           created_at
           stock {
             id
-            product {
-              id
-              name
-              sku
-            }
+            product { id name sku }
           }
           frame {
             id
@@ -110,12 +110,9 @@ const LOAD_STOCK_MOVEMENT_HISTORY = gql`
   }
 `
 
-// ── branch_frame_stock view ────────────────────────────────────────────────
 const LOAD_BRANCH_FRAME_STOCK = gql`
   query ManagerLoadBranchFrameStock($branchId: Int!) {
-    branch_frame_stockCollection(
-      filter: { branch_id: { eq: $branchId } }
-    ) {
+    branch_frame_stockCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
           branch_id
@@ -134,9 +131,11 @@ const LOAD_BRANCH_FRAME_STOCK = gql`
   }
 `
 
-const CHECK_BRANCH_STOCK = gql`
-  query CheckBranchStock($product_id: BigInt!, $branch_id: Int!) {
-    stockCollection(filter: { product_id: { eq: $product_id }, branch_id: { eq: $branch_id } }) {
+// Fetch the LIVE central-stock quantity right before approving so we never
+// work from the stale value stored at distribution-creation time.
+const GET_LIVE_CENTRAL_STOCK = gql`
+  query GetLiveCentralStock($stock_id: BigInt!) {
+    stockCollection(filter: { id: { eq: $stock_id } }) {
       edges {
         node {
           id
@@ -147,9 +146,24 @@ const CHECK_BRANCH_STOCK = gql`
   }
 `
 
+const CHECK_BRANCH_STOCK = gql`
+  query CheckBranchStock($product_id: BigInt!, $branch_id: Int!) {
+    stockCollection(
+      filter: { product_id: { eq: $product_id }, branch_id: { eq: $branch_id } }
+    ) {
+      edges {
+        node { id available_quantity }
+      }
+    }
+  }
+`
+
 const UPDATE_STOCK_QUANTITY = gql`
   mutation UpdateStock($id: BigInt!, $quantity: BigInt!) {
-    updatestockCollection(set: { available_quantity: $quantity }, filter: { id: { eq: $id } }) {
+    updatestockCollection(
+      set: { available_quantity: $quantity }
+      filter: { id: { eq: $id } }
+    ) {
       records { id available_quantity }
     }
   }
@@ -157,7 +171,10 @@ const UPDATE_STOCK_QUANTITY = gql`
 
 const UPDATE_DISTRIBUTION_STATUS = gql`
   mutation UpdateDistributionStatus($id: BigInt!, $status: String!) {
-    updatestock_distributionCollection(set: { status: $status }, filter: { id: { eq: $id } }) {
+    updatestock_distributionCollection(
+      set: { status: $status }
+      filter: { id: { eq: $id } }
+    ) {
       records { id status }
     }
   }
@@ -171,7 +188,15 @@ const INSERT_STOCK = gql`
     $added_by: BigInt!
     $supplier_id: BigInt
   ) {
-    insertIntostockCollection(objects: [{ product_id: $product_id, branch_id: $branch_id, available_quantity: $quantity, added_by: $added_by, supplier_id: $supplier_id }]) {
+    insertIntostockCollection(
+      objects: [{
+        product_id: $product_id
+        branch_id: $branch_id
+        available_quantity: $quantity
+        added_by: $added_by
+        supplier_id: $supplier_id
+      }]
+    ) {
       records { id available_quantity }
     }
   }
@@ -227,10 +252,11 @@ export default function ManagerStockManagement() {
     })) || []
   }, [frameStockData])
 
-  const [checkBranchStock] = useMutation(CHECK_BRANCH_STOCK)
-  const [updateStock] = useMutation(UPDATE_STOCK_QUANTITY)
+  const [getLiveCentralStock] = useLazyQuery(GET_LIVE_CENTRAL_STOCK, { fetchPolicy: 'network-only' })
+  const [checkBranchStock]    = useLazyQuery(CHECK_BRANCH_STOCK,     { fetchPolicy: 'network-only' })
+  const [updateStock]              = useMutation(UPDATE_STOCK_QUANTITY)
   const [updateDistributionStatus] = useMutation(UPDATE_DISTRIBUTION_STATUS)
-  const [insertStock] = useMutation(INSERT_STOCK)
+  const [insertStock]              = useMutation(INSERT_STOCK)
 
   const mapCategory = (type) => (type ? String(type).trim() : 'Unknown')
 
@@ -243,7 +269,6 @@ export default function ManagerStockManagement() {
       productName: item.node.stock?.product?.name || 'Unknown Product',
       productId: item.node.stock?.product?.id,
       stockId: item.node.stock?.id,
-      mainStockQuantity: Number(item.node.stock?.available_quantity ?? 0),
       branch: item.node.branch?.branch_name || 'Unknown Branch',
       branchId: item.node.branch?.id,
       quantity: Number(item.node.quantity),
@@ -269,8 +294,8 @@ export default function ManagerStockManagement() {
   }, [branchStockData])
 
   const branchStockTotal = branchStockRows.reduce((sum, item) => sum + item.quantity, 0)
-  const branchStockLow = branchStockRows.filter((item) => item.quantity > 0 && item.quantity <= 100).length
-  const branchStockOut = branchStockRows.filter((item) => item.quantity === 0).length
+  const branchStockLow   = branchStockRows.filter((item) => item.quantity > 0 && item.quantity <= 100).length
+  const branchStockOut   = branchStockRows.filter((item) => item.quantity === 0).length
 
   const movementHistoryRows = useMemo(() => {
     return movementHistoryData?.stock_movement_historyCollection?.edges?.map((item) => ({
@@ -329,44 +354,47 @@ export default function ManagerStockManagement() {
         let color = 'green'
         if (value === 0) color = 'red'
         else if (value <= 100) color = 'orange'
-
         return <Tag color={color} style={{ fontWeight: 700 }}>{value} units</Tag>
       },
     },
   ]
 
+  // ── Approve ─────────────────────────────────────────────────────────────
+  // Always fetch the live central-stock quantity before deducting to prevent
+  // working from the stale snapshot stored at distribution-creation time.
   const handleApproveDistribution = async (record) => {
     try {
       const targetBranchId = Number(record.branchId)
-      const qty = Number(record.quantity)
-      const mainStockId = Number(record.stockId)
-      const productId = Number(record.productId)
+      const qty            = Number(record.quantity)
+      const mainStockId    = Number(record.stockId)
+      const productId      = Number(record.productId)
 
-      if (!record.productId || !record.stockId || !targetBranchId) {
+      if (!productId || !mainStockId || !targetBranchId) {
         message.error('Distribution details are incomplete.')
         return
       }
 
-      if ((record.mainStockQuantity ?? 0) < qty) {
-        message.error('Main stock is no longer sufficient for this approval.')
+      // 1. Get live central-stock quantity
+      const liveResult = await getLiveCentralStock({ variables: { stock_id: mainStockId } })
+      const liveQty = Number(
+        liveResult?.data?.stockCollection?.edges?.[0]?.node?.available_quantity ?? 0
+      )
+
+      if (liveQty < qty) {
+        message.error(`Not enough central stock. Available: ${liveQty}, requested: ${qty}.`)
         return
       }
 
+      // 2. Deduct from central stock
       await updateStock({
-        variables: {
-          id: mainStockId,
-          quantity: Number(record.mainStockQuantity ?? 0) - qty,
-        },
+        variables: { id: mainStockId, quantity: liveQty - qty },
       })
 
-      const result = await checkBranchStock({
-        variables: {
-          product_id: productId,
-          branch_id: targetBranchId,
-        },
+      // 3. Upsert branch stock
+      const branchResult = await checkBranchStock({
+        variables: { product_id: productId, branch_id: targetBranchId },
       })
-
-      const existingStock = result?.data?.stockCollection?.edges?.[0]?.node
+      const existingStock = branchResult?.data?.stockCollection?.edges?.[0]?.node
 
       if (existingStock) {
         await updateStock({
@@ -387,11 +415,9 @@ export default function ManagerStockManagement() {
         })
       }
 
+      // 4. Mark as Approved
       await updateDistributionStatus({
-        variables: {
-          id: Number(record.rawId),
-          status: 'Approved',
-        },
+        variables: { id: Number(record.rawId), status: 'Approved' },
       })
 
       await refetch()
@@ -402,14 +428,30 @@ export default function ManagerStockManagement() {
     }
   }
 
+  // ── Reject ───────────────────────────────────────────────────────────────
+  // Stock was never deducted when the distribution was created, so rejection
+  // is a status-only update — no quantity adjustment needed.
+  const handleRejectDistribution = async (record) => {
+    try {
+      await updateDistributionStatus({
+        variables: { id: Number(record.rawId), status: 'Rejected' },
+      })
+      await refetch()
+      message.success('Allocation rejected. Stock remains in central warehouse.')
+    } catch (err) {
+      console.error('Reject distribution failed:', err)
+      message.error('Unable to reject allocation.')
+    }
+  }
+
   return (
     <Layout>
-      <Content className="p-8" style={{ padding: '20px' }}>
+      <Content style={{ padding: '20px' }}>
         <Card bordered={false} style={{ borderRadius: 12, marginBottom: 20 }}>
           <Row justify="space-between" align="middle">
             <Col>
               <Title level={2} style={{ marginBottom: 4 }}>Incoming Stocks</Title>
-              <Text type="secondary">Approve stock allocations sent to your branch</Text>
+              <Text type="secondary">Approve or reject stock allocations sent to your branch</Text>
             </Col>
             <Col>
               <Card size="small" style={{ borderRadius: 10, minWidth: 160 }}>
@@ -423,8 +465,8 @@ export default function ManagerStockManagement() {
         <Card bordered={false} style={{ borderRadius: 12, marginBottom: 20 }}>
           <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
             <Col>
-              <Title level={3} style={{ marginBottom: 4 }}>Branch Stock Management</Title>
-              <Text type="secondary">Read-only stock details for your branch</Text>
+              <Title level={3} style={{ marginBottom: 4 }}>Branch Stock</Title>
+              <Text type="secondary">Read-only stock levels for your branch</Text>
             </Col>
             <Col>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -470,7 +512,7 @@ export default function ManagerStockManagement() {
           <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
             <Col>
               <Title level={3} style={{ marginBottom: 4 }}>Frame Stock (Serialised)</Title>
-              <Text type="secondary">Real-time per-product frame counts derived from individual frame records</Text>
+              <Text type="secondary">Real-time per-product frame counts for this branch</Text>
             </Col>
             <Col>
               <div style={{ display: 'flex', gap: 12 }}>
@@ -498,7 +540,16 @@ export default function ManagerStockManagement() {
           />
         </Card>
 
+        {/* Incoming allocation requests — manager can approve or reject */}
         <Card bordered={false} style={{ borderRadius: 12 }}>
+          <Row style={{ marginBottom: 16 }}>
+            <Col>
+              <Title level={3} style={{ marginBottom: 4 }}>Incoming Allocation Requests</Title>
+              <Text type="secondary">
+                Approve to receive stock into your branch, or reject to leave it in the central warehouse
+              </Text>
+            </Col>
+          </Row>
           {!branchId ? (
             <div style={{ padding: 24 }}>
               <Text type="secondary">
@@ -506,7 +557,11 @@ export default function ManagerStockManagement() {
               </Text>
             </div>
           ) : (
-            <DistributionHistoryTable data={distributions} onApprove={handleApproveDistribution} />
+            <DistributionHistoryTable
+              data={distributions}
+              onApprove={handleApproveDistribution}
+              onReject={handleRejectDistribution}
+            />
           )}
         </Card>
 
