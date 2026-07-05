@@ -84,8 +84,8 @@ const LOAD_DAILY_RECOVERY_COLLECTION = gql`
         order_paymentCollection(
             filter: {
                 received_by: { eq: $staffId }
-                payment_method: { eq: "cash" }
             }
+            orderBy: [{ created_at: DescNullsLast }]
         ) {
             edges {
                 node {
@@ -102,10 +102,10 @@ const LOAD_DAILY_RECOVERY_COLLECTION = gql`
 `;
 
 const LOAD_CASH_TRANSFERS = gql`
-    query getCashTransfers($staffId: ID!) {
+    query getCashTransfers($staffId: Int!) {
         cash_transfers_to_adminCollection(
             filter: { by: { eq: $staffId } }
-            orderBy: { created_at: DescNullsLast }
+            orderBy: [{ created_at: DescNullsLast }]
         ) {
             edges {
                 node {
@@ -131,7 +131,7 @@ const LOAD_CASH_TRANSFERS = gql`
 // explicitly here or it will be inserted as NULL.
 const NEW_MONEY_TRANSFER = gql`
     mutation addMoneyTransfer(
-        $staffId: ID!
+        $staffId: Int!
         $amount: Float!
         $note: String
         $branchId: Int
@@ -167,7 +167,7 @@ const NEW_MONEY_TRANSFER = gql`
 `;
 
 const CANCEL_TRANSFER = gql`
-    mutation cancelTransfer($transferId: ID!) {
+    mutation cancelTransfer($transferId: BigInt!) {
         deleteFromcash_transfers_to_adminCollection(
             filter: { id: { eq: $transferId } }
             atMost: 1
@@ -181,6 +181,8 @@ const CANCEL_TRANSFER = gql`
 
 function CashTransferToAdmin() {
     const { staff } = useAuth();
+    const staffId = Number(staff?.id);
+    const branchId = staff?.branch?.id ? Number(staff.branch.id) : null;
 
     const [transfers, setTransfers] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -221,8 +223,8 @@ function CashTransferToAdmin() {
         onCompleted: () => {
             message.success("Transfer cancelled successfully.");
             // ── Reload transfers after cancel ──
-            if (staff?.id) {
-                loadTransfers({ variables: { staffId: staff.id } });
+            if (staffId) {
+                loadTransfers({ variables: { staffId } });
             }
         },
         onError: (err) => {
@@ -260,16 +262,16 @@ function CashTransferToAdmin() {
 
     // ── Initial Data Load ──
     useEffect(() => {
-        if (staff?.id) {
-            loadRecovery({ variables: { staffId: staff.id } });
+        if (staffId) {
+            loadRecovery({ variables: { staffId } });
         }
-    }, [loadRecovery, staff?.id]);
+    }, [loadRecovery, staffId]);
 
     useEffect(() => {
-        if (staff?.id) {
-            loadTransfers({ variables: { staffId: staff.id } });
+        if (staffId) {
+            loadTransfers({ variables: { staffId } });
         }
-    }, [loadTransfers, staff?.id]);
+    }, [loadTransfers, staffId]);
 
     // ── Fallback: handle transferData change ──
     useEffect(() => {
@@ -297,8 +299,9 @@ function CashTransferToAdmin() {
                 paidAmount: node.amount ?? 0,
                 balanceAmount: 0,
                 status: node.payment_type ?? "Payment",
+                paymentMethod: node.payment_method,
             })
-        ) ?? [];
+        ).filter((row) => String(row.paymentMethod || "").trim().toLowerCase() === "cash") ?? [];
 
         return [...deliveryRows, ...paymentRows];
     }, [recoveryData]);
@@ -310,9 +313,9 @@ function CashTransferToAdmin() {
 
     // ── Refresh All Data ──
     const refreshData = () => {
-        if (staff?.id) {
-            loadRecovery({ variables: { staffId: staff.id } });
-            loadTransfers({ variables: { staffId: staff.id } });
+        if (staffId) {
+            loadRecovery({ variables: { staffId } });
+            loadTransfers({ variables: { staffId } });
         }
     };
 
@@ -394,10 +397,10 @@ function CashTransferToAdmin() {
 
             await addMoneyTransfer({
                 variables: {
-                    staffId: staff.id,
+                    staffId,
                     amount: values.amount,
                     note: values.note || "",
-                    branchId: staff.branch?.id ?? null,
+                    branchId,
                     cashTypeId: RECOVERY_CASH_TYPE_ID,
                     adminProofStatus: "Awaiting",
                 },
@@ -408,8 +411,8 @@ function CashTransferToAdmin() {
             form.resetFields();
 
             // ── Reload transfers ──
-            await loadTransfers({ variables: { staffId: staff.id } });
-            await loadRecovery({ variables: { staffId: staff.id } });
+            await loadTransfers({ variables: { staffId } });
+            await loadRecovery({ variables: { staffId } });
 
             Modal.success({
                 title: "Transfer Submitted!",
