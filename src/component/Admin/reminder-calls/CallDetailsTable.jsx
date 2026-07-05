@@ -1,8 +1,8 @@
 import React, {useState} from 'react'
-import { Select, Typography, Table, Modal, Input, message } from 'antd';
+import { Button, Select, Typography, Table, Modal, Input, message } from 'antd';
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import {gql } from '@apollo/client';
-import { useQuery, useMutation } from '@apollo/client/react/compiled';
+import { useMutation } from '@apollo/client/react/compiled';
 
 const {Option} = Select
 const {Title} = Typography;
@@ -16,6 +16,9 @@ const INSERT_REMINDER_CALL = gql`
         $before_delivery_status: String
         $before_delivery_reason: String
         $before_delivery_custom_reason: String
+        $before_delivery_2_status: String
+        $before_delivery_2_reason: String
+        $before_delivery_2_custom_reason: String
      ) {
         insertIntoreminder_callCollection(
             objects: [{
@@ -26,6 +29,9 @@ const INSERT_REMINDER_CALL = gql`
             before_delivery_status: $before_delivery_status
             before_delivery_reason: $before_delivery_reason
             before_delivery_custom_reason: $before_delivery_custom_reason
+            before_delivery_2_status: $before_delivery_2_status
+            before_delivery_2_reason: $before_delivery_2_reason
+            before_delivery_2_custom_reason: $before_delivery_2_custom_reason
             }]
          ) {
             records { 
@@ -45,6 +51,9 @@ const UPDATE_REMINDER_CALL = gql`
         $before_delivery_status: String
         $before_delivery_reason: String
         $before_delivery_custom_reason: String
+        $before_delivery_2_status: String
+        $before_delivery_2_reason: String
+        $before_delivery_2_custom_reason: String
     ) {
         updatereminder_callCollection(
             set: {
@@ -54,6 +63,9 @@ const UPDATE_REMINDER_CALL = gql`
                 before_delivery_status: $before_delivery_status
                 before_delivery_reason: $before_delivery_reason
                 before_delivery_custom_reason: $before_delivery_custom_reason
+                before_delivery_2_status: $before_delivery_2_status
+                before_delivery_2_reason: $before_delivery_2_reason
+                before_delivery_2_custom_reason: $before_delivery_2_custom_reason
                 
             }
             filter: { order_id: { eq: $order_id } }
@@ -94,6 +106,7 @@ const BEFORE_DELIVERY_REASONS = [
 export default function CallDetailsTable({ orders = [] , reminderMap = {} , onRefetch}) {
 
 const [localData, setLocalData] = useState({})
+const [dirtyRows, setDirtyRows] = useState({})
 const [isModalOpen, setIsModalOpen] = useState(false);
 const [modalContext,  setModalContext]  = useState(null);
 const [customReason, setCustomReason] =  useState("");   
@@ -129,6 +142,9 @@ const saveRecord = async (orderId, updateFields) => {
                     before_delivery_status: merged.before_delivery_status ?? null,
                     before_delivery_reason: merged.before_delivery_reason ?? null,
                     before_delivery_custom_reason:merged.before_delivery_custom_reason ?? null,
+                    before_delivery_2_status: merged.before_delivery_2_status ?? null,
+                    before_delivery_2_reason: merged.before_delivery_2_reason ?? null,
+                    before_delivery_2_custom_reason:merged.before_delivery_2_custom_reason ?? null,
                 }
             })
         } else {
@@ -141,6 +157,9 @@ const saveRecord = async (orderId, updateFields) => {
                     before_delivery_status: merged.before_delivery_status ?? null,
                     before_delivery_reason: merged.before_delivery_reason ?? null,
                     before_delivery_custom_reason:merged.before_delivery_custom_reason ?? null,
+                    before_delivery_2_status: merged.before_delivery_2_status ?? null,
+                    before_delivery_2_reason: merged.before_delivery_2_reason ?? null,
+                    before_delivery_2_custom_reason:merged.before_delivery_2_custom_reason ?? null,
                 }
             })
 
@@ -149,6 +168,12 @@ const saveRecord = async (orderId, updateFields) => {
         if (onRefetch) {
             await onRefetch()
         }
+        setDirtyRows(prev => {
+            const next = { ...prev }
+            delete next[String(orderId)]
+            return next
+        })
+        message.success('Reminder call updated.')
     } catch (err){
         console.error("Save reminder call failed:", err);
         message.error('Failed to save. Please try again.');
@@ -156,13 +181,13 @@ const saveRecord = async (orderId, updateFields) => {
 }
 
 
-        // Handle any field change — update local state then auto-save
+        // Handle any field change locally. The row Update button persists it.
+        const markDirty = (orderId) => {
+            setDirtyRows(prev => ({ ...prev, [String(orderId)]: true }))
+        }
+
         const handleChange = (orderId, field, value) => {
             const updated = {[field]: value}
-            const merged = {
-                ...(localData[String(orderId)] || {}),
-                ...updated
-            }
 
             setLocalData(prev => ({
                 ...prev,
@@ -171,7 +196,7 @@ const saveRecord = async (orderId, updateFields) => {
                     ...updated
                 }
             }))
-            saveRecord(orderId, merged)
+            markDirty(orderId)
         }
 
         // When "other" is selected, open the custom reason modal
@@ -194,8 +219,14 @@ const saveRecord = async (orderId, updateFields) => {
                         ...updated
                     }
                 }))
-                saveRecord(orderId, updated)
+                markDirty(orderId)
             }
+        }
+
+        const handleSaveRow = (orderId) => {
+            const dbRecord = reminderMap[String(orderId)] || {};
+            const local = localData[String(orderId)] || {};
+            saveRecord(orderId, { ...dbRecord, ...local });
         }
 
 
@@ -209,7 +240,7 @@ const saveRecord = async (orderId, updateFields) => {
                 ...prev,
                 [String(orderId)]: { ...prev[String(orderId)], ...updated }
             }))
-            saveRecord(orderId, updated)
+            markDirty(orderId)
             setIsModalOpen(false)
             setCustomReason('')
             setModalContext(null)
@@ -240,27 +271,11 @@ const saveRecord = async (orderId, updateFields) => {
                     value={record[field] || undefined}
                     optionLabelProp="label"
                     onChange={(val) => {
-                        if(field === 'before_lab_status' && val === 'not_answer'){
+                        if(val === 'not_answer'){
+                            const reasonField = field.replace('_status', '_reason')
                             const updated = {
-                                before_lab_status: val,
-                                before_lab_reason: 'no answer'
-                            }
-
-                            setLocalData(prev => ({
-                                [String(orderId)]: {
-                                    ...prev[String(orderId)],
-                                    ...updated
-                                }
-                            }))
-
-                            saveRecord(orderId, updated)
-                            return
-                        }
-
-                        if (field === 'before_delivery_status' && val === 'not_answer') {
-                             const updated = {
-                                before_delivery_status: val,
-                                before_delivery_reason: 'no answer'
+                                [field]: val,
+                                [reasonField]: 'no answer'
                             }
 
                             setLocalData(prev => ({
@@ -270,7 +285,7 @@ const saveRecord = async (orderId, updateFields) => {
                                     ...updated
                                 }
                             }))
-                            saveRecord(orderId, updated)
+                            markDirty(orderId)
                             return
                         }
                         handleChange(orderId, field, val)
@@ -352,6 +367,30 @@ const columns = [
         title: "Reason - Before Delivery",
         width:260,
         render: (_, record) => renderReasonSelect(record.orderId, 'before_delivery_reason', BEFORE_DELIVERY_REASONS),
+    },
+    {
+        title: "Status - Before Delivery 2",
+        width: 220,
+        render: (_, record) => renderStatusSelect(record.orderId, 'before_delivery_2_status'),
+    },
+    {
+        title: "Reason - Before Delivery 2",
+        width: 280,
+        render: (_, record) => renderReasonSelect(record.orderId, 'before_delivery_2_reason', BEFORE_DELIVERY_REASONS),
+    },
+    {
+        title: "Action",
+        width: 120,
+        fixed: 'right',
+        render: (_, record) => (
+            <Button
+                type="primary"
+                disabled={!dirtyRows[String(record.orderId)]}
+                onClick={() => handleSaveRow(record.orderId)}
+            >
+                Update
+            </Button>
+        ),
     }
 ]
 
@@ -363,7 +402,7 @@ const columns = [
             dataSource={dataSource} 
             columns={columns} 
             pagination={false}  
-            scroll={{ x: 1400 }}  
+            scroll={{ x: 1900 }}  
             locale={{ emptyText: 'No orders found' }}
             rowKey="key"
         />

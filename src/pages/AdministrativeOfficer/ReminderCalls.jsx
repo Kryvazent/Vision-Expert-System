@@ -27,6 +27,10 @@ const LOAD_REMINDER_DATA = gql `
           before_delivery_status 
           before_delivery_reason
           before_delivery_custom_reason
+
+          before_delivery_2_status 
+          before_delivery_2_reason
+          before_delivery_2_custom_reason
         } 
       } 
     } 
@@ -115,6 +119,14 @@ export default function ReminderCalls() {
     return !r || !r.before_delivery_status
   }).length
 
+  const beforeDelivery2Answer    = data?.reminder_callCollection?.edges?.filter(e => e.node.before_delivery_2_status === 'answer').length || 0;
+  const beforeDelivery2NotAnswer = data?.reminder_callCollection?.edges?.filter(e => e.node.before_delivery_2_status === 'not_answer').length || 0;
+  const beforeDelivery2Pending   = orders.filter(e => {
+    if (!isBeforeDelivery(e.node)) return false
+    const r = reminderMap[String(e.node.id)]
+    return !r || !r.before_delivery_2_status
+  }).length
+
 
   return (
     <Layout>
@@ -155,6 +167,15 @@ export default function ReminderCalls() {
                 { label: "Answer", value:beforeDeliveryAnswer , color: 'green'},
                 {label: "Not Answer", value: beforeDeliveryNotAnswer , color: "red"},
                 {label: "Pending", value: beforeDeliveryPending                   }
+              ]}
+            />
+            < Statcard
+              title="Before Delivery 2 Status" 
+              icon={<PhoneOutlined  style={{color: "#722ed1"}}/>}
+              items={[
+                { label: "Answer", value:beforeDelivery2Answer , color: 'green'},
+                {label: "Not Answer", value: beforeDelivery2NotAnswer , color: "red"},
+                {label: "Pending", value: beforeDelivery2Pending}
               ]}
             />
         </div>
