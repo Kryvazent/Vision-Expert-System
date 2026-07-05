@@ -31,20 +31,28 @@ const LOAD_LOW_STOCK = gql`
 
 const GET_VISIBLE_CLINICS = gql`
   query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: Int!) {
-    clinicCollection(filter: { date: { gte: $startDate, lte: $endDate }, branch_id: { eq: $branchId } }) {
+    projectCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
           id
-          date
-          venue
-          from
-          to
-          project { id project_name branch_id }
-          responsible_person_01
-          responsible_person_02
-          responsible_person_01_contact_no
-          responsible_person_02_contact_no
-          clinic_status { id status }
+          project_name
+          branch_id
+          clinicCollection(filter: { date: { gte: $startDate, lte: $endDate } }) {
+            edges {
+              node {
+                id
+                date
+                venue
+                from
+                to
+                responsible_person_01
+                responsible_person_02
+                responsible_person_01_contact_no
+                responsible_person_02_contact_no
+                clinic_status { id status }
+              }
+            }
+          }
         }
       }
     }
@@ -130,12 +138,22 @@ export default function AdminDashboard() {
   const [getVisibleClinics]                    = useLazyQuery(GET_VISIBLE_CLINICS, {
     onCompleted: (data) => {
       const grouped = {};
-      data?.clinicCollection?.edges?.forEach(({ node }) => {
-        if (!grouped[node.date]) grouped[node.date] = [];
-        grouped[node.date].push(node);
+      data?.projectCollection?.edges?.forEach(({ node: project }) => {
+        project.clinicCollection?.edges?.forEach(({ node: clinic }) => {
+          if (!grouped[clinic.date]) grouped[clinic.date] = [];
+          grouped[clinic.date].push({
+            ...clinic,
+            project: {
+              id: project.id,
+              project_name: project.project_name,
+              branch_id: project.branch_id,
+            },
+          });
+        });
       });
       setCalendarClinics(grouped);
     },
+    onError: () => setCalendarClinics({}),
   });
   const [getClinicsAndSessionsByDate] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE, { fetchPolicy: "network-only" });
 
@@ -246,43 +264,6 @@ export default function AdminDashboard() {
   const cellRender = (current, info) =>
     info.type === "date" ? dateCellRender(current) : info.originNode;
 
-  const fullCellRender = (date, info) => {
-    if (info.type !== "date") return info.originNode;
-
-    const labels = dateCellRender(date);
-    const isToday = date.isSame(dayjs(), "day");
-    const isSelected = date.isSame(currentPanelDate, "day");
-    const isCurrentMonth = date.isSame(currentPanelDate, "month");
-
-    return (
-      <div
-        className={`ant-picker-cell-inner ant-picker-calendar-date${isToday ? " ant-picker-calendar-date-today" : ""}`}
-        style={{
-          minHeight: 118,
-          padding: "8px 10px",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-end",
-          background: isSelected ? "#e6f4ff" : undefined,
-          borderTop: isSelected ? "2px solid #1677ff" : undefined,
-        }}
-      >
-        <div
-          className="ant-picker-calendar-date-value"
-          style={{
-            color: isCurrentMonth ? undefined : "#bfbfbf",
-            lineHeight: "22px",
-          }}
-        >
-          {date.format("DD")}
-        </div>
-        <div style={{ width: "100%", alignSelf: "stretch" }}>
-          {labels}
-        </div>
-      </div>
-    );
-  };
-
   const damagedStockCount = cardStatsData?.damaged_stockCollection?.edges
     ?.filter(({ node }) => Number(node.stock?.branch_id) === branchId)
     ?.reduce((sum, { node }) => sum + Number(node.damaged_quantity || 0), 0) || 0;
@@ -342,7 +323,6 @@ export default function AdminDashboard() {
             <Calendar
               fullscreen
               cellRender={cellRender}
-              fullCellRender={fullCellRender}
               onSelect={daySelected}
               onPanelChange={(date) => setCurrentPanelDate(date)}
               style={{ borderRadius: "var(--ve-radius-lg)", overflow: "hidden" }}
