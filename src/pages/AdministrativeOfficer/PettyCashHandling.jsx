@@ -235,7 +235,7 @@ const UPDATE_PETTY_CASH = gql`
         if(values.type === "Expense" && !editingTransaction && values.amount > totals.currentBalance)
         {
             message.error("Insufficient Petty Cash Balance");
-            return;
+            return false;
         }
         try{
             //INSERT NEW RECORD
@@ -269,10 +269,12 @@ const UPDATE_PETTY_CASH = gql`
                 }
                 await refetch();
                 handleCloseModal();
+                return true;
 
         }catch(error){
             console.error("Error saving transaction:", error);  
             message.error("Failed to save transaction.");
+            return false;
              }
         }
 

@@ -34,12 +34,16 @@ const { Text } = Typography;
 const statusColors = {
     Pending: "orange",
     Accepted: "green",
+    Approved: "green",
+    Completed: "green",
     Rejected: "red",
 };
 
 const statusIcons = {
     Pending: <ClockCircleOutlined />,
     Accepted: <CheckCircleOutlined />,
+    Approved: <CheckCircleOutlined />,
+    Completed: <CheckCircleOutlined />,
     Rejected: <CloseCircleOutlined />,
 };
 
@@ -55,20 +59,14 @@ const adminProofColors = {
 
 // ── Queries & Mutations ──
 
-// Daily recovery collection = payments collected today by this recovery
+// Recovery collection = fully completed payments collected by this recovery
 // officer on delivery (delivery_order.delivered_by = staff.id).
-// This is the cash currently sitting in the officer's hand.
 const LOAD_DAILY_RECOVERY_COLLECTION = gql`
-    query getDailyRecovery(
-        $staffId: ID!
-        $startOfDay: Datetime!
-        $endOfDay: Datetime!
-    ) {
+    query getRecoveryCollections($staffId: BigInt!) {
         delivery_orderCollection(
             filter: {
                 delivered_by: { eq: $staffId }
                 payment_received: { eq: true }
-                updated_date: { gte: $startOfDay, lte: $endOfDay }
             }
         ) {
             edges {
@@ -175,9 +173,6 @@ function CashTransferToAdmin() {
     const [form] = Form.useForm();
 
     // ── Today's date range (used for daily recovery collection) ──
-    const startOfDay = useMemo(() => dayjs().startOf("day").toISOString(), []);
-    const endOfDay = useMemo(() => dayjs().endOf("day").toISOString(), []);
-
     // ── Load Today's Recovery Collection ──
     const [
         loadRecovery,
@@ -249,11 +244,9 @@ function CashTransferToAdmin() {
     // ── Initial Data Load ──
     useEffect(() => {
         if (staff?.id) {
-            loadRecovery({
-                variables: { staffId: staff.id, startOfDay, endOfDay },
-            });
+            loadRecovery({ variables: { staffId: staff.id } });
         }
-    }, [loadRecovery, staff?.id, startOfDay, endOfDay]);
+    }, [loadRecovery, staff?.id]);
 
     useEffect(() => {
         if (staff?.id) {
@@ -289,9 +282,7 @@ function CashTransferToAdmin() {
     // ── Refresh All Data ──
     const refreshData = () => {
         if (staff?.id) {
-            loadRecovery({
-                variables: { staffId: staff.id, startOfDay, endOfDay },
-            });
+            loadRecovery({ variables: { staffId: staff.id } });
             loadTransfers({ variables: { staffId: staff.id } });
         }
     };
@@ -313,15 +304,24 @@ function CashTransferToAdmin() {
         .filter((t) => t.status === "Rejected")
         .reduce((s, t) => s + t.amount, 0);
 
+    const totalTransferredOrPending = transfers
+        .filter((t) => t.status !== "Rejected")
+        .reduce((s, t) => s + t.amount, 0);
+
+    const availableRecoveryCash = Math.max(
+        dailyRecoveryCollection - totalTransferredOrPending,
+        0
+    );
+
     // ── Stat Cards ──
     const statCards = [
         {
             title: "Cash on Hand",
             value: recoveryLoading
                 ? "Loading..."
-                : formatCurrency(dailyRecoveryCollection),
+                : formatCurrency(availableRecoveryCash),
             accent: "#1677ff",
-            subtitle: "Today's recovery collection",
+            subtitle: "Completed recovery collections",
             customIcon: (
                 <DollarOutlined style={{ color: "#1677ff", fontSize: 22 }} />
             ),
@@ -330,7 +330,7 @@ function CashTransferToAdmin() {
             title: "Pending Transfers",
             value: formatCurrency(totalPending),
             accent: "#faad14",
-            subtitle: "Awaiting admin acceptance",
+            subtitle: "Awaiting admin approval",
             customIcon: (
                 <ClockCircleOutlined style={{ color: "#faad14", fontSize: 22 }} />
             ),
@@ -356,6 +356,13 @@ function CashTransferToAdmin() {
     const handleSubmit = async (values) => {
         setSubmitting(true);
         try {
+            if (values.amount > availableRecoveryCash) {
+                message.error(
+                    `Transfer amount cannot exceed available recovery cash (${formatCurrency(availableRecoveryCash)}).`
+                );
+                return;
+            }
+
             await addMoneyTransfer({
                 variables: {
                     staffId: staff.id,
@@ -373,6 +380,7 @@ function CashTransferToAdmin() {
 
             // ── Reload transfers ──
             await loadTransfers({ variables: { staffId: staff.id } });
+            await loadRecovery({ variables: { staffId: staff.id } });
 
             Modal.success({
                 title: "Transfer Submitted!",
@@ -395,7 +403,7 @@ function CashTransferToAdmin() {
                             />
                             <Text style={{ color: "#875800", fontSize: 12 }}>
                                 This amount remains your responsibility until the admin
-                                accepts it.
+                                approves it.
                             </Text>
                         </div>
                     </div>
@@ -518,7 +526,11 @@ function CashTransferToAdmin() {
                         </Tag>
                     );
                 }
-                if (record.status === "Accepted") {
+                if (
+                    record.status === "Accepted" ||
+                    record.status === "Approved" ||
+                    record.status === "Completed"
+                ) {
                     return (
                         <Tag color="green" style={{ fontSize: 11 }}>
                             ✓ No Longer Responsible
@@ -653,7 +665,7 @@ function CashTransferToAdmin() {
                         }}
                         extra={
                             <Space wrap>
-                                {["All", "Pending", "Accepted", "Rejected"].map((status) => (
+                                {["All", "Pending", "Approved", "Completed", "Rejected"].map((status) => (
                                     <Button
                                         key={status}
                                         size="small"
@@ -711,7 +723,7 @@ function CashTransferToAdmin() {
                             <Text style={{ color: "#875800", fontSize: 12 }}>
                                 Pending transfers are still{" "}
                                 <strong>your responsibility</strong> until the admin accepts
-                                them. Once accepted, you are no longer accountable for that
+                                them. Once approved, you are no longer accountable for that
                                 amount.
                             </Text>
                         </div>
@@ -804,7 +816,7 @@ function CashTransferToAdmin() {
                     />
                     <Text style={{ color: "#875800", fontSize: 12 }}>
                         You remain responsible for this amount until the admin{" "}
-                        <strong>accepts</strong> the transfer.
+                        <strong>approves</strong> the transfer.
                     </Text>
                 </div>
 

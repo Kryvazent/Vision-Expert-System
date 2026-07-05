@@ -7,6 +7,7 @@ import { gql } from "@apollo/client";
 import { useQuery, useLazyQuery, useMutation } from "@apollo/client/react";
 import dayjs from "dayjs";
 import PaymentBill from "../../component/recoveryOfficer/PaymentBill";
+import { useAuth } from "../../const/functions";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -95,6 +96,7 @@ const GET_RECOVERY_ORDERS = gql`
 const INSERT_DELIVERY_ORDER = gql`
   mutation InsertDeliveryOrder(
     $orderId: BigInt!
+    $deliveredBy: BigInt!
     $paymentReceived: Boolean!
     $paymentType: String!
     $paidAmount: Float!
@@ -104,6 +106,7 @@ const INSERT_DELIVERY_ORDER = gql`
     insertIntodelivery_orderCollection(
       objects: {
         order_id: $orderId
+        delivered_by: $deliveredBy
         payment_received: $paymentReceived
         payment_type: $paymentType
         paid_amount: $paidAmount
@@ -239,6 +242,7 @@ function ReceivedPaymentCell({
 // ── RecoverySheet ─────────────────────────────────────────────────────────────
 
 function RecoverySheet() {
+  const { staff } = useAuth();
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [selectedDate,   setSelectedDate]   = useState(null);
   const [data,           setData]           = useState([]);
@@ -431,6 +435,7 @@ function RecoverySheet() {
       await insertDeliveryOrder({
         variables: {
           orderId:        record.id,
+          deliveredBy:    staff.id,
           paymentReceived,
           paymentType:    isFull ? "full" : "partial",
           paidAmount,
