@@ -32,7 +32,15 @@ const GET_RECOVERY_DATA = gql`
           paymentCollection {
             edges {
               node {
-                total_payment
+                advance
+              }
+            }
+          }
+
+          delivery_orderCollection {
+            edges {
+              node {
+                paid_amount
               }
             }
           }
@@ -103,15 +111,22 @@ function RecoveryFiltering() {
       // Payment
       const payment = order?.paymentCollection?.edges?.[0]?.node;
 
-      const totalAmount = Number(order?.total_price) || 0;
+      const advance = Number(payment?.advance) || 0;
 
-      const paidAmount = Number(payment?.total_payment) || 0;
+      const deliveryPayments =
+        order?.delivery_orderCollection?.edges?.reduce(
+          (sum, item) => sum + (Number(item?.node?.paid_amount) || 0),
+          0,
+        ) || 0;
+
+      const paidAmount = advance + deliveryPayments;
+
+      const totalAmount = Number(order?.total_price) || 0;
 
       const paymentCompleted = paidAmount >= totalAmount;
 
       // Order Status
-      const orderCompleted =
-        order?.order_status?.status?.toLowerCase() === "completed";
+      const orderStatus = order?.order_status?.status || "";
 
       // Delivery Date
       const estimatedDate = dayjs(order?.estimated_delivery);
@@ -144,13 +159,13 @@ function RecoveryFiltering() {
 
         paymentCompleted,
 
-        orderCompleted,
+        orderStatus,
       };
     })
 
     .filter((item) => {
       // Hide only if payment AND order are completed
-      const recoveryFilter = !(item.paymentCompleted && item.orderCompleted);
+      const recoveryFilter = item.orderStatus.toLowerCase() !== "delivered";
 
       // Branch Filter
       const branchFilter =
@@ -176,19 +191,15 @@ function RecoveryFiltering() {
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
       <Card className="rounded-xl">
+        {/* TITLE */}
 
 
   <div className="mb-6">
 
-    <h1 className="text-3xl font-bold">
-      Upcoming Recoveries
-    </h1>
-
-    <p className="text-gray-500 mt-1">
-      View upcoming customer payments based on estimated delivery dates.
-    </p>
-
-  </div>
+          <p className="text-gray-500 mt-1">
+            View upcoming customer payments based on estimated delivery dates.
+          </p>
+        </div>
 
 
         <div className="flex flex-wrap gap-4 mb-6">
@@ -253,13 +264,11 @@ function RecoveryFiltering() {
             >
               <Option value="All Branches">All Branches</Option>
 
-              {branches
-                ?.filter((branch) => branch.branch_name !== "Main Branch")
-                ?.map((branch) => (
-                  <Option key={branch.id} value={branch.branch_name}>
-                    {branch.branch_name}
-                  </Option>
-                ))}
+              {branches?.map((branch) => (
+                <Option key={branch.id} value={branch.branch_name}>
+                  {branch.branch_name}
+                </Option>
+              ))}
             </Select>
           </div>
         </div>

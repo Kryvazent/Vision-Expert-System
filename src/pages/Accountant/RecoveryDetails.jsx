@@ -31,7 +31,19 @@ const GET_RECOVERY_DETAILS = gql`
           paymentCollection {
             edges {
               node {
-                total_payment
+                advance
+              }
+            }
+          }
+
+          delivery_orderCollection {
+            edges {
+              node {
+                paid_amount
+                balance_amount
+                payment_received
+                payment_type
+                status
               }
             }
           }
@@ -122,26 +134,30 @@ function RecoveryDetails() {
 
           const totalAmount = Number(order?.total_price) || 0;
 
-          const paidAmount = Number(payment?.total_payment) || 0;
+          // Advance payment
+          const advance = Number(payment?.advance) || 0;
 
+          // Sum all delivery payments
+          const deliveryPayments =
+            order?.delivery_orderCollection?.edges?.reduce(
+              (sum, item) => sum + (Number(item.node.paid_amount) || 0),
+              0,
+            ) || 0;
+
+          // Total amount received
+          const paidAmount = advance + deliveryPayments;
+
+          // Outstanding balance
           const remaining = totalAmount - paidAmount;
 
+          // Payment completed
           const paymentCompleted = paidAmount >= totalAmount;
 
           // ================= ORDER STATUS =================
 
-          const orderCompleted =
-            order?.order_status?.status?.toLowerCase() === "completed";
+          const status = order?.order_status?.status || "Unknown";
 
-          // ================= DATE CHECK =================
-
-          const estimatedDate = new Date(order.estimated_delivery);
-
-          const isOverdue = estimatedDate < today;
-
-          // ================= STATUS =================
-
-          const status = isOverdue ? "OVERDUE" : "PENDING";
+          const orderCompleted = status.toLowerCase() === "delivered";
           return {
             key: order.id,
 
@@ -174,12 +190,8 @@ function RecoveryDetails() {
         // ================= RECOVERY FILTER =================
 
         .filter((item) => {
-          // Hide only completed & delivered orders
-          const recoveryFilter = !(
-            item.paymentCompleted && item.orderCompleted
-          );
-
-          return recoveryFilter;
+          // Hide delivered orders only
+          return item.status.toLowerCase() !== "delivered";
         })
 
         // ================= FILTERS =================
@@ -276,17 +288,40 @@ function RecoveryDetails() {
       title: "Status",
       dataIndex: "status",
 
-      render: (status) => (
-        <span
-          className={
-            status === "OVERDUE"
-              ? "bg-red-100 text-red-600 px-3 py-1 rounded font-medium"
-              : "bg-yellow-100 text-yellow-700 px-3 py-1 rounded font-medium"
-          }
-        >
-          {status}
-        </span>
-      ),
+      render: (status) => {
+        let className = "px-3 py-1 rounded font-medium";
+
+        switch (status) {
+          case "Active":
+            className += " bg-blue-100 text-blue-600";
+            break;
+
+          case "Confirmed":
+            className += " bg-cyan-100 text-cyan-700";
+            break;
+
+          case "In Lab":
+            className += " bg-purple-100 text-purple-700";
+            break;
+
+          case "Ready for Delivery":
+            className += " bg-green-100 text-green-700";
+            break;
+
+          case "Hold":
+            className += " bg-yellow-100 text-yellow-700";
+            break;
+
+          case "Cancelled":
+            className += " bg-red-100 text-red-600";
+            break;
+
+          default:
+            className += " bg-gray-100 text-gray-700";
+        }
+
+        return <span className={className}>{status}</span>;
+      },
     },
   ];
 
@@ -323,13 +358,11 @@ function RecoveryDetails() {
           >
             <Option value="all">All Branches</Option>
 
-            {branches
-              ?.filter((branch) => branch.branch_name !== "Main Branch")
-              ?.map((branch) => (
-                <Option key={branch.id} value={branch.branch_name}>
-                  {branch.branch_name}
-                </Option>
-              ))}
+            {branches?.map((branch) => (
+              <Option key={branch.id} value={branch.branch_name}>
+                {branch.branch_name}
+              </Option>
+            ))}
           </Select>
         </div>
       </Card>
