@@ -123,6 +123,7 @@ const getRecord = (orderId) => {
 }
 
 const saveRecord = async (orderId, updateFields) => {
+    console.log("saveRecord called for orderId:", orderId, "updateFields:", updateFields);
     const existsInDb      = !!reminderMap[String(orderId)]
     const existsThisSession = insertedThisSession.current.has(String(orderId))
     const existing = existsInDb || existsThisSession;
@@ -132,8 +133,22 @@ const saveRecord = async (orderId, updateFields) => {
     const merged   = { ...dbRecord, ...local, ...updateFields };
 
     try{
+        console.log("existsInDb:", existsInDb, "existsThisSession:", existsThisSession, "existing:", existing);
+        console.log("merged data:", merged);
         if(existing){
-            await updateReminderCall({
+            console.log("Calling updateReminderCall with variables:", {
+                order_id: Number(orderId),
+                before_lab_status: merged.before_lab_status ?? null,
+                before_lab_reason: merged.before_lab_reason ?? null,
+                before_lab_custom_reason: merged.before_lab_custom_reason ?? null,
+                before_delivery_status: merged.before_delivery_status ?? null,
+                before_delivery_reason: merged.before_delivery_reason ?? null,
+                before_delivery_custom_reason:merged.before_delivery_custom_reason ?? null,
+                before_delivery_2_status: merged.before_delivery_2_status ?? null,
+                before_delivery_2_reason: merged.before_delivery_2_reason ?? null,
+                before_delivery_2_custom_reason:merged.before_delivery_2_custom_reason ?? null,
+            });
+            const result = await updateReminderCall({
                 variables: {
                     order_id: Number(orderId),
                     before_lab_status: merged.before_lab_status ?? null,
@@ -147,6 +162,7 @@ const saveRecord = async (orderId, updateFields) => {
                     before_delivery_2_custom_reason:merged.before_delivery_2_custom_reason ?? null,
                 }
             })
+            console.log("updateReminderCall result:", result);
         } else {
             await insertReminderCall({
                 variables: {
