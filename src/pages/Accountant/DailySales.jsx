@@ -70,7 +70,7 @@ const [selectedDate, setSelectedDate] = useState(today);
           ?.branch_name;
 
       // order date
-      const orderDate = item?.node?.placed_at?.split("T")[0];
+     const orderDate = dayjs(item?.node?.placed_at).format("YYYY-MM-DD");
 
       // branch filter
       const branchMatch =

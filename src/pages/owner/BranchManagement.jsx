@@ -51,23 +51,31 @@ const LOAD_ROLES = gql`
 `;
 
 const LOAD_UNASSIGNED_STAFF = gql`
-    query getUnassignedStaff {
-        staffCollection(
-            filter: { branch_id: { isNull: true } }
-        ) {
-            edges {
-                node {
-                    id
-                    first_name
-                    last_name
-                    role {
-                        id
-                        role_name
-                    }
-                }
-            }
+query getUnassignedStaff {
+
+  staffCollection {
+
+    edges {
+
+      node {
+
+        id
+        first_name
+        last_name
+        branch_id
+
+        role {
+          id
+          role_name
         }
+
+      }
+
     }
+
+  }
+
+}
 `;
 
 const CREATE_BRANCH = gql`
@@ -187,11 +195,21 @@ export default function BranchManagement() {
     }, [rolesData]);
 
     useEffect(() => {
-        if (unassignedStaffData) {
-            const edges = unassignedStaffData?.staffCollection?.edges || [];
-            setUnassignedStaff(edges.map((e) => e.node));
-        }
-    }, [unassignedStaffData]);
+    if (unassignedStaffData) {
+
+        const edges =
+            unassignedStaffData?.staffCollection?.edges || [];
+
+        const filtered =
+            edges
+                .map((e) => e.node)
+                .filter((staff) => staff.branch_id == null);
+
+        console.log(filtered);
+
+        setUnassignedStaff(filtered);
+    }
+}, [unassignedStaffData]);
 
     const handleCreateBranch = async () => {
         if (!branchName || !branchAddress || !branchEmail) {

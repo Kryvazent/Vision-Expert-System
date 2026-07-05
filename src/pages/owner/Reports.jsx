@@ -7,9 +7,23 @@ import {
   DownloadOutlined,
 } from "@ant-design/icons";
 
-import { Row, Col, Modal, DatePicker, Select, message, Table, Button, Space, Statistic, Typography, Card } from "antd";
+import {
+  Row,
+  Col,
+  Modal,
+  DatePicker,
+  Select,
+  message,
+  Table,
+  Button,
+  Space,
+  Statistic,
+  Typography,
+  Card,
+} from "antd";
 
 import { useState } from "react";
+import dayjs from "dayjs";
 
 import { gql } from "@apollo/client";
 import { useLazyQuery, useQuery } from "@apollo/client/react";
@@ -17,7 +31,13 @@ import { useLazyQuery, useQuery } from "@apollo/client/react";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
-import { headerStyles, buttonStyles, cardStyles, modalStyles, formStyles } from "../../const/designSystem";
+import {
+  headerStyles,
+  buttonStyles,
+  cardStyles,
+  modalStyles,
+  formStyles,
+} from "../../const/designSystem";
 
 const { Title, Text } = Typography;
 
@@ -49,9 +69,22 @@ const GET_REPORT_DATA = gql`
             edges {
               node {
                 advance
-                total_payment
               }
             }
+          }
+          delivery_orderCollection {
+            edges {
+              node {
+                paid_amount
+                balance_amount
+                payment_type
+                status
+              }
+            }
+          }
+
+          order_status {
+            status
           }
 
           clinic_attend_customer {
@@ -73,7 +106,6 @@ const GET_REPORT_DATA = gql`
     }
   }
 `;
-
 function ReportCard({ icon, title, description, color, btnColor, onClick }) {
   return (
     <div
@@ -149,6 +181,9 @@ export default function Reports() {
   const [previewSummary, setPreviewSummary] = useState({});
   const { data: branchData } = useQuery(GET_BRANCHES);
   const { data, loading, error } = useQuery(GET_REPORT_DATA);
+  console.log("Loading:", loading);
+  console.log("GraphQL Data:", data);
+  console.log("GraphQL Error:", error);
 
   // ================= OPEN REPORT MODAL =================
 
@@ -159,17 +194,25 @@ export default function Reports() {
 
   const generatePreviewData = () => {
     let filteredData = [];
-
+    console.log("Orders", orders);
+    console.log("Report Type", reportType);
+    console.log("Selected Date", selectedDate);
+    console.log("Selected Month", selectedMonth);
+    console.log("Selected Branch", selectedBranch);
     switch (reportType) {
       case "Daily Report":
         filteredData = orders
           .filter((order) => {
-            const dateMatch = order.placedAt?.split("T")[0] === selectedDate;
+            const dateMatch =
+              dayjs(order.placedAt).format("YYYY-MM-DD") === selectedDate;
             const branchMatch =
               selectedBranch === "All Branches"
                 ? true
                 : order.branch === selectedBranch;
-            return dateMatch && branchMatch;
+            const notDelivered =
+              order.orderStatus?.toLowerCase() !== "delivered";
+
+            return dateMatch && branchMatch && notDelivered;
           })
           .map((order) => ({
             key: order.id,
@@ -188,9 +231,11 @@ export default function Reports() {
         break;
 
       case "Monthly Report":
+        console.log("Before Filter", orders);
         filteredData = orders
           .filter((order) => {
-            const monthMatch = order.placedAt?.startsWith(selectedMonth);
+            const monthMatch =
+              dayjs(order.placedAt).format("YYYY-MM") === selectedMonth;
             const branchMatch =
               selectedBranch === "All Branches"
                 ? true
@@ -219,9 +264,7 @@ export default function Reports() {
 
         filteredData = orders
           .filter((order) => {
-            const monthMatch =
-              order.estimatedDelivery?.startsWith(selectedMonth);
-            const deliveryDate = new Date(order.estimatedDelivery);
+            const deliveryDate = dayjs(order.estimatedDelivery).toDate();
             deliveryDate.setHours(0, 0, 0, 0);
             const overdue = deliveryDate < today;
             const hasPending = order.pending > 0;
@@ -250,7 +293,7 @@ export default function Reports() {
       default:
         break;
     }
-
+    console.log("Filtered Data", filteredData);
     const totalRevenue = filteredData.reduce(
       (sum, item) => sum + item["Total Price"],
       0,
@@ -282,8 +325,7 @@ export default function Reports() {
   const orders =
     data?.orderCollection?.edges?.map((item) => {
       const order = item.node;
-
-      const payment = order?.paymentCollection?.edges?.[0]?.node;
+      console.log("GraphQL Data", data);
 
       const customer =
         order?.clinic_attend_customer?.customer_has_branch?.customer;
@@ -292,12 +334,23 @@ export default function Reports() {
 
       const branchName = branch?.branch_name || "Unknown";
 
-      const totalPrice = Number(order?.total_price) || 0;
-
-      const totalPaid = Number(payment?.total_payment) || 0;
+      const payment = order?.paymentCollection?.edges?.[0]?.node;
 
       const advance = Number(payment?.advance) || 0;
 
+      // Sum all delivery payments
+      const deliveryPayments =
+        order?.delivery_orderCollection?.edges?.reduce(
+          (sum, item) => sum + (Number(item?.node?.paid_amount) || 0),
+          0,
+        ) || 0;
+
+      const totalPrice = Number(order?.total_price) || 0;
+
+      // Total amount received
+      const totalPaid = advance + deliveryPayments;
+
+      // Outstanding balance
       const pending = Math.max(0, totalPrice - totalPaid);
 
       return {
@@ -307,7 +360,7 @@ export default function Reports() {
 
         estimatedDelivery: order.estimated_delivery,
 
-        orderStatus: order.order_status_id,
+        orderStatus: order?.order_status?.status || "Pending",
 
         customerId: customer?.id,
 
@@ -355,7 +408,10 @@ export default function Reports() {
                 ? true
                 : order.branch === selectedBranch;
 
-            return dateMatch && branchMatch;
+            const notDelivered =
+              order.orderStatus?.toLowerCase() !== "delivered";
+
+            return dateMatch && branchMatch && notDelivered;
           })
 
           .map((order) => ({
@@ -394,7 +450,10 @@ export default function Reports() {
                 ? true
                 : order.branch === selectedBranch;
 
-            return monthMatch && branchMatch;
+            const notDelivered =
+              order.orderStatus?.toLowerCase() !== "delivered";
+
+            return monthMatch && branchMatch && notDelivered;
           })
 
           .map((order) => ({
@@ -444,7 +503,10 @@ export default function Reports() {
                 ? true
                 : order.branch === selectedBranch;
 
-            return overdue && hasPending && branchMatch;
+            const notDelivered =
+              order.orderStatus?.toLowerCase() !== "delivered";
+
+            return overdue && hasPending && branchMatch && notDelivered;
           })
 
           .map((order) => ({
@@ -492,7 +554,12 @@ export default function Reports() {
                 ? true
                 : order.branch === selectedBranch;
 
-            return monthMatch && overdue && hasPending && branchMatch;
+            const notDelivered =
+              order.orderStatus?.toLowerCase() !== "delivered";
+
+            return (
+              monthMatch && overdue && hasPending && branchMatch && notDelivered
+            );
           })
 
           .map((order) => ({
@@ -917,7 +984,10 @@ export default function Reports() {
               <DatePicker
                 picker="month"
                 className="w-full"
-                onChange={(date, dateString) => setSelectedMonth(dateString)}
+                format="YYYY-MM"
+                onChange={(date) => {
+                  setSelectedMonth(date ? date.format("YYYY-MM") : null);
+                }}
               />
             </>
           ) : (
@@ -1006,16 +1076,44 @@ export default function Reports() {
         <Table
           columns={[
             { title: "Order ID", dataIndex: "Order ID", key: "orderId" },
-            { title: "Customer ID", dataIndex: "Customer ID", key: "customerId" },
+            {
+              title: "Customer ID",
+              dataIndex: "Customer ID",
+              key: "customerId",
+            },
             { title: "Customer", dataIndex: "Customer", key: "customer" },
             { title: "Phone", dataIndex: "Phone", key: "phone" },
             { title: "Branch", dataIndex: "Branch", key: "branch" },
             { title: "Order Date", dataIndex: "Order Date", key: "orderDate" },
-            { title: "Est. Delivery", dataIndex: "Estimated Delivery", key: "estDelivery" },
-            { title: "Total Price", dataIndex: "Total Price", key: "totalPrice", render: (v) => `LKR ${v.toLocaleString()}` },
-            { title: "Advance", dataIndex: "Advance", key: "advance", render: (v) => `LKR ${v.toLocaleString()}` },
-            { title: "Received", dataIndex: "Amount Received", key: "received", render: (v) => `LKR ${v.toLocaleString()}` },
-            { title: "Pending", dataIndex: "Pending", key: "pending", render: (v) => `LKR ${v.toLocaleString()}` },
+            {
+              title: "Est. Delivery",
+              dataIndex: "Estimated Delivery",
+              key: "estDelivery",
+            },
+            {
+              title: "Total Price",
+              dataIndex: "Total Price",
+              key: "totalPrice",
+              render: (v) => `LKR ${v.toLocaleString()}`,
+            },
+            {
+              title: "Advance",
+              dataIndex: "Advance",
+              key: "advance",
+              render: (v) => `LKR ${v.toLocaleString()}`,
+            },
+            {
+              title: "Received",
+              dataIndex: "Amount Received",
+              key: "received",
+              render: (v) => `LKR ${v.toLocaleString()}`,
+            },
+            {
+              title: "Pending",
+              dataIndex: "Pending",
+              key: "pending",
+              render: (v) => `LKR ${v.toLocaleString()}`,
+            },
           ]}
           dataSource={previewData}
           pagination={{ pageSize: 10 }}
@@ -1023,7 +1121,9 @@ export default function Reports() {
           size="small"
         />
 
-        <Space style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+        <Space
+          style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}
+        >
           <Button onClick={() => setPreviewModalVisible(false)}>Close</Button>
           <Button
             type="primary"
