@@ -121,12 +121,15 @@ body {
   flex-shrink: 0;
 }
 
-.ve-sidebar-logo-img {
+.ve-sidebar-logo-icon {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #1677ff, #52c4ff);
+  box-shadow: 0 8px 20px rgba(22, 119, 255, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.24);
   flex-shrink: 0;
 }
 

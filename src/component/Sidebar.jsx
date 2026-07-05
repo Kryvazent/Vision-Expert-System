@@ -1,9 +1,8 @@
 import { Layout } from "antd";
-import { LogoutOutlined } from "@ant-design/icons";
+import { EyeOutlined, LogoutOutlined } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router";
 import { Menu } from "antd";
 
-import logo from "../assets/images/logo.jpeg";
 import { useAuth } from "../const/functions";
 import { MENU_BY_ROLE } from "../const/menu";
 
@@ -25,11 +24,9 @@ export default function Sidebar() {
     >
       {/* ── Logo ── */}
       <div className="ve-sidebar-logo">
-        <img
-          src={logo}
-          alt="Vision Expert"
-          className="ve-sidebar-logo-img"
-        />
+        <div className="ve-sidebar-logo-icon" aria-label="Vision Expert">
+          <EyeOutlined style={{ fontSize: 24, color: "#ffffff" }} />
+        </div>
         <div>
           <p className="ve-sidebar-logo-text">Vision Expert</p>
           <p className="ve-sidebar-logo-sub">Eye Care Management</p>

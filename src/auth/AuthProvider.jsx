@@ -33,6 +33,7 @@ export function AuthProvider({ children }) {
               id
               first_name
               last_name
+              must_change_password
               branch{
                 id
                 branch_name
@@ -106,6 +107,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = async () => await supabase.auth.signOut();
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await loadStaffProfile(user.id);
+    }
+  };
 
 
 
@@ -114,10 +120,12 @@ export function AuthProvider({ children }) {
     user,
     staff,
     role,
+    mustChangePassword: !!staff?.must_change_password,
     isLoading: session === undefined || (!!session && profileLoading),
     isAuthenticated: !!session,
     homeRoute: MENU_BY_ROLE[role]?.[0]?.key ?? "/",
     signOut,
+    refreshProfile,
   };
 
   return (

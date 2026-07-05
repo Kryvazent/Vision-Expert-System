@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Input, Button, Alert } from "antd";
-import { EyeOutlined, MailOutlined } from "@ant-design/icons";
+import { EyeOutlined, LockOutlined, MailOutlined } from "@ant-design/icons";
 import { useNavigate, Link } from "react-router";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
@@ -9,16 +9,14 @@ import supabase from "../../client/supabase";
 import { useAuth } from "../../const/functions";
 
 export default function Login() {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { homeRoute, isAuthenticated, isLoading } = useAuth();
 
-  const [staffId,  setStaffId]  = useState(null);
   const [username, setUsername] = useState("");
-  const [otp,      setOtp]      = useState("");
-  const [loading,  setLoading]  = useState(false);
-  const [step,     setStep]     = useState(1);
-  const [msgType,  setMsgType]  = useState("");
-  const [msg,      setMsg]      = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msgType, setMsgType] = useState("");
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
     if (isAuthenticated && !isLoading && homeRoute !== "/") {
@@ -29,7 +27,13 @@ export default function Login() {
   const SEARCH_FROM_EMAIL = gql`
     query searchFromEmail($email: String!) {
       staffCollection(filter: { email: { eq: $email } }) {
-        edges { node { id is_active } }
+        edges {
+          node {
+            id
+            is_active
+            auth_user_id
+          }
+        }
       }
     }
   `;
@@ -38,46 +42,87 @@ export default function Login() {
   const handleLogin = async () => {
     setMsg("");
     setLoading(true);
+
     try {
-      if (step === 1) {
-        if (!username) { setMsgType("error"); setMsg("Please enter your email address"); setLoading(false); return; }
-        const { data, error } = await loadFromEmail({ variables: { email: username }, fetchPolicy: "network-only" });
-        if (error) { setMsgType("error"); setMsg("Failed to validate email"); setLoading(false); return; }
-        const staffNode = data?.staffCollection?.edges?.[0]?.node;
-        if (!staffNode)                   { setMsgType("error"); setMsg("Invalid email address"); setLoading(false); return; }
-        if (staffNode.is_active === false) { setMsgType("error"); setMsg("Account is disabled");  setLoading(false); return; }
-        setStaffId(staffNode.id);
-        await sendOtp();
-      } else {
-        await login();
+      const email = username.trim();
+
+      if (!email) {
+        setMsgType("error");
+        setMsg("Please enter your email address");
+        return;
       }
+
+      if (!password) {
+        setMsgType("error");
+        setMsg("Please enter your password");
+        return;
+      }
+
+      const { data, error } = await loadFromEmail({
+        variables: { email },
+        fetchPolicy: "network-only",
+      });
+
+      if (error) {
+        setMsgType("error");
+        setMsg("Failed to validate email");
+        return;
+      }
+
+      const staffNode = data?.staffCollection?.edges?.[0]?.node;
+
+      if (!staffNode) {
+        setMsgType("error");
+        setMsg("Invalid email address");
+        return;
+      }
+
+      if (staffNode.is_active === false) {
+        setMsgType("error");
+        setMsg("Account is disabled");
+        return;
+      }
+
+      await login(email, staffNode);
     } catch {
-      setMsgType("error"); setMsg("Something went wrong");
+      setMsgType("error");
+      setMsg("Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
-  const sendOtp = async () => {
-    const { error } = await supabase.auth.signInWithOtp({ email: username, options: { shouldCreateUser: false } });
-    if (error) { setMsgType("error"); setMsg(error.message); return; }
-    setMsgType("info"); setMsg("OTP sent to your email address"); setStep(2);
-  };
+  const login = async (email, staffNode) => {
+    const {
+      data: { session },
+      error,
+    } = await supabase.auth.signInWithPassword({ email, password });
 
-  const login = async () => {
-    if (!otp || otp.length !== 8) { setMsgType("error"); setMsg("Please enter the 8-digit OTP"); return; }
-    const { data: { session }, error } = await supabase.auth.verifyOtp({ email: username, token: otp, type: "email" });
-    if (error) { setMsgType("error"); setMsg(error.message); return; }
+    if (error) {
+      setMsgType("error");
+      setMsg(error.message);
+      return;
+    }
 
-    await supabase.schema("vision_expert").from("login_activity").insert({ auth_user_id: session.user.id, staff_id: staffId });
+    if (staffNode.auth_user_id && staffNode.auth_user_id !== session.user.id) {
+      await supabase.auth.signOut();
+      setMsgType("error");
+      setMsg("This login is not linked to the staff account");
+      return;
+    }
 
-    setMsgType("success"); setMsg("Login successful! Redirecting...");
+    await supabase
+      .schema("vision_expert")
+      .from("login_activity")
+      .insert({ auth_user_id: session.user.id, staff_id: staffNode.id });
+
+    setMsgType("success");
+    setMsg("Login successful! Redirecting...");
   };
 
   return (
     <div className="ve-login-root">
       <Card className="ve-login-card" variant="borderless">
-        {/* ── Logo ── */}
         <div className="ve-login-logo-wrap">
           <div className="ve-login-logo-icon">
             <EyeOutlined style={{ fontSize: 28, color: "#ffffff" }} />
@@ -86,11 +131,9 @@ export default function Login() {
           <p className="ve-login-subtitle">Eye Care Management System</p>
         </div>
 
-        {/* ── Alert ── */}
         {msg && <Alert message={msg} type={msgType} showIcon style={{ marginBottom: 20 }} />}
 
-        {/* ── Email step ── */}
-        <div style={{ display: step === 2 ? "none" : "block", marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--ve-text-secondary)" }}>
             Registered Email Address
           </label>
@@ -104,21 +147,20 @@ export default function Login() {
           />
         </div>
 
-        {/* ── OTP step ── */}
-        <div style={{ display: step === 1 ? "none" : "block", marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--ve-text-secondary)" }}>
-            One-Time Password
+            Password
           </label>
-          <Input.OTP
+          <Input.Password
             size="large"
-            length={8}
-            value={otp}
-            onChange={(value) => setOtp(value)}
+            prefix={<LockOutlined style={{ color: "var(--ve-text-muted)" }} />}
+            placeholder="Enter password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
             onPressEnter={handleLogin}
           />
         </div>
 
-        {/* ── Submit ── */}
         <Button
           type="primary"
           size="large"
@@ -127,10 +169,9 @@ export default function Login() {
           onClick={handleLogin}
           style={{ height: 44, marginTop: 8, fontWeight: 600 }}
         >
-          {step === 1 ? "Send OTP" : "Login"}
+          Login
         </Button>
 
-        {/* ── Track order link ── */}
         <div style={{ marginTop: 20, textAlign: "center" }}>
           <Link
             to="/track"
