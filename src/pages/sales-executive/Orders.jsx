@@ -11,6 +11,11 @@ import {
   useAuth,
 } from "../../const/functions";
 
+const isCanceledStatus = (status) => {
+  const normalized = normalizeOrderStatus(status);
+  return normalized === "canceled" || normalized === "cancelled";
+};
+
 function Orders() {
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
@@ -20,13 +25,14 @@ function Orders() {
   const [orderToCancel, setOrderToCancel] = useState(null);
 
   const { staff } = useAuth();
+  const branchId = Number(staff?.branch?.id ?? staff?.branch_id);
 
   // Cancel order mutation
   const CANCEL_ORDER = gql`
-    mutation cancelOrder($orderId: BigInt!) {
+    mutation cancelOrder($orderId: BigInt!, $statusId: BigInt!) {
       updateorderCollection(
         filter: { id: { eq: $orderId } }
-        set: { order_status_id: 5 }
+        set: { order_status_id: $statusId }
       ) {
         records {
           id
@@ -41,16 +47,51 @@ function Orders() {
 
   const [cancelOrder, { loading: cancelLoading }] = useMutation(CANCEL_ORDER);
 
+  const GET_ORDER_STATUSES = gql`
+    query getOrderStatuses {
+      order_statusCollection {
+        edges {
+          node {
+            id
+            status
+          }
+        }
+      }
+    }
+  `;
+
+  const [getOrderStatuses, { data: orderStatusesData }] =
+    useLazyQuery(GET_ORDER_STATUSES, { fetchPolicy: "network-only" });
+
+  const getStatusId = (names) => {
+    const wanted = (Array.isArray(names) ? names : [names]).map(normalizeOrderStatus);
+    const match = orderStatusesData?.order_statusCollection?.edges
+      ?.map((edge) => edge.node)
+      ?.find((status) => wanted.includes(normalizeOrderStatus(status.status)));
+    return match?.id ? Number(match.id) : null;
+  };
+
   const handleCancelOrder = async () => {
     if (!orderToCancel) return;
+    const cancelledStatusId = getStatusId(["Cancelled", "Canceled"]);
+    if (!cancelledStatusId) {
+      message.error("Cancelled order status was not found in the database.");
+      return;
+    }
     try {
-      await cancelOrder({ variables: { orderId: orderToCancel.orderId } });
-      message.success(`Order #${orderToCancel.orderId} cancelled successfully`);
-      setCancelModalVisible(false);
-      setOrderToCancel(null);
-      // Refresh orders
-      if (staff?.branch?.id) {
-        getOrders({ variables: { branchId: staff?.branch?.id } });
+      const result = await cancelOrder({
+        variables: { orderId: Number(orderToCancel.orderId), statusId: cancelledStatusId },
+      });
+      if (result?.data?.updateorderCollection?.records?.length > 0) {
+        message.success(`Order #${orderToCancel.orderId} cancelled successfully`);
+        setCancelModalVisible(false);
+        setOrderToCancel(null);
+        // Refresh orders
+        if (branchId) {
+          getOrders({ variables: { branchId } });
+        }
+      } else {
+        message.error("Failed to cancel order: No records updated");
       }
     } catch (error) {
       console.error("Error cancelling order:", error);
@@ -93,7 +134,9 @@ function Orders() {
           active: "green",
           hold: "orange",
           canceled: "red",
+          cancelled: "red",
           completed: "green",
+          delivered: "green",
           pending: "blue",
         };
         const statusKey = normalizeOrderStatus(v);
@@ -105,10 +148,16 @@ function Orders() {
       },
     },
     {
-      title: "Total Amount",
+      title: "Total Price",
       dataIndex: "totalPayment",
       key: "totalPayment",
-      render: (value) => (value ? `Rs. ${value}` : "-"),
+      render: (value) => `Rs. ${Number(value || 0).toLocaleString()}`,
+    },
+    {
+      title: "Paid",
+      dataIndex: "paidAmount",
+      key: "paidAmount",
+      render: (v) => `Rs. ${Number(v || 0).toLocaleString()}`,
     },
     {
       title: "Payment Status",
@@ -124,7 +173,7 @@ function Orders() {
       title: "Balance",
       dataIndex: "balance",
       key: "balance",
-      render: (v) => (v !== undefined ? `Rs. ${v}` : "-"),
+      render: (v) => `Rs. ${Number(v || 0).toLocaleString()}`,
     },
     {
       title: "Lens / Frame",
@@ -176,7 +225,8 @@ function Orders() {
           >
             View Prescription
           </Button>
-          {record.orderStatusKey !== "canceled" && record.orderStatusKey !== "completed" && (
+          {!isCanceledStatus(record.orderStatus) &&
+            !["completed", "delivered"].includes(record.orderStatusKey) && (
             <Button
               size="small"
               type="link"
@@ -196,7 +246,7 @@ function Orders() {
   ];
 
   const GET_ORDERS = gql`
-    query getOrders($branchId: ID!) {
+    query getOrders($branchId: Int!) {
       customerCollection {
         edges {
           node {
@@ -224,6 +274,7 @@ function Orders() {
                               id
                               placed_at
                               total_price
+                              balance_amount
                               estimated_delivery
                               remarks
                               frame {
@@ -265,6 +316,15 @@ function Orders() {
                                   }
                                 }
                               }
+                              order_paymentCollection {
+                                edges {
+                                  node {
+                                    amount
+                                    payment_method
+                                    payment_type
+                                  }
+                                }
+                              }
                               delivery_orderCollection {
                                 edges {
                                   node {
@@ -294,13 +354,16 @@ function Orders() {
 
   const [getOrders, { loading, error, data: ordersData }] =
     useLazyQuery(GET_ORDERS);
-  console.log("Orders Data:", ordersData);
 
   useEffect(() => {
-    if (staff?.branch?.id) {
-      getOrders({ variables: { branchId: staff?.branch?.id } });
+    getOrderStatuses();
+  }, [getOrderStatuses]);
+
+  useEffect(() => {
+    if (branchId) {
+      getOrders({ variables: { branchId } });
     }
-  }, [getOrders, staff]);
+  }, [getOrders, branchId]);
 
   const mapOrdersData = (data) => {
     if (!data?.customerCollection?.edges) return [];
@@ -341,6 +404,7 @@ function Orders() {
                 customerName: customerName,
                 mobile: mobile,
                 totalPayment: order?.total_price || "-",
+                balanceAmount: Number(order?.balance_amount ?? 0),
                 estimatedDelivery: order?.estimated_delivery
                   ? new Date(order.estimated_delivery).toLocaleString()
                   : "-",
@@ -351,6 +415,9 @@ function Orders() {
                 // payments
                 payments:
                   order?.paymentCollection?.edges?.map((e) => e.node) || [],
+                orderPayments:
+                  order?.order_paymentCollection?.edges?.map((e) => e.node) ||
+                  [],
                 deliveryRecords:
                   order?.delivery_orderCollection?.edges?.map((e) => e.node) ||
                   [],
@@ -392,15 +459,22 @@ function Orders() {
   // derive payment summary fields
   mappedData.forEach((row) => {
     const totalAmount = Number(row.totalPayment) || 0;
-    const totalPaid = (row.payments || []).reduce(
-      (s, p) => s + Number(p.total_payment || 0),
+    const advancePaid = (row.payments || []).reduce(
+      (s, p) => s + Number(p.advance || 0),
       0,
     );
+    const collectedPaid = (row.orderPayments || []).reduce(
+      (s, p) => s + Number(p.amount || 0),
+      0,
+    );
+    const totalPaid = advancePaid + collectedPaid;
     const advance = (row.payments || []).reduce(
       (s, p) => s + Number(p.advance || 0),
       0,
     );
-    const balance = Math.max(0, totalAmount - totalPaid);
+    const balance = Number.isFinite(row.balanceAmount)
+      ? Math.max(0, row.balanceAmount)
+      : Math.max(0, totalAmount - totalPaid);
 
     row.paymentStatus =
       totalPaid >= totalAmount && totalAmount > 0
@@ -466,7 +540,7 @@ function Orders() {
                 "Pending",
                 "Hold",
                 "Completed",
-                "Canceled",
+        "Cancelled",
               ].map((status) => (
                 <Button
                   key={status}
@@ -560,7 +634,9 @@ function Orders() {
             <p>Are you sure you want to cancel order <strong>#{orderToCancel.orderId}</strong>?</p>
             <p style={{ color: "#666", marginTop: 8 }}>
               Customer: {orderToCancel.customerName}<br />
-              Total Amount: Rs. {orderToCancel.totalPayment}
+              Total Price: Rs. {orderToCancel.totalPayment}<br />
+              Paid: Rs. {orderToCancel.paidAmount}<br />
+              Balance: Rs. {orderToCancel.balance}
             </p>
           </div>
         )}

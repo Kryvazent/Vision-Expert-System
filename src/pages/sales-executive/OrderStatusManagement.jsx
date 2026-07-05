@@ -19,7 +19,7 @@ import { ExclamationCircleOutlined } from "@ant-design/icons";
 import { normalizeOrderStatus } from "../../const/functions";
 
 const LOAD_ACTIVE_ORDERS = gql`
-  query LoadActiveOrders($branchId: ID!) {
+  query LoadActiveOrders($branchId: Int!) {
     customerCollection {
       edges {
         node {
@@ -35,12 +35,13 @@ const LOAD_ACTIVE_ORDERS = gql`
                 clinic_attend_customerCollection {
                   edges {
                     node {
-                      orderCollection(filter: { order_status_id: { neq: 4 } }) {
+                      orderCollection {
                         edges {
                           node {
                             id
                             placed_at
                             total_price
+                            balance_amount
                             paymentCollection {
                               edges {
                                 node {
@@ -48,6 +49,15 @@ const LOAD_ACTIVE_ORDERS = gql`
                                   advance
                                   discount
                                   additional_fee
+                                }
+                              }
+                            }
+                            order_paymentCollection {
+                              edges {
+                                node {
+                                  amount
+                                  payment_method
+                                  payment_type
                                 }
                               }
                             }
@@ -76,7 +86,7 @@ const LOAD_ACTIVE_ORDERS = gql`
 `;
 
 const UPDATE_ORDER_STATUS = gql`
-  mutation UpdateOrderStatus($orderId: ID!, $statusId: ID!) {
+  mutation UpdateOrderStatus($orderId: BigInt!, $statusId: BigInt!) {
     updateorderCollection(
       filter: { id: { eq: $orderId } }
       set: { order_status_id: $statusId }
@@ -84,6 +94,19 @@ const UPDATE_ORDER_STATUS = gql`
     ) {
       records {
         id
+      }
+    }
+  }
+`;
+
+const LOAD_ORDER_STATUSES = gql`
+  query LoadOrderStatuses {
+    order_statusCollection {
+      edges {
+        node {
+          id
+          status
+        }
       }
     }
   }
@@ -117,6 +140,7 @@ const ADD_ORDER_PAYMENT = gql`
 
 function OrderStatusManagement() {
   const { staff } = useAuth();
+  const branchId = Number(staff?.branch?.id ?? staff?.branch_id);
   const [orders, setOrders] = useState([]);
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -135,13 +159,31 @@ function OrderStatusManagement() {
     },
   );
 
+  const [loadStatuses, { data: statusesData }] = useLazyQuery(
+    LOAD_ORDER_STATUSES,
+    { fetchPolicy: "network-only" },
+  );
+
+  const orderStatuses = useMemo(
+    () => statusesData?.order_statusCollection?.edges?.map((edge) => edge.node) || [],
+    [statusesData],
+  );
+
+  const getStatusId = (names) => {
+    const wanted = (Array.isArray(names) ? names : [names]).map(normalizeOrderStatus);
+    const match = orderStatuses.find((status) =>
+      wanted.includes(normalizeOrderStatus(status.status)),
+    );
+    return match?.id ? Number(match.id) : null;
+  };
+
   const [updateOrderStatus, { loading: updating }] = useMutation(
     UPDATE_ORDER_STATUS,
     {
       refetchQueries: [
         {
           query: LOAD_ACTIVE_ORDERS,
-          variables: { branchId: staff?.branch?.id },
+          variables: { branchId },
         },
       ],
       awaitRefetchQueries: true,
@@ -154,7 +196,7 @@ function OrderStatusManagement() {
       refetchQueries: [
         {
           query: LOAD_ACTIVE_ORDERS,
-          variables: { branchId: staff?.branch?.id },
+          variables: { branchId },
         },
       ],
       awaitRefetchQueries: true,
@@ -162,10 +204,14 @@ function OrderStatusManagement() {
   );
 
   useEffect(() => {
-    if (staff?.branch?.id) {
-      loadOrders({ variables: { branchId: staff.branch.id } });
+    loadStatuses();
+  }, [loadStatuses]);
+
+  useEffect(() => {
+    if (branchId) {
+      loadOrders({ variables: { branchId } });
     }
-  }, [loadOrders, staff?.branch?.id]);
+  }, [loadOrders, branchId]);
 
   useEffect(() => {
     if (!data?.customerCollection?.edges) return;
@@ -191,9 +237,14 @@ function OrderStatusManagement() {
                       ? new Date(orderNode.placed_at).toLocaleDateString()
                       : "-",
                     amount: orderNode.total_price ?? 0,
+                    balance: Number(orderNode.balance_amount ?? 0),
                     status: orderNode.order_status?.status || "Unknown",
                     payments:
                       orderNode.paymentCollection?.edges?.map(
+                        (edge) => edge.node,
+                      ) || [],
+                    orderPayments:
+                      orderNode.order_paymentCollection?.edges?.map(
                         (edge) => edge.node,
                       ) || [],
                   });
@@ -210,19 +261,23 @@ function OrderStatusManagement() {
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === "All") return orders;
-    return orders.filter((order) => order.status === statusFilter);
+    return orders.filter(
+      (order) => normalizeOrderStatus(order.status) === normalizeOrderStatus(statusFilter),
+    );
   }, [orders, statusFilter]);
 
   const handleChangeStatusClick = (record) => {
     const normalized = normalizeOrderStatus(record.status);
-    if (normalized === "active" || normalized === "completed") {
-      message.warning("Active and completed orders cannot be changed here.");
+    if (["active", "completed", "delivered", "cancelled", "canceled"].includes(normalized)) {
+      message.warning("Delivered, completed, and cancelled orders cannot be changed here.");
       return;
     }
 
     setSelectedOrder(record);
     if (normalized === "hold") {
       setSelectedStatus("Pending");
+    } else if (normalized === "pending") {
+      setSelectedStatus("Hold");
     } else {
       setSelectedStatus("Hold");
     }
@@ -232,11 +287,14 @@ function OrderStatusManagement() {
   const handleConfirmStatusChange = async () => {
     if (!selectedOrder || !selectedStatus) return;
 
-    let statusId;
-    if (selectedStatus === "Hold") statusId = 3;
-    else if (selectedStatus === "Canceled") statusId = 4;
-    else if (selectedStatus === "Pending") statusId = 1;
-    else return;
+    const statusId = getStatusId(
+      selectedStatus === "Cancelled" ? ["Cancelled", "Canceled"] : selectedStatus,
+    );
+
+    if (!statusId) {
+      message.error(`${selectedStatus} status was not found in the database.`);
+      return;
+    }
 
     try {
       if (
@@ -244,32 +302,40 @@ function OrderStatusManagement() {
         normalizeOrderStatus(selectedOrder.status) === "hold"
       ) {
         const totalPayment = selectedOrder.amount;
-        await addOrderPayment({
+        const paymentResult = await addOrderPayment({
           variables: {
             totalPayment,
             remarks: paymentRemarks || "Payment to reactivate order",
-            orderId: selectedOrder.orderId,
+            orderId: Number(selectedOrder.orderId),
             discount: paymentDiscount,
             additionalFee: paymentAdditionalFee,
             advance: paymentAmount,
           },
         });
+        if (!paymentResult?.data?.insertIntopaymentCollection?.records?.length > 0) {
+          message.error("Failed to add payment. Status change aborted.");
+          return;
+        }
       }
 
-      await updateOrderStatus({
-        variables: { orderId: selectedOrder.orderId, statusId },
+      const result = await updateOrderStatus({
+        variables: { orderId: Number(selectedOrder.orderId), statusId },
       });
-      message.success(
-        `Order #${selectedOrder.orderId} status updated to ${selectedStatus}.`,
-      );
-      setModalOpen(false);
-      setSelectedOrder(null);
-      setSelectedStatus(null);
-      setPaymentAmount(0);
-      setPaymentDiscount(0);
-      setPaymentAdditionalFee(0);
-      setPaymentRemarks("");
-      setPaymentMethod("Cash");
+      if (result?.data?.updateorderCollection?.records?.length > 0) {
+        message.success(
+          `Order #${selectedOrder.orderId} status updated to ${selectedStatus}.`,
+        );
+        setModalOpen(false);
+        setSelectedOrder(null);
+        setSelectedStatus(null);
+        setPaymentAmount(0);
+        setPaymentDiscount(0);
+        setPaymentAdditionalFee(0);
+        setPaymentRemarks("");
+        setPaymentMethod("Cash");
+      } else {
+        message.error("Failed to update order status. No records updated.");
+      }
     } catch (err) {
       console.error(err);
       message.error("Failed to update order status. Please try again.");
@@ -280,12 +346,33 @@ function OrderStatusManagement() {
     { title: "Order ID", dataIndex: "orderId", key: "orderId" },
     { title: "Customer", dataIndex: "customer", key: "customer" },
     { title: "Contact No", dataIndex: "contactNo", key: "contactNo" },
-    { title: "Placed At", dataIndex: "placedAt", key: "placedAt" },
+    { title: "Order Date", dataIndex: "placedAt", key: "placedAt" },
     {
-      title: "Amount",
+      title: "Total Price",
       dataIndex: "amount",
       key: "amount",
-      render: (value) => `Rs. ${value}`,
+      render: (value) => `Rs. ${Number(value || 0).toLocaleString()}`,
+    },
+    {
+      title: "Paid",
+      key: "paid",
+      render: (_, record) => {
+        const advance = (record.payments || []).reduce(
+          (sum, payment) => sum + Number(payment.advance || 0),
+          0,
+        );
+        const collected = (record.orderPayments || []).reduce(
+          (sum, payment) => sum + Number(payment.amount || 0),
+          0,
+        );
+        return `Rs. ${Number(advance + collected).toLocaleString()}`;
+      },
+    },
+    {
+      title: "Balance",
+      dataIndex: "balance",
+      key: "balance",
+      render: (value) => `Rs. ${Number(value || 0).toLocaleString()}`,
     },
     {
       title: "Status",
@@ -293,9 +380,11 @@ function OrderStatusManagement() {
       key: "status",
       render: (status) => {
         let color = "blue";
-        if (status === "Hold") color = "orange";
-        if (status === "Canceled") color = "red";
-        if (status === "Pending") color = "blue";
+        const normalized = normalizeOrderStatus(status);
+        if (normalized === "hold") color = "orange";
+        if (normalized === "canceled" || normalized === "cancelled") color = "red";
+        if (normalized === "pending") color = "blue";
+        if (normalized === "delivered" || normalized === "completed") color = "green";
         return <Tag color={color}>{status}</Tag>;
       },
     },
@@ -304,7 +393,7 @@ function OrderStatusManagement() {
       key: "action",
       render: (_, record) => {
         const normalized = normalizeOrderStatus(record.status);
-        const disabled = normalized === "active" || normalized === "completed";
+        const disabled = ["active", "completed", "delivered", "cancelled", "canceled"].includes(normalized);
         return (
           <Button
             type="primary"
@@ -330,7 +419,7 @@ function OrderStatusManagement() {
               { value: "All", label: "All" },
               { value: "Pending", label: "Pending" },
               { value: "Hold", label: "Hold" },
-              { value: "Canceled", label: "Canceled" },
+              { value: "Cancelled", label: "Cancelled" },
             ]}
             style={{ minWidth: 160 }}
           />
@@ -364,7 +453,7 @@ function OrderStatusManagement() {
           options={[
             { value: "Pending", label: "Pending" },
             { value: "Hold", label: "Hold" },
-            { value: "Canceled", label: "Cancel" },
+            { value: "Cancelled", label: "Cancel" },
           ]}
           disabled={
             normalizeOrderStatus(selectedOrder?.status) === "active" ||
