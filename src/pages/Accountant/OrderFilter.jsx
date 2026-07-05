@@ -3,7 +3,10 @@ import { SearchOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
-import { getOrderStatusLabel, normalizeOrderStatus } from "../../const/functions";
+import {
+  getOrderStatusLabel,
+  normalizeOrderStatus,
+} from "../../const/functions";
 
 export default function OrderFilter() {
   const [searchValue, setSearchValue] = useState("");
@@ -23,7 +26,15 @@ export default function OrderFilter() {
             paymentCollection {
               edges {
                 node {
-                  total_payment
+                  advance
+                }
+              }
+            }
+
+            delivery_orderCollection {
+              edges {
+                node {
+                  paid_amount
                 }
               }
             }
@@ -65,13 +76,27 @@ export default function OrderFilter() {
 
       const branch = relation?.branch;
 
-      // 🔹 Payments
+      // Advance payment
 
       const payment = order?.paymentCollection?.edges?.[0]?.node;
 
-      const totalAmount = Number(order?.total_price) || 0;
+      const advance = Number(payment?.advance) || 0;
 
-      const paidAmount = Number(payment?.total_payment) || 0;
+      // Partial delivery payments
+
+      const deliveryPayments =
+        order?.delivery_orderCollection?.edges?.reduce(
+          (sum, item) => sum + (Number(item?.node?.paid_amount) || 0),
+          0,
+        ) || 0;
+
+      // Total received
+
+      const paidAmount = advance + deliveryPayments;
+
+      // Remaining balance
+
+      const totalAmount = Number(order?.total_price) || 0;
 
       const remaining = totalAmount - paidAmount;
 
@@ -79,8 +104,6 @@ export default function OrderFilter() {
         key: order?.id,
 
         orderId: `OD${order?.id}`,
-
-       
 
         customer: `${customer?.first_name || ""} ${customer?.last_name || ""}`,
 
@@ -101,9 +124,12 @@ export default function OrderFilter() {
         remaining: remaining,
 
         status: order?.order_status?.status || "Pending",
-        statusKey: normalizeOrderStatus(order?.order_status?.status || "Pending"),
+        statusKey: normalizeOrderStatus(
+          order?.order_status?.status || "Pending",
+        ),
 
-        payment: remaining <= 0 ? "Completed" : "Pending",
+        payment:
+          remaining <= 0 ? "Completed" : paidAmount > 0 ? "Partial" : "Pending",
       };
     }) || [];
 
@@ -129,13 +155,7 @@ export default function OrderFilter() {
       // 🔹 Formatted order id
       const formattedOrderId = String(item.orderId || "").toLowerCase();
 
-      
-
-      return (
-        rawOrderId.includes(search) ||
-        formattedOrderId.includes(search) 
-        
-      );
+      return rawOrderId.includes(search) || formattedOrderId.includes(search);
     });
 
     setFilteredData(result);
@@ -147,8 +167,6 @@ export default function OrderFilter() {
       title: "Order ID",
       dataIndex: "orderId",
     },
-
-   
 
     {
       title: "Customer Name",
@@ -212,10 +230,6 @@ export default function OrderFilter() {
         const normalizedStatus = normalizeOrderStatus(status);
 
         switch (normalizedStatus) {
-          case "completed":
-            style = "bg-green-100 text-green-700";
-            break;
-
           case "pending":
             style = "bg-yellow-100 text-yellow-700";
             break;
@@ -228,10 +242,29 @@ export default function OrderFilter() {
             style = "bg-orange-100 text-orange-700";
             break;
 
-          case "canceled":
           case "cancelled":
+          case "canceled":
             style = "bg-red-100 text-red-700";
             break;
+
+          case "confirmed":
+            style = "bg-indigo-100 text-indigo-700";
+            break;
+
+          case "in_lab":
+            style = "bg-purple-100 text-purple-700";
+            break;
+
+          case "ready_for_delivery":
+            style = "bg-cyan-100 text-cyan-700";
+            break;
+
+          case "delivered":
+            style = "bg-green-100 text-green-700";
+            break;
+
+          default:
+            style = "bg-gray-100 text-gray-700";
         }
 
         return (
@@ -246,17 +279,21 @@ export default function OrderFilter() {
       title: "Payment Status",
       dataIndex: "payment",
 
-      render: (val) => (
-        <span
-          className={
-            val === "Completed"
-              ? "bg-green-100 px-3 py-1 rounded text-green-600"
-              : "bg-red-100 px-3 py-1 rounded text-red-600"
-          }
-        >
-          {val}
-        </span>
-      ),
+      render: (val) => {
+        let style = "bg-red-100 text-red-600";
+
+        if (val === "Completed") {
+          style = "bg-green-100 text-green-600";
+        } else if (val === "Partial") {
+          style = "bg-yellow-100 text-yellow-700";
+        }
+
+        return (
+          <span className={`${style} px-3 py-1 rounded font-medium`}>
+            {val}
+          </span>
+        );
+      },
     },
   ];
 
