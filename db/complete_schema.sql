@@ -1,22 +1,5 @@
--- =====================================================================
--- COMPLETE DATABASE SCHEMA FOR VISION EXPERT SYSTEM
--- This includes all tables, views, triggers, and indexes
--- =====================================================================
-
--- Enable UUID extension if not already enabled
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-
--- =====================================================================
--- SEQUENCES
--- =====================================================================
-
-CREATE SEQUENCE IF NOT EXISTS vision_expert.branch_id_seq;
-CREATE SEQUENCE IF NOT EXISTS vision_expert.staff_id_seq;
-CREATE SEQUENCE IF NOT EXISTS vision_expert.product_type_brand_id_seq;
-
--- =====================================================================
--- TABLES
--- =====================================================================
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
 
 CREATE TABLE vision_expert.branch (
   id integer NOT NULL DEFAULT nextval('vision_expert.branch_id_seq'::regclass),
@@ -28,14 +11,6 @@ CREATE TABLE vision_expert.branch (
   order_target bigint,
   CONSTRAINT branch_pkey PRIMARY KEY (id)
 );
-
-CREATE TABLE vision_expert.role (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  role_name character varying,
-  CONSTRAINT role_pkey PRIMARY KEY (id)
-);
-
 CREATE TABLE vision_expert.staff (
   id integer NOT NULL DEFAULT nextval('vision_expert.staff_id_seq'::regclass),
   first_name character varying,
@@ -51,117 +26,29 @@ CREATE TABLE vision_expert.staff (
   CONSTRAINT fk_staff_auth FOREIGN KEY (auth_user_id) REFERENCES auth.users(id),
   CONSTRAINT staff_role_id_fkey FOREIGN KEY (role_id) REFERENCES vision_expert.role(id)
 );
-
-CREATE TABLE vision_expert.product_type (
+CREATE TABLE vision_expert.role (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  type character varying NOT NULL,
-  CONSTRAINT product_type_pkey PRIMARY KEY (id)
+  role_name character varying,
+  CONSTRAINT role_pkey PRIMARY KEY (id)
 );
-
-CREATE TABLE vision_expert.brand (
+CREATE TABLE vision_expert.prescription (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  brand character varying NOT NULL,
-  CONSTRAINT brand_pkey PRIMARY KEY (id)
+  remarks text,
+  clinic_attend_customer_id bigint NOT NULL,
+  right_sph double precision NOT NULL,
+  right_cyl double precision NOT NULL,
+  right_axis double precision NOT NULL,
+  left_sph double precision NOT NULL,
+  left_cyl double precision NOT NULL,
+  left_axis double precision NOT NULL,
+  right_add double precision,
+  left_add double precision,
+  pupillary_distance double precision NOT NULL,
+  CONSTRAINT prescription_pkey PRIMARY KEY (id),
+  CONSTRAINT prescription_clinic_attend_customer_id_fkey FOREIGN KEY (clinic_attend_customer_id) REFERENCES vision_expert.clinic_attend_customer(id)
 );
-
-CREATE TABLE vision_expert.frame_type (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  type character varying NOT NULL,
-  CONSTRAINT frame_type_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE vision_expert.lense_type (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  type character varying NOT NULL,
-  price double precision NOT NULL DEFAULT '0'::double precision,
-  CONSTRAINT lense_type_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE vision_expert.supplier (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  name character varying NOT NULL,
-  contact_no character varying,
-  email text,
-  address text,
-  is_active boolean NOT NULL DEFAULT true,
-  CONSTRAINT supplier_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE vision_expert.product (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  name character varying NOT NULL,
-  product_type_id bigint NOT NULL,
-  brand_id bigint NOT NULL,
-  purchase_price double precision NOT NULL,
-  selling_price double precision NOT NULL,
-  purchased_quantity bigint NOT NULL,
-  warranty_in_months bigint NOT NULL,
-  supplier_id bigint,
-  sku character varying NOT NULL UNIQUE,
-  CONSTRAINT product_pkey PRIMARY KEY (id),
-  CONSTRAINT product_product_type_id_fkey FOREIGN KEY (product_type_id) REFERENCES vision_expert.product_type(id),
-  CONSTRAINT product_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES vision_expert.brand(id),
-  CONSTRAINT product_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES vision_expert.supplier(id)
-);
-
-CREATE TABLE vision_expert.frame (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  color character varying,
-  serial_no character varying NOT NULL UNIQUE,
-  frame_type_id bigint NOT NULL,
-  product_id bigint NOT NULL,
-  branch_id integer NOT NULL,
-  status character varying NOT NULL DEFAULT 'in_stock'::character varying CHECK (status::text = ANY (ARRAY['in_stock'::character varying, 'reserved'::character varying, 'sold'::character varying, 'damaged'::character varying, 'transferred'::character varying]::text[])),
-  CONSTRAINT frame_pkey PRIMARY KEY (id),
-  CONSTRAINT frame_frame_type_id_fkey FOREIGN KEY (frame_type_id) REFERENCES vision_expert.frame_type(id),
-  CONSTRAINT frame_product_id_fkey FOREIGN KEY (product_id) REFERENCES vision_expert.product(id),
-  CONSTRAINT frame_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
-);
-
-CREATE TABLE vision_expert.stock (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  product_id bigint NOT NULL,
-  available_quantity bigint NOT NULL,
-  branch_id integer NOT NULL,
-  added_by integer NOT NULL,
-  supplier_id bigint,
-  CONSTRAINT stock_pkey PRIMARY KEY (id),
-  CONSTRAINT stock_product_id_fkey FOREIGN KEY (product_id) REFERENCES vision_expert.product(id),
-  CONSTRAINT stock_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id),
-  CONSTRAINT stock_added_by_fkey FOREIGN KEY (added_by) REFERENCES vision_expert.staff(id),
-  CONSTRAINT stock_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES vision_expert.supplier(id)
-);
-
-CREATE TABLE vision_expert.customer (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  first_name character varying NOT NULL,
-  last_name character varying,
-  contact_no character varying NOT NULL,
-  address text,
-  dob date NOT NULL,
-  nic character varying NOT NULL,
-  CONSTRAINT customer_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE vision_expert.customer_has_branch (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  registered_at timestamp with time zone NOT NULL DEFAULT now(),
-  customer_id bigint NOT NULL,
-  branch_id integer NOT NULL,
-  CONSTRAINT customer_has_branch_pkey PRIMARY KEY (id),
-  CONSTRAINT customer_has_branch_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES vision_expert.customer(id),
-  CONSTRAINT customer_has_branch_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
-);
-
 CREATE TABLE vision_expert.project (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   branch_id integer NOT NULL,
@@ -172,14 +59,15 @@ CREATE TABLE vision_expert.project (
   CONSTRAINT project_pkey PRIMARY KEY (id),
   CONSTRAINT clinic_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
-CREATE TABLE vision_expert.clinic_status (
+CREATE TABLE vision_expert.clinic_staff (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  status text NOT NULL,
-  CONSTRAINT clinic_status_pkey PRIMARY KEY (id)
+  clinic_id bigint NOT NULL,
+  staff_id integer NOT NULL,
+  CONSTRAINT clinic_staff_pkey PRIMARY KEY (id),
+  CONSTRAINT session_staff_session_id_fkey FOREIGN KEY (clinic_id) REFERENCES vision_expert.clinic(id),
+  CONSTRAINT session_staff_staff_id_fkey FOREIGN KEY (staff_id) REFERENCES vision_expert.staff(id)
 );
-
 CREATE TABLE vision_expert.clinic (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -199,17 +87,6 @@ CREATE TABLE vision_expert.clinic (
   CONSTRAINT clinic_clinic_status_id_fkey FOREIGN KEY (clinic_status_id) REFERENCES vision_expert.clinic_status(id),
   CONSTRAINT clinic_branch_id_fkey1 FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
-CREATE TABLE vision_expert.clinic_staff (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  clinic_id bigint NOT NULL,
-  staff_id integer NOT NULL,
-  CONSTRAINT clinic_staff_pkey PRIMARY KEY (id),
-  CONSTRAINT session_staff_session_id_fkey FOREIGN KEY (clinic_id) REFERENCES vision_expert.clinic(id),
-  CONSTRAINT session_staff_staff_id_fkey FOREIGN KEY (staff_id) REFERENCES vision_expert.staff(id)
-);
-
 CREATE TABLE vision_expert.clinic_expenses (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -221,7 +98,6 @@ CREATE TABLE vision_expert.clinic_expenses (
   CONSTRAINT session_expenses_added_by_fkey FOREIGN KEY (added_by) REFERENCES vision_expert.staff(id),
   CONSTRAINT clinic_expenses_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES vision_expert.clinic(id)
 );
-
 CREATE TABLE vision_expert.clinic_has_equipment (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -233,17 +109,6 @@ CREATE TABLE vision_expert.clinic_has_equipment (
   CONSTRAINT session_has_equipment_equipment_id_fkey FOREIGN KEY (equipment_id) REFERENCES vision_expert.equipment(id),
   CONSTRAINT session_has_equipment_allocated_by_fkey FOREIGN KEY (allocated_by) REFERENCES vision_expert.staff(id)
 );
-
-CREATE TABLE vision_expert.equipment (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  name text NOT NULL,
-  reference_no character varying NOT NULL,
-  branch_id integer NOT NULL,
-  CONSTRAINT equipment_pkey PRIMARY KEY (id),
-  CONSTRAINT equipment_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
-);
-
 CREATE TABLE vision_expert.clinic_attend_customer (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -253,25 +118,62 @@ CREATE TABLE vision_expert.clinic_attend_customer (
   CONSTRAINT session_attend_customer_customer_has_branch_id_fkey FOREIGN KEY (customer_has_branch_id) REFERENCES vision_expert.customer_has_branch(id),
   CONSTRAINT clinic_attend_customer_clinic_id_fkey FOREIGN KEY (clinic_id) REFERENCES vision_expert.clinic(id)
 );
-
-CREATE TABLE vision_expert.prescription (
+CREATE TABLE vision_expert.head_office (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  remarks text,
-  clinic_attend_customer_id bigint NOT NULL,
-  right_sph double precision NOT NULL,
-  right_cyl double precision NOT NULL,
-  right_axis double precision NOT NULL,
-  left_sph double precision NOT NULL,
-  left_cyl double precision NOT NULL,
-  left_axis double precision NOT NULL,
-  right_add double precision,
-  left_add double precision,
-  pupillary_distance double precision NOT NULL,
-  CONSTRAINT prescription_pkey PRIMARY KEY (id),
-  CONSTRAINT prescription_clinic_attend_customer_id_fkey FOREIGN KEY (clinic_attend_customer_id) REFERENCES vision_expert.clinic_attend_customer(id)
+  branch_id integer NOT NULL,
+  CONSTRAINT head_office_pkey PRIMARY KEY (id),
+  CONSTRAINT head_office_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
+CREATE TABLE vision_expert.equipment (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name text NOT NULL,
+  reference_no character varying NOT NULL,
+  branch_id integer NOT NULL,
+  CONSTRAINT equipment_pkey PRIMARY KEY (id),
+  CONSTRAINT equipment_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+);
+CREATE TABLE vision_expert.branch_expenses (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  branch_id integer NOT NULL,
+  added_by bigint NOT NULL,
+  reason text NOT NULL,
+  CONSTRAINT branch_expenses_pkey PRIMARY KEY (id),
+  CONSTRAINT branch_expenses_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+);
+CREATE TABLE vision_expert.customer (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  first_name character varying NOT NULL,
+  last_name character varying,
+  contact_no character varying NOT NULL,
+  address text,
+  dob date NOT NULL,
+  nic character varying NOT NULL,
+  CONSTRAINT customer_pkey PRIMARY KEY (id)
+);
+CREATE TABLE vision_expert.customer_has_branch (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  registered_at timestamp with time zone NOT NULL DEFAULT now(),
+  customer_id bigint NOT NULL,
+  branch_id integer NOT NULL,
+  CONSTRAINT customer_has_branch_pkey PRIMARY KEY (id),
+  CONSTRAINT customer_has_branch_customer_id_fkey FOREIGN KEY (customer_id) REFERENCES vision_expert.customer(id),
+  CONSTRAINT customer_has_branch_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+);
+CREATE TABLE vision_expert.warranty (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  Issue_type character varying,
+  description character varying,
+  status_id bigint,
+  order_id bigint,
+  CONSTRAINT warranty_pkey PRIMARY KEY (id),
+  CONSTRAINT warranty_status_id_fkey FOREIGN KEY (status_id) REFERENCES vision_expert.complaint_status(id),
+  CONSTRAINT warranty_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
+);
 CREATE TABLE vision_expert.order_status (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -279,7 +181,106 @@ CREATE TABLE vision_expert.order_status (
   deesc text,
   CONSTRAINT order_status_pkey PRIMARY KEY (id)
 );
-
+CREATE TABLE vision_expert.payment (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  total_payment double precision NOT NULL,
+  remarks text,
+  order_id bigint NOT NULL,
+  discount double precision NOT NULL,
+  additional_fee double precision NOT NULL DEFAULT '0'::double precision,
+  advance double precision NOT NULL DEFAULT '0'::double precision,
+  discount_approved boolean NOT NULL DEFAULT false,
+  CONSTRAINT payment_pkey PRIMARY KEY (id),
+  CONSTRAINT payment_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
+);
+CREATE TABLE vision_expert.order_status_history (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  completed_at timestamp with time zone NOT NULL DEFAULT now(),
+  order_id bigint NOT NULL,
+  order_statsu_id bigint NOT NULL,
+  CONSTRAINT order_status_history_pkey PRIMARY KEY (id),
+  CONSTRAINT order_status_history_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id),
+  CONSTRAINT order_status_history_order_statsu_id_fkey FOREIGN KEY (order_statsu_id) REFERENCES vision_expert.order_status(id)
+);
+CREATE TABLE vision_expert.discount_verified (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  verified boolean NOT NULL,
+  payment_id bigint NOT NULL,
+  CONSTRAINT discount_verified_pkey PRIMARY KEY (id),
+  CONSTRAINT discount_verified_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES vision_expert.payment(id)
+);
+CREATE TABLE vision_expert.stock (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  product_id bigint NOT NULL,
+  available_quantity bigint NOT NULL,
+  branch_id integer NOT NULL,
+  added_by integer NOT NULL,
+  supplier_id bigint,
+  CONSTRAINT stock_pkey PRIMARY KEY (id),
+  CONSTRAINT stock_product_id_fkey FOREIGN KEY (product_id) REFERENCES vision_expert.product(id),
+  CONSTRAINT stock_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id),
+  CONSTRAINT stock_added_by_fkey FOREIGN KEY (added_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT stock_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES vision_expert.supplier(id)
+);
+CREATE TABLE vision_expert.product (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name character varying NOT NULL,
+  product_type_id bigint NOT NULL,
+  brand_id bigint NOT NULL,
+  purchase_price double precision NOT NULL,
+  selling_price double precision NOT NULL,
+  purchased_quantity bigint NOT NULL,
+  warranty_in_months bigint NOT NULL,
+  supplier_id bigint,
+  sku character varying NOT NULL UNIQUE,
+  CONSTRAINT product_pkey PRIMARY KEY (id),
+  CONSTRAINT product_product_type_id_fkey FOREIGN KEY (product_type_id) REFERENCES vision_expert.product_type(id),
+  CONSTRAINT product_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES vision_expert.brand(id),
+  CONSTRAINT product_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES vision_expert.supplier(id)
+);
+CREATE TABLE vision_expert.product_type (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type character varying NOT NULL,
+  CONSTRAINT product_type_pkey PRIMARY KEY (id)
+);
+CREATE TABLE vision_expert.brand (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  brand character varying NOT NULL,
+  CONSTRAINT brand_pkey PRIMARY KEY (id)
+);
+CREATE TABLE vision_expert.frame_type (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type character varying NOT NULL,
+  CONSTRAINT frame_type_pkey PRIMARY KEY (id)
+);
+CREATE TABLE vision_expert.frame (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  color character varying,
+  serial_no character varying NOT NULL UNIQUE,
+  frame_type_id bigint NOT NULL,
+  product_id bigint NOT NULL,
+  branch_id integer NOT NULL,
+  status character varying NOT NULL DEFAULT 'in_stock'::character varying CHECK (status::text = ANY (ARRAY['in_stock'::character varying, 'reserved'::character varying, 'sold'::character varying, 'damaged'::character varying, 'transferred'::character varying]::text[])),
+  CONSTRAINT frame_pkey PRIMARY KEY (id),
+  CONSTRAINT frame_frame_type_id_fkey FOREIGN KEY (frame_type_id) REFERENCES vision_expert.frame_type(id),
+  CONSTRAINT frame_product_id_fkey FOREIGN KEY (product_id) REFERENCES vision_expert.product(id),
+  CONSTRAINT frame_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+);
+CREATE TABLE vision_expert.lense_type (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type character varying NOT NULL,
+  price double precision NOT NULL DEFAULT '0'::double precision,
+  CONSTRAINT lense_type_pkey PRIMARY KEY (id)
+);
 CREATE TABLE vision_expert.order (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   placed_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -295,96 +296,58 @@ CREATE TABLE vision_expert.order (
   total_price double precision NOT NULL,
   frame_warranty_month integer,
   lense_warranty_month integer,
+  customer_confirmed_at timestamp with time zone,
+  customer_confirmed_by bigint,
+  sent_to_lab_at timestamp with time zone,
+  received_from_lab_at timestamp with time zone,
+  first_reminder_call_at timestamp with time zone,
+  second_reminder_call_at timestamp with time zone,
+  delivered_at timestamp with time zone,
+  delivered_by bigint,
+  balance_amount double precision DEFAULT 0,
+  intended_customer_confirm_date date,
+  intended_send_to_lab_date date,
+  intended_receive_from_lab_date date,
+  intended_first_reminder_date date,
+  intended_second_reminder_date date,
+  intended_delivery_date date,
   CONSTRAINT order_pkey PRIMARY KEY (id),
   CONSTRAINT order_order_status_id_fkey FOREIGN KEY (order_status_id) REFERENCES vision_expert.order_status(id),
   CONSTRAINT order_clinic_attend_customer_id_fkey FOREIGN KEY (clinic_attend_customer_id) REFERENCES vision_expert.clinic_attend_customer(id),
   CONSTRAINT order_prescription_id_fkey FOREIGN KEY (prescription_id) REFERENCES vision_expert.prescription(id),
   CONSTRAINT order_lens_type_id_fkey FOREIGN KEY (lens_type_id) REFERENCES vision_expert.lense_type(id),
   CONSTRAINT order_frame_type_id_fkey FOREIGN KEY (frame_type_id) REFERENCES vision_expert.frame_type(id),
-  CONSTRAINT order_frame_id_fkey FOREIGN KEY (frame_id) REFERENCES vision_expert.frame(id)
+  CONSTRAINT order_frame_id_fkey FOREIGN KEY (frame_id) REFERENCES vision_expert.frame(id),
+  CONSTRAINT order_customer_confirmed_by_fkey FOREIGN KEY (customer_confirmed_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT order_delivered_by_fkey FOREIGN KEY (delivered_by) REFERENCES vision_expert.staff(id)
 );
-
-CREATE TABLE vision_expert.payment (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  total_payment double precision NOT NULL,
-  remarks text,
-  order_id bigint NOT NULL,
-  discount double precision NOT NULL,
-  additional_fee double precision NOT NULL DEFAULT '0'::double precision,
-  advance double precision NOT NULL DEFAULT '0'::double precision,
-  discount_approved boolean NOT NULL DEFAULT false,
-  CONSTRAINT payment_pkey PRIMARY KEY (id),
-  CONSTRAINT payment_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
-);
-
-CREATE TABLE vision_expert.discount_verified (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  verified boolean NOT NULL,
-  payment_id bigint NOT NULL,
-  CONSTRAINT discount_verified_pkey PRIMARY KEY (id),
-  CONSTRAINT discount_verified_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES vision_expert.payment(id)
-);
-
-CREATE TABLE vision_expert.order_status_history (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  completed_at timestamp with time zone NOT NULL DEFAULT now(),
-  order_id bigint NOT NULL,
-  order_statsu_id bigint NOT NULL,
-  CONSTRAINT order_status_history_pkey PRIMARY KEY (id),
-  CONSTRAINT order_status_history_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id),
-  CONSTRAINT order_status_history_order_statsu_id_fkey FOREIGN KEY (order_statsu_id) REFERENCES vision_expert.order_status(id)
-);
-
-CREATE TABLE vision_expert.complaint_status (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  status text NOT NULL,
-  CONSTRAINT complaint_status_pkey PRIMARY KEY (id)
-);
-
 CREATE TABLE vision_expert.complaint (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   order_id bigint NOT NULL,
   complaint text NOT NULL,
   complaint_status_id bigint NOT NULL,
+  assigned_to integer,
+  assigned_at timestamp with time zone,
+  resolution_description text,
+  resolved_at timestamp with time zone,
   CONSTRAINT complaint_pkey PRIMARY KEY (id),
   CONSTRAINT complaint_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id),
-  CONSTRAINT complaint_complaint_status_id_fkey FOREIGN KEY (complaint_status_id) REFERENCES vision_expert.complaint_status(id)
+  CONSTRAINT complaint_complaint_status_id_fkey FOREIGN KEY (complaint_status_id) REFERENCES vision_expert.complaint_status(id),
+  CONSTRAINT complaint_assigned_to_fkey FOREIGN KEY (assigned_to) REFERENCES vision_expert.staff(id)
 );
-
-CREATE TABLE vision_expert.warranty (
+CREATE TABLE vision_expert.complaint_status (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  Issue_type character varying,
-  description character varying,
-  status_id bigint,
-  order_id bigint,
-  CONSTRAINT warranty_pkey PRIMARY KEY (id),
-  CONSTRAINT warranty_status_id_fkey FOREIGN KEY (status_id) REFERENCES vision_expert.complaint_status(id),
-  CONSTRAINT warranty_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
+  status text NOT NULL,
+  CONSTRAINT complaint_status_pkey PRIMARY KEY (id)
 );
-
-CREATE TABLE vision_expert.head_office (
+CREATE TABLE vision_expert.clinic_status (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
-  branch_id integer NOT NULL,
-  CONSTRAINT head_office_pkey PRIMARY KEY (id),
-  CONSTRAINT head_office_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+  status text NOT NULL,
+  CONSTRAINT clinic_status_pkey PRIMARY KEY (id)
 );
-
-CREATE TABLE vision_expert.branch_expenses (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  branch_id integer NOT NULL,
-  added_by bigint NOT NULL,
-  reason text NOT NULL,
-  CONSTRAINT branch_expenses_pkey PRIMARY KEY (id),
-  CONSTRAINT branch_expenses_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
-);
-
 CREATE TABLE vision_expert.damaged_stock (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -392,10 +355,14 @@ CREATE TABLE vision_expert.damaged_stock (
   damaged_quantity bigint NOT NULL,
   reason text NOT NULL,
   status_bool boolean NOT NULL,
+  review_status text NOT NULL DEFAULT 'Pending'::text CHECK (review_status = ANY (ARRAY['Pending'::text, 'Approved'::text, 'Rejected'::text])),
+  rejection_reason text,
+  reviewed_by integer,
+  reviewed_at timestamp with time zone,
   CONSTRAINT damaged_stock_pkey PRIMARY KEY (id),
-  CONSTRAINT damaged_stock_stock_id_fkey FOREIGN KEY (stock_id) REFERENCES vision_expert.stock(id)
+  CONSTRAINT damaged_stock_stock_id_fkey FOREIGN KEY (stock_id) REFERENCES vision_expert.stock(id),
+  CONSTRAINT damaged_stock_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES vision_expert.staff(id)
 );
-
 CREATE TABLE vision_expert.re_order (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -405,7 +372,6 @@ CREATE TABLE vision_expert.re_order (
   CONSTRAINT re_order_product_type_id_fkey FOREIGN KEY (product_type_id) REFERENCES vision_expert.product_type(id),
   CONSTRAINT re_order_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
 CREATE TABLE vision_expert.petty_cash (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -416,25 +382,12 @@ CREATE TABLE vision_expert.petty_cash (
   amount double precision NOT NULL,
   received_by integer NOT NULL,
   branch_id integer NOT NULL,
+  allocation_id bigint,
   CONSTRAINT petty_cash_pkey PRIMARY KEY (id),
   CONSTRAINT petty_cash_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id),
-  CONSTRAINT petty_cash_received_by_fkey FOREIGN KEY (received_by) REFERENCES vision_expert.staff(id)
+  CONSTRAINT petty_cash_received_by_fkey FOREIGN KEY (received_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT petty_cash_allocation_id_fkey FOREIGN KEY (allocation_id) REFERENCES vision_expert.petty_cash_allocation(id)
 );
-
-CREATE TABLE vision_expert.cash_type (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  type character varying NOT NULL,
-  CONSTRAINT cash_type_pkey PRIMARY KEY (id)
-);
-
-CREATE TABLE vision_expert.cash_transfer_status (
-  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  created_at timestamp with time zone NOT NULL DEFAULT now(),
-  status text NOT NULL,
-  CONSTRAINT cash_transfer_status_pkey PRIMARY KEY (id)
-);
-
 CREATE TABLE vision_expert.cash_transfers_to_admin (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -450,20 +403,25 @@ CREATE TABLE vision_expert.cash_transfers_to_admin (
   admin_proof_status text,
   admin_proof_at timestamp with time zone,
   bank_deposit boolean,
+  rejection_reason text,
   CONSTRAINT cash_transfers_to_admin_pkey PRIMARY KEY (id),
   CONSTRAINT cash_transfers_to_admin_cash_transfer_status_id_fkey FOREIGN KEY (cash_transfer_status_id) REFERENCES vision_expert.cash_transfer_status(id),
   CONSTRAINT cash_transfers_to_admin_by_fkey FOREIGN KEY (by) REFERENCES vision_expert.staff(id),
   CONSTRAINT cash_transfers_to_admin_cash_type_id_fkey FOREIGN KEY (cash_type_id) REFERENCES vision_expert.cash_type(id),
   CONSTRAINT cash_transfers_to_admin_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
+CREATE TABLE vision_expert.cash_transfer_status (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  status text NOT NULL,
+  CONSTRAINT cash_transfer_status_pkey PRIMARY KEY (id)
+);
 CREATE TABLE vision_expert.lab_follow_up_status (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
   status text NOT NULL,
   CONSTRAINT lab_follow_up_status_pkey PRIMARY KEY (id)
 );
-
 CREATE TABLE vision_expert.lab_follow_up (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
@@ -481,7 +439,16 @@ CREATE TABLE vision_expert.lab_follow_up (
   CONSTRAINT lab_follow_up_status_id_fkey FOREIGN KEY (lab_follow_up_status_id) REFERENCES vision_expert.lab_follow_up_status(id),
   CONSTRAINT lab_follow_up_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
+CREATE TABLE vision_expert.supplier (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  name character varying NOT NULL,
+  contact_no character varying,
+  email text,
+  address text,
+  is_active boolean NOT NULL DEFAULT true,
+  CONSTRAINT supplier_pkey PRIMARY KEY (id)
+);
 CREATE TABLE vision_expert.stock_distribution (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -496,7 +463,6 @@ CREATE TABLE vision_expert.stock_distribution (
   CONSTRAINT stock_distribution_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id),
   CONSTRAINT stock_distribution_frame_id_fkey FOREIGN KEY (frame_id) REFERENCES vision_expert.frame(id)
 );
-
 CREATE TABLE vision_expert.batch (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -507,7 +473,6 @@ CREATE TABLE vision_expert.batch (
   CONSTRAINT batch_pkey PRIMARY KEY (id),
   CONSTRAINT batch_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
 CREATE TABLE vision_expert.batch_order (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -529,7 +494,6 @@ CREATE TABLE vision_expert.batch_order (
   CONSTRAINT batch_order_pkey PRIMARY KEY (id),
   CONSTRAINT batch_order_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES vision_expert.batch(id)
 );
-
 CREATE TABLE vision_expert.batch_timeline (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -541,7 +505,6 @@ CREATE TABLE vision_expert.batch_timeline (
   CONSTRAINT batch_timeline_pkey PRIMARY KEY (id),
   CONSTRAINT batch_timeline_batch_id_fkey FOREIGN KEY (batch_id) REFERENCES vision_expert.batch(id)
 );
-
 CREATE TABLE vision_expert.reminder_call (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -553,10 +516,12 @@ CREATE TABLE vision_expert.reminder_call (
   before_delivery_status text,
   before_delivery_reason text,
   before_delivery_custom_reason text,
+  before_delivery_2_status text,
+  before_delivery_2_reason text,
+  before_delivery_2_custom_reason text,
   CONSTRAINT reminder_call_pkey PRIMARY KEY (id),
   CONSTRAINT reminder_call_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
 );
-
 CREATE TABLE vision_expert.delivery_order (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   created_at timestamp with time zone NOT NULL DEFAULT now(),
@@ -571,7 +536,12 @@ CREATE TABLE vision_expert.delivery_order (
   CONSTRAINT delivery_order_pkey PRIMARY KEY (id),
   CONSTRAINT delivery_order_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id)
 );
-
+CREATE TABLE vision_expert.cash_type (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  type character varying NOT NULL,
+  CONSTRAINT cash_type_pkey PRIMARY KEY (id)
+);
 CREATE TABLE vision_expert.login_activity (
   id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
   auth_user_id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -580,7 +550,6 @@ CREATE TABLE vision_expert.login_activity (
   CONSTRAINT login_activity_pkey PRIMARY KEY (id),
   CONSTRAINT login_activity_staff_fk FOREIGN KEY (staff_id) REFERENCES vision_expert.staff(id)
 );
-
 CREATE TABLE vision_expert.product_type_brand (
   id bigint NOT NULL DEFAULT nextval('vision_expert.product_type_brand_id_seq'::regclass),
   product_type_id bigint NOT NULL,
@@ -588,262 +557,85 @@ CREATE TABLE vision_expert.product_type_brand (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT product_type_brand_pkey PRIMARY KEY (id),
   CONSTRAINT product_type_brand_product_type_id_fkey FOREIGN KEY (product_type_id) REFERENCES vision_expert.product_type(id),
-  CONSTRAINT product_type_brand_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES vision_expert.brand(id),
-  CONSTRAINT uq_product_type_brand UNIQUE (product_type_id, brand_id)
+  CONSTRAINT product_type_brand_brand_id_fkey FOREIGN KEY (brand_id) REFERENCES vision_expert.brand(id)
 );
-
 CREATE TABLE vision_expert.stock_movement_history (
-  id BIGSERIAL PRIMARY KEY,
-  reference_table TEXT NOT NULL,
-  reference_id BIGINT NOT NULL,
-  movement_type TEXT NOT NULL CHECK (
-    movement_type IN (
-      'allocation_requested',
-      'allocation_approved',
-      'allocation_rejected',
-      'transfer_completed',
-      'transfer_requested'
-    )
-  ),
-  stock_id BIGINT NULL REFERENCES vision_expert.stock(id) ON DELETE SET NULL,
-  frame_id BIGINT NULL REFERENCES vision_expert.frame(id) ON DELETE SET NULL,
-  source_branch_id INT NULL REFERENCES vision_expert.branch(id) ON DELETE SET NULL,
-  target_branch_id INT NULL REFERENCES vision_expert.branch(id) ON DELETE SET NULL,
-  quantity BIGINT NOT NULL DEFAULT 1,
-  status TEXT NOT NULL DEFAULT 'Pending Approval',
-  notes TEXT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_stock_movement_history UNIQUE (reference_table, reference_id, movement_type)
+  id bigint NOT NULL DEFAULT nextval('vision_expert.stock_movement_history_id_seq'::regclass),
+  reference_table text NOT NULL,
+  reference_id bigint NOT NULL,
+  movement_type text NOT NULL CHECK (movement_type = ANY (ARRAY['allocation_requested'::text, 'allocation_approved'::text, 'allocation_rejected'::text, 'transfer_completed'::text, 'transfer_requested'::text])),
+  stock_id bigint,
+  frame_id bigint,
+  source_branch_id integer,
+  target_branch_id integer,
+  quantity bigint NOT NULL DEFAULT 1,
+  status text NOT NULL DEFAULT 'Pending Approval'::text,
+  notes text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT stock_movement_history_pkey PRIMARY KEY (id),
+  CONSTRAINT stock_movement_history_stock_id_fkey FOREIGN KEY (stock_id) REFERENCES vision_expert.stock(id),
+  CONSTRAINT stock_movement_history_frame_id_fkey FOREIGN KEY (frame_id) REFERENCES vision_expert.frame(id),
+  CONSTRAINT stock_movement_history_source_branch_id_fkey FOREIGN KEY (source_branch_id) REFERENCES vision_expert.branch(id),
+  CONSTRAINT stock_movement_history_target_branch_id_fkey FOREIGN KEY (target_branch_id) REFERENCES vision_expert.branch(id)
 );
-
 CREATE TABLE vision_expert.damage_history (
-  id BIGSERIAL PRIMARY KEY,
-  reference_table TEXT NOT NULL DEFAULT 'damaged_stock',
-  reference_id BIGINT NOT NULL,
-  event_type TEXT NOT NULL CHECK (event_type IN ('damage_reported', 'damage_approved')),
-  stock_id BIGINT NULL REFERENCES vision_expert.stock(id) ON DELETE SET NULL,
-  branch_id INT NULL REFERENCES vision_expert.branch(id) ON DELETE SET NULL,
-  quantity BIGINT NOT NULL DEFAULT 1,
-  reason TEXT NULL,
-  approved BOOLEAN NOT NULL DEFAULT FALSE,
-  approved_by BIGINT NULL,
-  approved_at TIMESTAMPTZ NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT uq_damage_history UNIQUE (reference_table, reference_id, event_type)
+  id bigint NOT NULL DEFAULT nextval('vision_expert.damage_history_id_seq'::regclass),
+  reference_table text NOT NULL DEFAULT 'damaged_stock'::text,
+  reference_id bigint NOT NULL,
+  event_type text NOT NULL CHECK (event_type = ANY (ARRAY['damage_reported'::text, 'damage_approved'::text, 'damage_rejected'::text])),
+  stock_id bigint,
+  branch_id integer,
+  quantity bigint NOT NULL DEFAULT 1,
+  reason text,
+  approved boolean NOT NULL DEFAULT false,
+  approved_by bigint,
+  approved_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT damage_history_pkey PRIMARY KEY (id),
+  CONSTRAINT damage_history_stock_id_fkey FOREIGN KEY (stock_id) REFERENCES vision_expert.stock(id),
+  CONSTRAINT damage_history_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
 );
-
--- =====================================================================
--- INDEXES
--- =====================================================================
-
-CREATE INDEX idx_stock_movement_history_stock_id ON vision_expert.stock_movement_history (stock_id);
-CREATE INDEX idx_stock_movement_history_frame_id ON vision_expert.stock_movement_history (frame_id);
-CREATE INDEX idx_stock_movement_history_target_branch_id ON vision_expert.stock_movement_history (target_branch_id);
-CREATE INDEX idx_stock_movement_history_created_at ON vision_expert.stock_movement_history (created_at DESC);
-
-CREATE INDEX idx_damage_history_stock_id ON vision_expert.damage_history (stock_id);
-CREATE INDEX idx_damage_history_branch_id ON vision_expert.damage_history (branch_id);
-CREATE INDEX idx_damage_history_created_at ON vision_expert.damage_history (created_at DESC);
-
-CREATE INDEX idx_product_type_brand_product_type_id ON vision_expert.product_type_brand (product_type_id);
-CREATE INDEX idx_product_type_brand_brand_id ON vision_expert.product_type_brand (brand_id);
-
--- =====================================================================
--- VIEWS
--- =====================================================================
-
-CREATE VIEW vision_expert.branch_frame_stock AS
-SELECT
-  f.branch_id,
-  f.product_id,
-  p.name AS product_name,
-  p.sku AS product_sku,
-  ft.type AS frame_type,
-  COUNT(*) FILTER (WHERE f.status = 'in_stock') AS in_stock_count,
-  COUNT(*) FILTER (WHERE f.status = 'reserved') AS reserved_count,
-  COUNT(*) FILTER (WHERE f.status = 'sold') AS sold_count,
-  COUNT(*) FILTER (WHERE f.status = 'damaged') AS damaged_count,
-  COUNT(*) FILTER (WHERE f.status = 'transferred') AS transferred_count
-FROM vision_expert.frame f
-JOIN vision_expert.product p ON f.product_id = p.id
-JOIN vision_expert.frame_type ft ON f.frame_type_id = ft.id
-GROUP BY f.branch_id, f.product_id, p.name, p.sku, ft.type;
-
-CREATE VIEW vision_expert.branch_low_stock AS
-SELECT
-  s.branch_id,
-  s.product_id,
-  p.name AS product_name,
-  p.sku AS product_sku,
-  ft.type AS frame_type,
-  COUNT(*) FILTER (WHERE f.status = 'in_stock') AS in_stock_count
-FROM vision_expert.stock s
-JOIN vision_expert.product p ON s.product_id = p.id
-LEFT JOIN vision_expert.frame f ON f.product_id = p.id AND f.branch_id = s.branch_id AND f.status = 'in_stock'
-LEFT JOIN vision_expert.frame_type ft ON f.frame_type_id = ft.id
-WHERE s.available_quantity > 0 AND s.available_quantity <= 100
-GROUP BY s.branch_id, s.product_id, p.name, p.sku, ft.type;
-
--- =====================================================================
--- TRIGGERS
--- =====================================================================
-
-CREATE OR REPLACE FUNCTION vision_expert.log_stock_movement_history()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  source_branch INT;
-  movement_kind TEXT;
-BEGIN
-  SELECT s.branch_id
-    INTO source_branch
-  FROM vision_expert.stock s
-  WHERE s.id = NEW.stock_id;
-
-  IF TG_OP = 'INSERT' THEN
-    INSERT INTO vision_expert.stock_movement_history (
-      reference_table,
-      reference_id,
-      movement_type,
-      stock_id,
-      frame_id,
-      source_branch_id,
-      target_branch_id,
-      quantity,
-      status,
-      notes
-    ) VALUES (
-      'stock_distribution',
-      NEW.id,
-      'allocation_requested',
-      NEW.stock_id,
-      NEW.frame_id,
-      source_branch,
-      NEW.branch_id,
-      COALESCE(NEW.quantity, 1),
-      COALESCE(NEW.status, 'Pending Approval'),
-      NEW.notes
-    )
-    ON CONFLICT (reference_table, reference_id, movement_type) DO NOTHING;
-
-    RETURN NEW;
-  END IF;
-
-  IF TG_OP = 'UPDATE' AND NEW.status IS DISTINCT FROM OLD.status THEN
-    movement_kind := CASE
-      WHEN NEW.status = 'Approved' THEN 'allocation_approved'
-      WHEN NEW.status = 'Transferred' THEN 'transfer_completed'
-      WHEN NEW.status = 'Rejected' THEN 'allocation_rejected'
-      ELSE 'allocation_requested'
-    END;
-
-    INSERT INTO vision_expert.stock_movement_history (
-      reference_table,
-      reference_id,
-      movement_type,
-      stock_id,
-      frame_id,
-      source_branch_id,
-      target_branch_id,
-      quantity,
-      status,
-      notes
-    ) VALUES (
-      'stock_distribution',
-      NEW.id,
-      movement_kind,
-      NEW.stock_id,
-      NEW.frame_id,
-      source_branch,
-      NEW.branch_id,
-      COALESCE(NEW.quantity, 1),
-      COALESCE(NEW.status, 'Pending Approval'),
-      NEW.notes
-    )
-    ON CONFLICT (reference_table, reference_id, movement_type) DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_stock_distribution_history
-AFTER INSERT OR UPDATE OF status
-ON vision_expert.stock_distribution
-FOR EACH ROW
-EXECUTE FUNCTION vision_expert.log_stock_movement_history();
-
-CREATE OR REPLACE FUNCTION vision_expert.log_damage_history()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  source_branch INT;
-BEGIN
-  SELECT s.branch_id
-    INTO source_branch
-  FROM vision_expert.stock s
-  WHERE s.id = NEW.stock_id;
-
-  IF TG_OP = 'INSERT' THEN
-    INSERT INTO vision_expert.damage_history (
-      reference_table,
-      reference_id,
-      event_type,
-      stock_id,
-      branch_id,
-      quantity,
-      reason,
-      approved,
-      approved_at
-    ) VALUES (
-      'damaged_stock',
-      NEW.id,
-      'damage_reported',
-      NEW.stock_id,
-      source_branch,
-      COALESCE(NEW.damaged_quantity, 1),
-      NEW.reason,
-      COALESCE(NEW.status_bool, FALSE),
-      CASE WHEN COALESCE(NEW.status_bool, FALSE) THEN NOW() ELSE NULL END
-    )
-    ON CONFLICT (reference_table, reference_id, event_type) DO NOTHING;
-
-    RETURN NEW;
-  END IF;
-
-  IF TG_OP = 'UPDATE' AND NEW.status_bool IS DISTINCT FROM OLD.status_bool THEN
-    INSERT INTO vision_expert.damage_history (
-      reference_table,
-      reference_id,
-      event_type,
-      stock_id,
-      branch_id,
-      quantity,
-      reason,
-      approved,
-      approved_at
-    ) VALUES (
-      'damaged_stock',
-      NEW.id,
-      CASE WHEN NEW.status_bool THEN 'damage_approved' ELSE 'damage_reported' END,
-      NEW.stock_id,
-      source_branch,
-      COALESCE(NEW.damaged_quantity, 1),
-      NEW.reason,
-      COALESCE(NEW.status_bool, FALSE),
-      CASE WHEN NEW.status_bool THEN NOW() ELSE NULL END
-    )
-    ON CONFLICT (reference_table, reference_id, event_type) DO NOTHING;
-  END IF;
-
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_damage_history
-AFTER INSERT OR UPDATE OF status_bool
-ON vision_expert.damaged_stock
-FOR EACH ROW
-EXECUTE FUNCTION vision_expert.log_damage_history();
+CREATE TABLE vision_expert.order_payment (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  order_id bigint NOT NULL,
+  amount double precision NOT NULL,
+  payment_method character varying NOT NULL,
+  payment_type character varying NOT NULL,
+  notes text,
+  received_by bigint NOT NULL,
+  cash_transfer_id bigint,
+  CONSTRAINT order_payment_pkey PRIMARY KEY (id),
+  CONSTRAINT order_payment_order_id_fkey FOREIGN KEY (order_id) REFERENCES vision_expert.order(id),
+  CONSTRAINT order_payment_received_by_fkey FOREIGN KEY (received_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT order_payment_cash_transfer_id_fkey FOREIGN KEY (cash_transfer_id) REFERENCES vision_expert.cash_transfers_to_admin(id)
+);
+CREATE TABLE vision_expert.petty_cash_request (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  requested_by bigint NOT NULL,
+  branch_id integer NOT NULL,
+  amount double precision NOT NULL,
+  reason text,
+  request_status character varying NOT NULL DEFAULT 'Pending'::character varying,
+  reviewed_at timestamp with time zone,
+  reviewed_by bigint,
+  rejection_reason text,
+  CONSTRAINT petty_cash_request_pkey PRIMARY KEY (id),
+  CONSTRAINT petty_cash_request_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT petty_cash_request_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id),
+  CONSTRAINT petty_cash_request_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES vision_expert.staff(id)
+);
+CREATE TABLE vision_expert.petty_cash_allocation (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  allocated_by bigint NOT NULL,
+  branch_id integer NOT NULL,
+  amount double precision NOT NULL,
+  notes text,
+  month integer NOT NULL,
+  year integer NOT NULL,
+  CONSTRAINT petty_cash_allocation_pkey PRIMARY KEY (id),
+  CONSTRAINT petty_cash_allocation_allocated_by_fkey FOREIGN KEY (allocated_by) REFERENCES vision_expert.staff(id),
+  CONSTRAINT petty_cash_allocation_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES vision_expert.branch(id)
+);

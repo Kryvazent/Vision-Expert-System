@@ -31,7 +31,6 @@ const handleFinish = (values) => {
       </Select>
       </Form.Item>
 
-      {/*Date Time*/}
       <Row gutter={16}>
         <Col span={12}>
         <Form.Item label="Clinic Date" name="date"  rules={[{required:true , message: "Select Date"}]}>
@@ -108,7 +107,6 @@ const handleFinish = (values) => {
           <TextArea rows={3} placeholder='Enter any additional notes' />
         </Form.Item>
 
-        {/*Footer -Add button*/}
         <Row justify="end" gutter={10}>
           <Col>
           <Button onClick={onClose}>Cancel</Button>

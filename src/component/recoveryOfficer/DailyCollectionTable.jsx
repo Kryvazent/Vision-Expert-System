@@ -35,7 +35,6 @@ const LAB_RECEIVED_STATUS = "Received";
 // relation exposed as clinic.lab_follow_upCollection). This is the one
 // relation name in this query that's a guess rather than a confirmed
 // fact — if it's wrong, the GraphQL error will name the exact field to
-// fix here.
 //
 // Everything below lab_follow_up is a forward/singular relation (FK
 // lives on lab_follow_up or order, pointing outward), which has been
@@ -385,7 +384,6 @@ function DailyCollectionTable({
             {contextHolder}
             <div className='bg-white rounded-3xl shadow-lg w-full max-w-6xl p-10'>
 
-                {/* Header */}
                 <div className='text-center mb-3'>
                     <Title level={2} style={{
                         fontWeight: 800,
@@ -403,7 +401,6 @@ function DailyCollectionTable({
                     margin: '18px 0 28px'
                 }} />
 
-                {/* Filters */}
                 <div className='rounded-xl p-6 mb-6' style={{ background: '#e8eaf6' }}>
                     <div className='flex gap-8 flex-wrap'>
 
@@ -419,7 +416,6 @@ function DailyCollectionTable({
                             />
                         </div>
 
-                        {/* Date */}
                         <div className='flex-1 min-w-48'>
                             <Text strong>Select Date</Text>
                             <DatePicker
@@ -447,7 +443,6 @@ function DailyCollectionTable({
                     </div>
                 )}
 
-                {/* Table Styles */}
                 <style>
                     {`
                     .collection-table .ant-table-thead > tr > th {
@@ -469,7 +464,6 @@ function DailyCollectionTable({
                     `}
                 </style>
 
-                {/* Table */}
                 <Table
                     dataSource={tableData}
                     columns={[...columns, ...extraColumns]}

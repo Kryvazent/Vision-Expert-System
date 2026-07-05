@@ -474,7 +474,6 @@ function PatientManagement() {
 
     // ========================= RENDER =========================
 
-    // Debug: log to verify data is coming
     console.log("patientRawData:", patientRawData);
     console.log("patientData:", patientData);
     console.log("loading:", loading);
@@ -560,7 +559,6 @@ function PatientManagement() {
                 </Card>
             </Modal>
 
-            {/* Edit Modal */}
             <Modal
                 centered
                 open={openModal}

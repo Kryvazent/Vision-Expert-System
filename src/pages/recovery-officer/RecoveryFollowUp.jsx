@@ -557,7 +557,6 @@ function RecoveryFollowUp() {
 
       <div className="bg-white rounded-3xl shadow-lg w-full max-w-7xl p-10">
 
-        {/* Header */}
         <div className="text-center mb-3">
           <Title level={2} style={{ fontWeight: 800, color: "#1a237e", textTransform: "uppercase" }}>
             RECOVERY FOLLOW-UP SHEET
@@ -571,7 +570,6 @@ function RecoveryFollowUp() {
           margin: "18px 0 28px",
         }} />
 
-        {/* Filter bar — same layout as RecoverySheet */}
         <div className="rounded-xl p-6 mb-6" style={{ background: "#e8eaf6" }}>
           <div className="flex gap-8 flex-wrap">
             <div className="flex-1 min-w-48">
@@ -598,7 +596,6 @@ function RecoveryFollowUp() {
           </div>
         </div>
 
-        {/* Table styles — identical to RecoverySheet */}
         <style>{`
           .followup-table .ant-table-thead > tr > th {
             background-color: #092258 !important;
@@ -618,7 +615,6 @@ function RecoveryFollowUp() {
           }
         `}</style>
 
-        {/* Table */}
         <Table
           dataSource={data}
           columns={columns}

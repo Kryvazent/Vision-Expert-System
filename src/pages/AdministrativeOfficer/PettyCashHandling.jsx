@@ -292,7 +292,6 @@ const UPDATE_PETTY_CASH = gql`
         }}
         >
             <Row  align="middle" justify="space-between">
-                {/* Left side */}
                 <Col>
                     <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
                         Petty Cash Handling
@@ -302,7 +301,6 @@ const UPDATE_PETTY_CASH = gql`
                     </Text>
                 </Col>
 
-                {/* Right side button */}
                 <Col>
                     <Button
                          icon={<PlusOutlined />}
@@ -348,7 +346,6 @@ const UPDATE_PETTY_CASH = gql`
             )}
 
             <Card className="rounded-2xl shadow-sm border border-gray-100" style={{marginTop:"20px"}} >  
-            {/* Low of Stock Table */}
           <PettyCashTable
             transactions={filteredPettyCashList}
             loading={loading}

@@ -12,7 +12,6 @@ export default function CustomerInformation({customer}) {
 
   return (
     <Card style = {{borderRadius: "12px", background: "#f9fafb", border:  "1px solid #e5e7eb"}}>
-      {/*Header*/}
 
       <div style={{marginBottom: "15px", display: "flex", alignItems: "center", gap: "8px"}}>
         <UserOutlined style={{color: "#2563eb"}} />

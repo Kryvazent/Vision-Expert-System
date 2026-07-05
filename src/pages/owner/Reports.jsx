@@ -118,7 +118,6 @@ function ReportCard({ icon, title, description, color, btnColor, onClick }) {
         boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
       }}
     >
-      {/* ICON */}
       <div
         style={{
           width: 90,
@@ -967,7 +966,6 @@ export default function Reports() {
         </Row>
       </Card>
 
-      {/* MODAL */}
       <Modal
         open={openModal}
         title={reportType}

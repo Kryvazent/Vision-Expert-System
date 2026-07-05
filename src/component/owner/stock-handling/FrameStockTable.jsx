@@ -350,7 +350,6 @@ export default function FrameStockTable({
         </Row>
       )}
 
-      {/* branch selector */}
       <Select
         value={selectedBranch}
         onChange={onBranchChange}
@@ -361,7 +360,6 @@ export default function FrameStockTable({
 
       {selectedBranch && (
         <>
-          {/* summary cards */}
           <Row gutter={16} style={{ marginBottom: 20 }}>
             {[
               { label: 'In Stock',  val: totalInStock,  bg: '#F0FDF4', fg: '#065F46', border: '#BBF7D0' },
@@ -380,7 +378,6 @@ export default function FrameStockTable({
             ))}
           </Row>
 
-          {/* filters */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
             <Input
               placeholder="Search product name or SKU…"

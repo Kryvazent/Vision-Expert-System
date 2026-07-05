@@ -410,7 +410,6 @@ export default function BatchHistoryModal({ open, onClose, batch, onRefetch }) {
       centered
       styles={{ body: { padding: '24px' }, mask: { backdropFilter: 'blur(4px)' } }}
     >
-      {/* Summary */}
       <div style={{ border: '1px solid #f0f0f0', borderRadius: '12px', marginBottom: '24px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
         <Row>
           <Col span={8} style={{ padding: '16px 24px', borderRight: '1px solid #f0f0f0', background: '#fafafa' }}>

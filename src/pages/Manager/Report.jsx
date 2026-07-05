@@ -365,7 +365,6 @@ function Report() {
       <Content style={{ padding: 24 }}>
         <Title level={2}>Reports</Title>
 
-        {/* Controls */}
         <Card style={{ marginBottom: 24, borderRadius: 12 }}>
           <Row gutter={16} align="middle" wrap>
             <Col xs={24} sm={8} md={6}>

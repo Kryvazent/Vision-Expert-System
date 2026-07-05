@@ -190,7 +190,6 @@ export default function DistributionHistoryTable({ data, onApprove, onReject }) 
 
     return (
         <div>
-            {/* Filters */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Input
                     placeholder="Search product or ID..."

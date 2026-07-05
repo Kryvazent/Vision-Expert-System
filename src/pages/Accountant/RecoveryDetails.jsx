@@ -327,11 +327,9 @@ function RecoveryDetails() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* ================= TITLE ================= */}
 
       <h1 className="text-3xl font-bold">Recovery Details</h1>
 
-      {/* ================= FILTER CARD ================= */}
 
       <Card>
         <div className="flex flex-wrap gap-4 items-center">
@@ -344,7 +342,6 @@ function RecoveryDetails() {
             className="w-52"
           />
 
-          {/* BRANCH SEARCH */}
 
           <Input
             placeholder="Search Branch Name"
@@ -353,7 +350,6 @@ function RecoveryDetails() {
             className="w-52"
           />
 
-          {/* BRANCH DROPDOWN */}
 
           <Select
             value={selectedBranch}
@@ -371,7 +367,6 @@ function RecoveryDetails() {
         </div>
       </Card>
 
-      {/* ================= TABLE CARD ================= */}
 
       <Card>
         <div className="flex justify-between items-center mb-5">

@@ -141,13 +141,6 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         >
             <TextArea rows={3} placeholder='"Enter transaction descriptions...' maxLength={300} showCount />
         </Form.Item>
-        {/* <Form.Item
-            label={<span><span style={{ color: 'red' }}>* </span>Received By</span>}
-            name="received_by"
-            rules={[{ required: true, message: 'Please enter received by' }]}
-        >
-            <Input placeholder="Enter received by" />
-        </Form.Item> */}
         <Form.Item
             label={<span><span style={{ color: 'red' }}>* </span>Amount (LKR)</span>}
             name="amount"

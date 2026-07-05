@@ -310,7 +310,6 @@ function ClinicDetails() {
 
   return (
     <div className="bg-gray-100 p-10">
-      {/* Add Modal */}
       <AddClinic
         open={modelOpen}
         onClose={() => setModelOpen(false)}
@@ -318,7 +317,6 @@ function ClinicDetails() {
         mode="add"
       />
 
-      {/* Edit Modal */}
       <AddClinic
         open={editOpen}
         onClose={() => setEditOpen(false)}
