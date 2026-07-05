@@ -258,7 +258,6 @@ function NewPrescription() {
 
                 <Row gutter={16}>
 
-                    {/* LEFT SIDE - PRESCRIPTION DETAILS */}
                     <Col span={16}>
                         <p className="fs-5 font-semibold mb-2">Right Eye (OD)</p>
 
@@ -334,7 +333,6 @@ function NewPrescription() {
                         <Divider orientation="vertical" style={{ height: "100%" }} />
                     </Col>
 
-                    {/* RIGHT SIDE - PATIENT TYPE */}
                     <Col span={7}>
                         <p className="fs-5 font-semibold mb-2">Patient Type</p>
 

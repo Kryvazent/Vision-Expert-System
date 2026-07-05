@@ -341,7 +341,6 @@ export default function ProjectManagement() {
         + New Project
       </Button>
 
-      {/* CARDS */}
       <div className="flex flex-wrap gap-6">
         <Card className="w-[230px]">
           <div className="flex items-center gap-4">
@@ -380,10 +379,8 @@ export default function ProjectManagement() {
         </Card>
       </div>
 
-      {/* FILTERS */}
       <Card>
         <div className="flex flex-wrap gap-4">
-          {/* branch filter */}
           <Select
             className="w-[220px]"
             value={selectedBranch}
@@ -401,7 +398,6 @@ export default function ProjectManagement() {
             ]}
           />
 
-          {/* status filter */}
           <Select
             className="w-[220px]"
             value={selectedStatus}
@@ -426,7 +422,6 @@ export default function ProjectManagement() {
         </div>
       </Card>
 
-      {/* TABLE */}
       <Card title="Projects">
         <Table
           loading={loading}
@@ -505,7 +500,6 @@ export default function ProjectManagement() {
         />
       </Card>
 
-      {/* MODAL */}
       <Modal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
@@ -536,7 +530,6 @@ export default function ProjectManagement() {
             />
           </div>
 
-          {/* branch */}
           <div>
             <p>Branch</p>
 
@@ -569,7 +562,6 @@ export default function ProjectManagement() {
             />
           </div>
 
-          {/* status */}
           <div>
             <p>Status</p>
 

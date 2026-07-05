@@ -71,7 +71,6 @@ const managerProofColors = {
 const normalize = (v) => (v || "").toString().trim().toLowerCase();
 
 // ── Core query: ONLY cash_transfers_to_admin + cash_transfer_status ──
-// FIX: orderBy must be a LIST in pg_graphql, e.g. [{ created_at: DescNullsLast }]
 // Sending a bare object here is what silently killed every row.
 const LOAD_ALL_TRANSFERS = gql`
     query getAllCashTransfers {
@@ -195,7 +194,6 @@ const SET_ADMIN_DECISION = gql`
 `;
 
 // Admin hands the (already-accepted) cash on to the manager.
-// FIX: same BigInt correction as above.
 const TRANSFER_TO_MANAGER = gql`
     mutation transferToManager($id: BigInt!, $managerProofStatus: String!, $bankDeposit: Boolean!) {
         updatecash_transfers_to_adminCollection(

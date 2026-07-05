@@ -15,7 +15,6 @@ export function AuthProvider({ children }) {
 
   async function loadStaffProfile(authUserId) {
 
-    // console.log("Loading staff profile for authUserId:", authUserId);
 
     if (!authUserId) {
       setStaff(null);
@@ -59,7 +58,6 @@ export function AuthProvider({ children }) {
       const staffData = data?.staffCollection?.edges?.[0]?.node || null;
       setStaff(staffData);
 
-      // console.log("Fetched staff profile:", staffData);
 
       const fetchedRole = staffData?.role?.role_name || null;
       setRole(fetchedRole);
@@ -109,9 +107,6 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => await supabase.auth.signOut();
 
-  // console.log("ROLE:", MENU_BY_ROLE[role]?.[0]?.key);
-  // console.log("ROLE:", MENU_BY_ROLE[role][0]);
-  // console.log("ROLE:", MENU_BY_ROLE[role][0].key);
 
 
   const value = {

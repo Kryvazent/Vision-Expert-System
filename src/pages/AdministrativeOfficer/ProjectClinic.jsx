@@ -21,7 +21,6 @@ export default function ProjectClinic() {
         }}>
             <Row align="middle" justify="space-between">
 
-                {/* LEFT SIDE */}
                 <Col>
                     <Title level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
                         Project Clinics Management

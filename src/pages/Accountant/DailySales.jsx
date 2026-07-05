@@ -108,11 +108,9 @@ const [selectedDate, setSelectedDate] = useState(today);
 
   return (
     <div className="h-[calc(100vh-120px)] overflow-y-auto space-y-10 pr-2">
-      {/* Filter Card */}
       <Card className="rounded-xl">
         {/* Flex Row */}
         <div className="flex flex-wrap gap-6">
-          {/* Date */}
           <div className="flex-1 min-w-[250px] space-y-2">
             <p className="font-medium">Select Date</p>
 
@@ -125,7 +123,6 @@ const [selectedDate, setSelectedDate] = useState(today);
             />
           </div>
 
-          {/* Branch */}
           <div className="flex-1 min-w-[250px] space-y-2">
             <p className="font-medium">Filter by Branch</p>
 

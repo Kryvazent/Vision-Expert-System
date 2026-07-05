@@ -22,7 +22,6 @@ supabase.auth.onAuthStateChange((_event, session) => {
 
 const authLink = setContext((_, { headers }) => {
 
-  // console.log("ACCESS TOKEN USED:", accessToken);
   
   return {
     headers: {

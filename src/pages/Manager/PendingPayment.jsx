@@ -226,7 +226,6 @@ function PendingPayment() {
           </Col>
         </Row>
 
-        {/* Summary */}
         <Row gutter={16} style={{ marginBottom: 20 }}>
           <Col span={8}>
             <Card style={{ borderLeft: '4px solid #ff4d4f', borderRadius: 10 }}>

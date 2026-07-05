@@ -16,13 +16,11 @@ export default function Statcard({title, icon, items}) {
             maxWidth: 500
         }} 
     >
-        {/* Header */}
         <div style={{display: "flex", alignItems: "center", gap: 8}}>
             {icon || <CheckCircleOutlined />}
             <Text strong>{title}</Text>
         </div>
 
-        {/* Stats */}
         <Row justify="space-around" style={{marginTop: 20}}>
             {items.map((item,  index) =>  (
                 <Col span={8} key={index}>

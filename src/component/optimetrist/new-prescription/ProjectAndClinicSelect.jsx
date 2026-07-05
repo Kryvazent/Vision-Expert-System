@@ -113,7 +113,6 @@ function ProjectAndClinicSelect({ setSelectedClinic, selectedClinic, setSelected
                         <Card>
                             <Row className="gap-5">
 
-                                {/* PROJECT SELECT */}
                                 <Col span={8}>
                                     <p className="font-medium">
                                         Select Project {projectCount > 1 && <span className="text-red-500">*</span>}
@@ -135,7 +134,6 @@ function ProjectAndClinicSelect({ setSelectedClinic, selectedClinic, setSelected
                                     />
                                 </Col>
 
-                                {/* CLINIC SELECT */}
                                 <Col span={8}>
                                     <p className="font-medium">
                                         Select Today's Clinic {clinicCount > 1 && <span className="text-red-500">*</span>}
