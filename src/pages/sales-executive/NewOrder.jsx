@@ -194,6 +194,31 @@ function NewOrder() {
       additionalPrice >= 0
     ) {
       try {
+        if (!staff?.branch?.id) {
+          alert("Unable to identify your branch. Please log in again and try placing the order.");
+          return;
+        }
+
+        const latestFramesResult = await getFrames({
+          variables: {
+            frameTypeId: selectedFrameTypeId,
+            branchId: Number(staff?.branch?.id),
+          },
+          fetchPolicy: "network-only",
+        });
+        const latestAvailableFrames =
+          latestFramesResult?.data?.frameCollection?.edges?.map((e) => e.node) || [];
+        const selectedFrameStillAvailable = latestAvailableFrames.some(
+          (frame) => String(frame.id) === String(selectedFrameId),
+        );
+
+        if (!selectedFrameStillAvailable) {
+          setSelectedFrameId(null);
+          setSelectedFramePrice(0);
+          alert("The selected frame is no longer available. Please choose another frame.");
+          return;
+        }
+
         // 1. Create order
         const totalPayment =
           selectedFramePrice + selectedLenseTypePrice + additionalPrice;
@@ -279,6 +304,21 @@ function NewOrder() {
         setClinicAttendCustomerId(null);
       } catch (error) {
         console.error("Error during order submission: ", error);
+        if (String(error?.message || "").toLowerCase().includes("frame")) {
+          setSelectedFrameId(null);
+          setSelectedFramePrice(0);
+          if (selectedFrameTypeId && staff?.branch?.id) {
+            getFrames({
+              variables: {
+                frameTypeId: selectedFrameTypeId,
+                branchId: Number(staff.branch.id),
+              },
+              fetchPolicy: "network-only",
+            });
+          }
+          alert("The selected frame is already sold or unavailable. Please select another frame.");
+          return;
+        }
         alert(
           "An error occurred while submitting the order. Please try again.",
         );
@@ -315,13 +355,22 @@ function NewOrder() {
 
   // frames
   const GET_FRAMES = gql`
-    query getFrames($frameTypeId: ID!) {
-      frameCollection(filter: { frame_type_id: { eq: $frameTypeId } }) {
+    query getFrames($frameTypeId: ID!, $branchId: Int!) {
+      frameCollection(
+        filter: {
+          frame_type_id: { eq: $frameTypeId }
+          branch_id: { eq: $branchId }
+          status: { eq: "in_stock" }
+        }
+        orderBy: [{ serial_no: AscNullsLast }]
+      ) {
         edges {
           node {
             id
             color
             serial_no
+            status
+            branch_id
             product {
               id
               selling_price
@@ -336,14 +385,24 @@ function NewOrder() {
     useLazyQuery(GET_FRAMES);
 
   const frames = useMemo(() => {
-    return framesData?.frameCollection?.edges?.map((e) => e.node) || [];
+    return (
+      framesData?.frameCollection?.edges
+        ?.map((e) => e.node)
+        ?.filter((frame) => frame.status === "in_stock") || []
+    );
   }, [framesData]);
 
   useEffect(() => {
-    if (selectedFrameTypeId) {
-      getFrames({ variables: { frameTypeId: selectedFrameTypeId } });
+    if (selectedFrameTypeId && staff?.branch?.id) {
+      getFrames({
+        variables: {
+          frameTypeId: selectedFrameTypeId,
+          branchId: Number(staff.branch.id),
+        },
+        fetchPolicy: "network-only",
+      });
     }
-  }, [selectedFrameTypeId, getFrames]);
+  }, [selectedFrameTypeId, staff?.branch?.id, getFrames]);
 
   // frame types
   const GET_FRAME_TYPES = gql`
