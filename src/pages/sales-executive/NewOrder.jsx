@@ -202,7 +202,6 @@ function NewOrder() {
         const latestFramesResult = await getFrames({
           variables: {
             frameTypeId: selectedFrameTypeId,
-            branchId: Number(staff?.branch?.id),
           },
           fetchPolicy: "network-only",
         });
@@ -311,7 +310,6 @@ function NewOrder() {
             getFrames({
               variables: {
                 frameTypeId: selectedFrameTypeId,
-                branchId: Number(staff.branch.id),
               },
               fetchPolicy: "network-only",
             });
@@ -355,11 +353,10 @@ function NewOrder() {
 
   // frames
   const GET_FRAMES = gql`
-    query getFrames($frameTypeId: ID!, $branchId: Int!) {
+    query getFrames($frameTypeId: ID!) {
       frameCollection(
         filter: {
           frame_type_id: { eq: $frameTypeId }
-          branch_id: { eq: $branchId }
           status: { eq: "in_stock" }
         }
         orderBy: [{ serial_no: AscNullsLast }]
@@ -393,16 +390,15 @@ function NewOrder() {
   }, [framesData]);
 
   useEffect(() => {
-    if (selectedFrameTypeId && staff?.branch?.id) {
+    if (selectedFrameTypeId) {
       getFrames({
         variables: {
           frameTypeId: selectedFrameTypeId,
-          branchId: Number(staff.branch.id),
         },
         fetchPolicy: "network-only",
       });
     }
-  }, [selectedFrameTypeId, staff?.branch?.id, getFrames]);
+  }, [selectedFrameTypeId, getFrames]);
 
   // frame types
   const GET_FRAME_TYPES = gql`
