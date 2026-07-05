@@ -1,6 +1,6 @@
 import { Button, Card, Col, DatePicker, Row, Space, Table, Tag, message, Statistic, Select, Typography } from "antd";
 import { DollarOutlined, ArrowUpOutlined, ArrowDownOutlined, FilterOutlined } from "@ant-design/icons";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
@@ -12,14 +12,8 @@ const { Option } = Select;
 const { RangePicker } = DatePicker;
 
 const GET_CASH_TRANSFERS = gql`
-    query getCashTransfers($branchId: Int, $dateFrom: Datetime, $dateTo: Datetime) {
-        cash_transfers_to_adminCollection(
-            filter: {
-                branch_id: { eq: $branchId }
-                created_at: { gte: $dateFrom, lte: $dateTo }
-            }
-            orderBy: [{ created_at: DescNullsLast }]
-        ) {
+    query getCashTransfers {
+        cash_transfers_to_adminCollection(orderBy: [{ created_at: DescNullsLast }]) {
             edges {
                 node {
                     id
@@ -34,15 +28,6 @@ const GET_CASH_TRANSFERS = gql`
                         id
                         branch_name
                     }
-                    by_staff {
-                        id
-                        first_name
-                        last_name
-                    }
-                    cash_type {
-                        id
-                        type
-                    }
                     cash_transfer_status {
                         id
                         status
@@ -54,14 +39,8 @@ const GET_CASH_TRANSFERS = gql`
 `;
 
 const GET_PETTY_CASH = gql`
-    query getPettyCash($branchId: Int, $dateFrom: Datetime, $dateTo: Datetime) {
-        petty_cashCollection(
-            filter: {
-                branch_id: { eq: $branchId }
-                created_at: { gte: $dateFrom, lte: $dateTo }
-            }
-            orderBy: [{ created_at: DescNullsLast }]
-        ) {
+    query getPettyCash {
+        petty_cashCollection(orderBy: [{ created_at: DescNullsLast }]) {
             edges {
                 node {
                     id
@@ -83,18 +62,8 @@ const GET_PETTY_CASH = gql`
 `;
 
 const GET_ORDER_PAYMENTS = gql`
-    query getOrderPayments($branchId: Int, $dateFrom: Datetime, $dateTo: Datetime) {
-        order_paymentCollection(
-            filter: {
-                order: {
-                    clinic_attend_customer: {
-                        clinic: { branch_id: { eq: $branchId } }
-                    }
-                }
-                created_at: { gte: $dateFrom, lte: $dateTo }
-            }
-            orderBy: [{ created_at: DescNullsLast }]
-        ) {
+    query getOrderPayments {
+        order_paymentCollection(orderBy: [{ created_at: DescNullsLast }]) {
             edges {
                 node {
                     id
@@ -126,6 +95,33 @@ const GET_ORDER_PAYMENTS = gql`
     }
 `;
 
+const GET_CASH_TYPES = gql`
+    query getCashTypes {
+        cash_typeCollection {
+            edges {
+                node {
+                    id
+                    type
+                }
+            }
+        }
+    }
+`;
+
+const GET_STAFF = gql`
+    query getStaff {
+        staffCollection {
+            edges {
+                node {
+                    id
+                    first_name
+                    last_name
+                }
+            }
+        }
+    }
+`;
+
 const GET_BRANCHES = gql`
     query getBranches {
         branchCollection {
@@ -151,10 +147,16 @@ export default function CashflowView() {
     const [getPettyCash, { data: pettyCashData, refetch: refetchPettyCash }] = useLazyQuery(GET_PETTY_CASH);
     const [getOrderPayments, { data: orderPaymentsData, refetch: refetchOrderPayments }] = useLazyQuery(GET_ORDER_PAYMENTS);
     const [getBranches, { data: branchesData }] = useLazyQuery(GET_BRANCHES);
+    const [getCashTypes, { data: cashTypesData }] = useLazyQuery(GET_CASH_TYPES);
+    const [getStaff, { data: staffData }] = useLazyQuery(GET_STAFF);
 
     useEffect(() => {
         getBranches();
-    }, [getBranches]);
+        getCashTypes();
+        getStaff();
+        handleLoadData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (cashTransfersData) {
@@ -179,18 +181,11 @@ export default function CashflowView() {
 
     const handleLoadData = () => {
         setLoading(true);
-        const variables = {};
-
-        if (selectedBranch) variables.branchId = selectedBranch;
-        if (dateRange.length === 2) {
-            variables.dateFrom = dayjs(dateRange[0]).startOf('day').toISOString();
-            variables.dateTo = dayjs(dateRange[1]).endOf('day').toISOString();
-        }
 
         Promise.all([
-            getCashTransfers({ variables }),
-            getPettyCash({ variables }),
-            getOrderPayments({ variables }),
+            getCashTransfers({ fetchPolicy: "network-only" }),
+            getPettyCash({ fetchPolicy: "network-only" }),
+            getOrderPayments({ fetchPolicy: "network-only" }),
         ]).then(() => {
             setLoading(false);
         }).catch((error) => {
@@ -199,6 +194,48 @@ export default function CashflowView() {
             setLoading(false);
         });
     };
+
+    const branchMatches = (branchId) => !selectedBranch || Number(branchId) === Number(selectedBranch);
+    const dateMatches = (value) => {
+        if (dateRange.length !== 2) return true;
+        const date = dayjs(value);
+        return date.isValid()
+            && !date.isBefore(dayjs(dateRange[0]).startOf("day"))
+            && !date.isAfter(dayjs(dateRange[1]).endOf("day"));
+    };
+
+    const cashTypeMap = useMemo(() => {
+        const edges = cashTypesData?.cash_typeCollection?.edges || [];
+        return new Map(edges.map(({ node }) => [String(node.id), node.type]));
+    }, [cashTypesData]);
+
+    const staffMap = useMemo(() => {
+        const edges = staffData?.staffCollection?.edges || [];
+        return new Map(
+            edges.map(({ node }) => [
+                String(node.id),
+                `${node.first_name || ""} ${node.last_name || ""}`.trim() || `Staff #${node.id}`,
+            ])
+        );
+    }, [staffData]);
+
+    const filteredCashTransfers = useMemo(
+        () => cashTransfers.filter((item) => branchMatches(item.branch_id) && dateMatches(item.created_at)),
+        [cashTransfers, selectedBranch, dateRange]
+    );
+
+    const filteredPettyCash = useMemo(
+        () => pettyCash.filter((item) => branchMatches(item.branch_id) && dateMatches(item.date || item.created_at)),
+        [pettyCash, selectedBranch, dateRange]
+    );
+
+    const filteredOrderPayments = useMemo(
+        () => orderPayments.filter((item) => {
+            const branchId = item.order?.clinic_attend_customer?.clinic?.branch?.id;
+            return branchMatches(branchId) && dateMatches(item.created_at);
+        }),
+        [orderPayments, selectedBranch, dateRange]
+    );
 
     const formatCurrency = (value) =>
         new Intl.NumberFormat("en-LK", {
@@ -222,9 +259,9 @@ export default function CashflowView() {
         },
         {
             title: "Type",
-            dataIndex: "cash_type",
+            dataIndex: "cash_type_id",
             key: "cash_type",
-            render: (v) => v?.type || "-",
+            render: (v) => cashTypeMap.get(String(v)) || (v ? `Type #${v}` : "-"),
         },
         {
             title: "Amount",
@@ -234,9 +271,9 @@ export default function CashflowView() {
         },
         {
             title: "By",
-            dataIndex: "by_staff",
+            dataIndex: "by",
             key: "by_staff",
-            render: (v) => `${v?.first_name || ""} ${v?.last_name || ""}`.trim() || "-",
+            render: (v) => staffMap.get(String(v)) || (v ? `Staff #${v}` : "-"),
         },
         {
             title: "Date",
@@ -339,10 +376,10 @@ export default function CashflowView() {
     ];
 
     const stats = {
-        totalCashTransfers: cashTransfers.reduce((sum, t) => sum + (t.amount || 0), 0),
-        totalPettyCashExpenses: pettyCash.filter(p => p.type === "Expense").reduce((sum, p) => sum + (p.amount || 0), 0),
-        totalPettyCashReplenishment: pettyCash.filter(p => p.type === "Replenishment").reduce((sum, p) => sum + (p.amount || 0), 0),
-        totalOrderPayments: orderPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
+        totalCashTransfers: filteredCashTransfers.reduce((sum, t) => sum + (t.amount || 0), 0),
+        totalPettyCashExpenses: filteredPettyCash.filter(p => p.type === "Expense").reduce((sum, p) => sum + (p.amount || 0), 0),
+        totalPettyCashReplenishment: filteredPettyCash.filter(p => p.type === "Replenishment").reduce((sum, p) => sum + (p.amount || 0), 0),
+        totalOrderPayments: filteredOrderPayments.reduce((sum, p) => sum + (p.amount || 0), 0),
     };
 
     return (
@@ -445,7 +482,7 @@ export default function CashflowView() {
             <Card title="Cash Transfers" style={{ marginTop: 16 }}>
                 <Table
                     columns={cashTransferColumns}
-                    dataSource={cashTransfers}
+                    dataSource={filteredCashTransfers}
                     loading={loading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
@@ -455,7 +492,7 @@ export default function CashflowView() {
             <Card title="Petty Cash Transactions" style={{ marginTop: 16 }}>
                 <Table
                     columns={pettyCashColumns}
-                    dataSource={pettyCash}
+                    dataSource={filteredPettyCash}
                     loading={loading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
@@ -465,7 +502,7 @@ export default function CashflowView() {
             <Card title="Order Payments" style={{ marginTop: 16 }}>
                 <Table
                     columns={orderPaymentColumns}
-                    dataSource={orderPayments}
+                    dataSource={filteredOrderPayments}
                     loading={loading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
