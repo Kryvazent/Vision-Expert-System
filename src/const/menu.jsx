@@ -73,7 +73,6 @@ export const MENU_BY_ROLE = {
     { key: "/inventory-management",  icon: <ShoppingOutlined />,    label: "Inventory Management" },
     { key: "/clinic-details",        icon: <ProjectOutlined />,     label: "Clinic Details" },
     { key: "/order-confirmation",    icon: <ShoppingCartOutlined />,label: "Order Confirmation" },
-    { key: "/batch-creation",        icon: <PlusCircleOutlined />,  label: "Batch Creation" },
     { key: "/batch-tracking",        icon: <ClockCircleOutlined />, label: "Batch Tracking" },
     { key: "/lab-followup",          icon: <ExperimentOutlined />,  label: "Lab Follow-Up" },
     { key: "/reminder-calls",        icon: <PhoneOutlined />,       label: "Reminder Calls" },
