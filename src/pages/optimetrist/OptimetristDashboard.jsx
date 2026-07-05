@@ -1,22 +1,24 @@
-import { Badge, Card, Col, Row, Calendar } from "antd";
-import { useEffect, useState } from "react";
+import { Card, Col, Collapse, DatePicker, Empty, Row, Space, Tag, Typography } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
-import { useAuth } from "../../const/functions";
 import dayjs from "dayjs";
 import {
   CalendarOutlined,
+  ClockCircleOutlined,
   EyeOutlined,
   MedicineBoxOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 
+import { useAuth } from "../../const/functions";
 import PageLayout from "../../component/shared/PageLayout";
 import StatCard from "../../component/shared/StatCard";
-import DateClinicSessionModal from "../../component/optimetrist/dashboard/DateClinicSessionModal";
-import MonthClinicSessionModal from "../../component/optimetrist/dashboard/MonthClinicSessionModal";
+
+const { Text } = Typography;
 
 const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
-  query GetProjectsAndClinicsByDate($date: Date!, $branchId: ID!) {
+  query GetProjectsAndClinicsByDate($date: Date!, $branchId: Int!) {
     projectCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
@@ -26,12 +28,23 @@ const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
           clinicCollection(filter: { date: { eq: $date } }) {
             edges {
               node {
-                id venue from to date
+                id
+                venue
+                from
+                to
+                date
                 responsible_person_01
                 responsible_person_02
                 responsible_person_01_contact_no
                 responsible_person_02_contact_no
                 clinic_status { id status }
+                clinic_attend_customerCollection {
+                  edges {
+                    node {
+                      id
+                    }
+                  }
+                }
               }
             }
           }
@@ -41,136 +54,199 @@ const GET_PROJECTS_AND_CLINICS_BY_DATE = gql`
   }
 `;
 
-const GET_VISIBLE_CLINICS = gql`
-  query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: ID!) {
-    clinicCollection(filter: { date: { gte: $startDate, lte: $endDate }, branch_id: { eq: $branchId } }) {
-      edges {
-        node {
-          id
-          date
-          project { id branch_id }
-        }
-      }
-    }
+function mapProjectsByDate(data) {
+  const projectEdges = data?.projectCollection?.edges ?? [];
+
+  return projectEdges
+    .map(({ node: project }) => ({
+      id: project.id,
+      projectName: project.project_name,
+      description: project.description,
+      clinics: project.clinicCollection?.edges?.map(({ node: clinic }) => ({
+        id: clinic.id,
+        venue: clinic.venue,
+        from: clinic.from,
+        to: clinic.to,
+        responsiblePerson1: clinic.responsible_person_01,
+        responsiblePerson2: clinic.responsible_person_02,
+        responsiblePerson1Contact: clinic.responsible_person_01_contact_no,
+        responsiblePerson2Contact: clinic.responsible_person_02_contact_no,
+        status: clinic.clinic_status?.status,
+        sessionCount: clinic.clinic_attend_customerCollection?.edges?.length ?? 0,
+      })) ?? [],
+    }))
+    .filter((project) => project.clinics.length > 0);
+}
+
+function ScheduleDetails({ projects, loading }) {
+  if (loading) {
+    return <Empty description="Loading schedule..." style={{ padding: "24px 0" }} />;
   }
-`;
+
+  if (!projects.length) {
+    return <Empty description="No clinics or projects scheduled for this date." style={{ padding: "24px 0" }} />;
+  }
+
+  return (
+    <Collapse
+      defaultActiveKey={projects.map((_, index) => String(index))}
+      expandIconPosition="end"
+    >
+      {projects.map((project, index) => (
+        <Collapse.Panel
+          key={String(index)}
+          header={
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingRight: 8 }}>
+              <Text strong>{project.projectName}</Text>
+              <Tag color="green" style={{ marginInlineEnd: 0 }}>
+                <TeamOutlined /> {project.clinics.length} Clinic{project.clinics.length !== 1 ? "s" : ""}
+              </Tag>
+            </div>
+          }
+        >
+          <div
+            style={{
+              marginBottom: 12,
+              padding: "10px 12px",
+              background: "#f5f7fb",
+              borderLeft: "4px solid #1677ff",
+              borderRadius: 6,
+            }}
+          >
+            <Text type="secondary">{project.description || "No project description."}</Text>
+          </div>
+
+          <Space direction="vertical" size={8} style={{ width: "100%" }}>
+            {project.clinics.map((clinic, clinicIndex) => (
+              <div
+                key={clinic.id ?? clinicIndex}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  padding: "10px 14px",
+                  background: "#fff",
+                  borderRadius: 8,
+                  border: "1px solid #f0f0f0",
+                }}
+              >
+                <Space wrap>
+                  <span
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: "50%",
+                      background: "#e6f4ff",
+                      color: "#1677ff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {clinicIndex + 1}
+                  </span>
+                  <Text strong>{clinic.venue || "No Venue"}</Text>
+                  <Tag color="blue">{clinic.sessionCount} Session{clinic.sessionCount !== 1 ? "s" : ""}</Tag>
+                  {clinic.status && <Tag color="purple">{clinic.status}</Tag>}
+                </Space>
+                <Space>
+                  <ClockCircleOutlined style={{ color: "#13a37f" }} />
+                  <Text>{clinic.from || "--:--"} &rarr; {clinic.to || "--:--"}</Text>
+                </Space>
+              </div>
+            ))}
+          </Space>
+        </Collapse.Panel>
+      ))}
+    </Collapse>
+  );
+}
 
 export default function OptimetristDashboard() {
   const { staff } = useAuth();
-  const branchId  = staff?.branch?.id;
+  const branchId = Number(staff?.branch?.id ?? staff?.branch_id);
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const selectedDateKey = selectedDate.format("YYYY-MM-DD");
 
-  const [modelType, setModelType]               = useState("date");
-  const [showModal, setShowModal]               = useState(false);
-  const [startDate, setStartDate]               = useState("");
-  const [calendarClinics, setCalendarClinics]   = useState({});
-  const [currentPanelDate, setCurrentPanelDate] = useState(dayjs());
-
-  const [getClinicsAndSessionsByDate, { data }] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE);
-  const [getVisibleClinics]                     = useLazyQuery(GET_VISIBLE_CLINICS, {
-    onCompleted: (clinicData) => {
-      const grouped = {};
-      clinicData?.clinicCollection?.edges?.forEach(({ node }) => {
-        if (!grouped[node.date]) grouped[node.date] = [];
-        grouped[node.date].push(node);
-      });
-      setCalendarClinics(grouped);
-    },
-  });
+  const [loadSchedule, { data: scheduleData, loading: scheduleLoading }] = useLazyQuery(
+    GET_PROJECTS_AND_CLINICS_BY_DATE,
+    { fetchPolicy: "network-only" }
+  );
 
   useEffect(() => {
     if (!branchId) return;
-    const start = currentPanelDate.startOf("month").startOf("week");
-    const end   = start.add(41, "day");
-    getVisibleClinics({ variables: { startDate: start, endDate: end, branchId } });
-  }, [currentPanelDate, branchId, getVisibleClinics]);
+    loadSchedule({ variables: { branchId, date: selectedDateKey } });
+  }, [branchId, selectedDateKey, loadSchedule]);
 
-  const daySelected = (date) => {
-    setModelType("date");
-    const formattedDate = date.format("YYYY-MM-DD");
-    setStartDate(formattedDate);
-    getClinicsAndSessionsByDate({ variables: { date: formattedDate, branchId } });
-    setShowModal(true);
-  };
-
-  const projectCount = data?.projectCollection?.edges?.length ?? 0;
-  const clinicCount  = data?.projectCollection?.edges?.reduce(
-    (t, p) => t + (p.node.clinicCollection?.edges?.length ?? 0), 0
-  ) ?? 0;
-
-  const dateClinicModalData = {
-    date: startDate,
-    projectCount,
-    clinicCount,
-    description: data?.projectCollection?.edges?.[0]?.node?.description ?? "",
-    projectAndClinicList: data?.projectCollection?.edges?.map((project) => ({
-      projectName: project.node.project_name,
-      clinics: project.node.clinicCollection?.edges?.map(({ node: c }) => ({
-        id: c.id, venue: c.venue, from: c.from, to: c.to,
-        responsiblePerson1: c.responsible_person_01,
-        responsiblePerson2: c.responsible_person_02,
-        responsiblePerson1Contact: c.responsible_person_01_contact_no,
-        responsiblePerson2Contact: c.responsible_person_02_contact_no,
-        status: c.clinic_status?.status,
-      })) ?? [],
-    })) ?? [],
-  };
-
-  const dateCellRender = (date) => {
-    const clinics = calendarClinics[date.format("YYYY-MM-DD")] ?? [];
-    if (!clinics.length) return null;
-    return (
-      <div style={{ marginTop: 2 }}>
-        <Badge
-          count={`${clinics.length} Clinic${clinics.length > 1 ? "s" : ""}`}
-          style={{ backgroundColor: "var(--ve-primary)", fontSize: 10 }}
-        />
-      </div>
-    );
-  };
-
-  const cellRender = (current, info) => {
-    if (info.type === "date") return dateCellRender(current);
-    return info.originNode;
-  };
+  const scheduledProjects = useMemo(() => mapProjectsByDate(scheduleData), [scheduleData]);
+  const selectedClinicCount = scheduledProjects.reduce((sum, project) => sum + project.clinics.length, 0);
+  const selectedSessionCount = scheduledProjects.reduce(
+    (sum, project) => sum + project.clinics.reduce((clinicSum, clinic) => clinicSum + clinic.sessionCount, 0),
+    0
+  );
 
   const statCards = [
-    { title: "Today's Clinics",   value: 0, icon: <CalendarOutlined />,     accent: "#1677ff", subtitle: "Clinics scheduled today" },
-    { title: "Today's Patients",  value: 0, icon: <EyeOutlined />,          accent: "#52c41a", subtitle: "Expected appointments" },
-    { title: "Prescriptions",     value: 0, icon: <MedicineBoxOutlined />,  accent: "#eb2f96", subtitle: "Issued this month" },
+    {
+      title: "Selected Date Clinics",
+      value: selectedClinicCount,
+      icon: <CalendarOutlined />,
+      accent: "#1677ff",
+      subtitle: selectedDateKey,
+    },
+    {
+      title: "Selected Date Patients",
+      value: selectedSessionCount,
+      icon: <EyeOutlined />,
+      accent: "#52c41a",
+      subtitle: "Expected appointments",
+    },
+    {
+      title: "Projects",
+      value: scheduledProjects.length,
+      icon: <MedicineBoxOutlined />,
+      accent: "#eb2f96",
+      subtitle: "Scheduled on selected date",
+    },
   ];
 
   return (
     <PageLayout title="Optometrist Dashboard" subtitle="Clinic schedule and patient appointments">
-      {/* ── Stat cards ── */}
       <Row gutter={[16, 16]}>
-        {statCards.map((c) => (
-          <Col xs={24} sm={8} key={c.title}>
-            <StatCard {...c} />
+        {statCards.map((card) => (
+          <Col xs={24} sm={8} key={card.title}>
+            <StatCard {...card} />
           </Col>
         ))}
       </Row>
 
-      {/* ── Schedule calendar ── */}
       <Row className="mt-5">
         <Col span={24}>
-          <Card title="Clinic Schedule">
-            <Calendar
-              fullscreen
-              cellRender={cellRender}
-              onSelect={daySelected}
-              onPanelChange={(date) => setCurrentPanelDate(date)}
-            />
+          <Card
+            title="Clinic Schedule"
+            extra={
+              <DatePicker
+                allowClear={false}
+                value={selectedDate}
+                format="YYYY-MM-DD"
+                onChange={(date) => setSelectedDate(date || dayjs())}
+                style={{ width: 180 }}
+              />
+            }
+          >
+            <Space size={10} wrap style={{ marginBottom: 18 }}>
+              <Text strong>{selectedDateKey}</Text>
+              <Tag color="blue">{scheduledProjects.length} Project{scheduledProjects.length !== 1 ? "s" : ""}</Tag>
+              <Tag color="green">{selectedClinicCount} Clinic{selectedClinicCount !== 1 ? "s" : ""}</Tag>
+              <Tag color="purple">{selectedSessionCount} Session{selectedSessionCount !== 1 ? "s" : ""}</Tag>
+            </Space>
+
+            <ScheduleDetails projects={scheduledProjects} loading={scheduleLoading} />
           </Card>
         </Col>
       </Row>
-
-      {/* ── Modals ── */}
-      {modelType === "date" && showModal && (
-        <DateClinicSessionModal show={showModal} setShow={setShowModal} dateClinicModalData={dateClinicModalData} />
-      )}
-      {modelType === "month" && showModal && (
-        <MonthClinicSessionModal show={showModal} setShow={setShowModal} />
-      )}
     </PageLayout>
   );
 }
