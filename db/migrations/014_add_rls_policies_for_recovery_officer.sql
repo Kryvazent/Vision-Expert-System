@@ -22,7 +22,12 @@ CREATE POLICY "recovery_officer_select_own_cash_transfers"
 ON vision_expert.cash_transfers_to_admin
 FOR SELECT
 TO "recovery-officer"
-USING (by = current_setting('request.jwt.claim.user_id')::integer);
+USING (
+  by IN (
+    SELECT id FROM vision_expert.staff 
+    WHERE auth_user_id = auth.uid()
+  )
+);
 
 -- =====================================================================
 -- 3. Create policy for recovery-officer to UPDATE their own transfers
@@ -33,7 +38,12 @@ CREATE POLICY "recovery_officer_update_own_cash_transfers"
 ON vision_expert.cash_transfers_to_admin
 FOR UPDATE
 TO "recovery-officer"
-USING (by = current_setting('request.jwt.claim.user_id')::integer);
+USING (
+  by IN (
+    SELECT id FROM vision_expert.staff 
+    WHERE auth_user_id = auth.uid()
+  )
+);
 
 -- =====================================================================
 -- 4. Create policy for recovery-officer to INSERT their own transfers
@@ -44,4 +54,9 @@ CREATE POLICY "recovery_officer_insert_cash_transfers"
 ON vision_expert.cash_transfers_to_admin
 FOR INSERT
 TO "recovery-officer"
-WITH CHECK (by = current_setting('request.jwt.claim.user_id')::integer);
+WITH CHECK (
+  by IN (
+    SELECT id FROM vision_expert.staff 
+    WHERE auth_user_id = auth.uid()
+  )
+);
