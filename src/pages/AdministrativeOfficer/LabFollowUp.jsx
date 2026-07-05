@@ -18,6 +18,7 @@ const {RangePicker} = DatePicker
 
 const SENT_TO_LAB_DELAY_DAYS = 2;
 const LAB_TURNAROUND_DAYS = 7;
+const SENT_TO_LAB_ORDER_STATUS_ID = 15;
 
 const LOAD_LAB_FOLLOW_UP = gql `
     query LoadLabFollowUp($branch_id: Int!){
@@ -64,9 +65,9 @@ const LOAD_CLINICS = gql `
 `;
 
 const LOAD_ORDERS = gql `
-    query LoadOrders{
+    query LoadOrders($sentToLabStatusId: BigInt!){
         orderCollection(
-            filter: {order_status_id: {eq: 2}}
+            filter: {order_status_id: {eq: $sentToLabStatusId}}
             orderBy: 
                 [{ placed_at: DescNullsLast }]
                 ){ 
@@ -204,7 +205,11 @@ export default function LabFollowUp() {
         skip: !branchId
     })
     const {data: clinicsData } = useQuery(LOAD_CLINICS,{ variables: {branch_id: Number(branchId)}, fetchPolicy: 'network-only', skip: !branchId})
-    const {data: ordersData, loading: ordersLoading, error: ordersError } = useQuery(LOAD_ORDERS,{ fetchPolicy: 'network-only', skip: !branchId})
+    const {data: ordersData, loading: ordersLoading, error: ordersError } = useQuery(LOAD_ORDERS,{
+        variables: { sentToLabStatusId: SENT_TO_LAB_ORDER_STATUS_ID },
+        fetchPolicy: 'network-only',
+        skip: !branchId
+    })
     const {data: statusData} = useQuery(LOAD_LAB_STATUSES, {fetchPolicy: "network-only"})
 
     const statusMap = React.useMemo(() => {
@@ -356,7 +361,7 @@ export default function LabFollowUp() {
         existingLabOrders.map((o) => Number(o.orderId))
     );
 
-    // Orders with status = 2 that are not yet in lab_follow_up
+    // Orders already sent to lab that are not yet in lab_follow_up
     const branchOrderEdges = ordersData.orderCollection.edges.filter(
         ({ node }) => Number(node.clinic_attend_customer?.clinic?.branch_id) === Number(branchId)
     );
