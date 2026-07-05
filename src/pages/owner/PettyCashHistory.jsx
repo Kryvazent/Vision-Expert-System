@@ -1,4 +1,4 @@
-import { Button, Card, Col, DatePicker, Row, Space, Table, Tag, Statistic, Select, Typography } from "antd";
+import { Button, Card, Col, Row, Space, Table, Tag, Statistic, Select, Typography, message } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
@@ -25,13 +25,8 @@ const LOAD_ALL_ALLOCATIONS = gql`
                     year
                     branch {
                         id
-                        name
-                        location
-                    }
-                    allocated_by_staff {
-                        id
-                        first_name
-                        last_name
+                        branch_name
+                        address
                     }
                 }
             }
@@ -56,18 +51,8 @@ const LOAD_ALL_REQUESTS = gql`
                     rejection_reason
                     branch {
                         id
-                        name
-                        location
-                    }
-                    requested_by_staff {
-                        id
-                        first_name
-                        last_name
-                    }
-                    reviewed_by_staff {
-                        id
-                        first_name
-                        last_name
+                        branch_name
+                        address
                     }
                 }
             }
@@ -81,8 +66,8 @@ const LOAD_BRANCHES = gql`
             edges {
                 node {
                     id
-                    name
-                    location
+                    branch_name
+                    address
                 }
             }
         }
@@ -97,9 +82,36 @@ export default function PettyCashHistory() {
     const [selectedMonth, setSelectedMonth] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
 
-    const [loadAllocations, { data: allocationsData, refetch: refetchAllocations }] = useLazyQuery(LOAD_ALL_ALLOCATIONS);
-    const [loadRequests, { data: requestsData, refetch: refetchRequests }] = useLazyQuery(LOAD_ALL_REQUESTS);
-    const [loadBranches, { data: branchesData }] = useLazyQuery(LOAD_BRANCHES);
+    const [loadAllocations, { data: allocationsData, loading: allocationsLoading, refetch: refetchAllocations }] = useLazyQuery(
+        LOAD_ALL_ALLOCATIONS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading petty cash allocation history:", error);
+                message.error("Failed to load petty cash allocation history: " + error.message);
+            },
+        }
+    );
+    const [loadRequests, { data: requestsData, loading: requestsLoading, refetch: refetchRequests }] = useLazyQuery(
+        LOAD_ALL_REQUESTS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading petty cash request history:", error);
+                message.error("Failed to load petty cash request history: " + error.message);
+            },
+        }
+    );
+    const [loadBranches, { data: branchesData, loading: branchesLoading }] = useLazyQuery(
+        LOAD_BRANCHES,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading branches:", error);
+                message.error("Failed to load branches: " + error.message);
+            },
+        }
+    );
 
     useEffect(() => {
         loadAllocations();
@@ -136,38 +148,28 @@ export default function PettyCashHistory() {
         }).format(value);
 
     const handleFilter = () => {
-        let allocationVars = {};
-        let requestVars = {};
-
-        if (selectedBranch) {
-            allocationVars.branch_id = selectedBranch;
-            requestVars.branch_id = selectedBranch;
-        }
-
-        // Note: GraphQL filtering by month/year would need to be added to the schema
-        // For now, we'll filter client-side
-        refetchAllocations(allocationVars);
-        refetchRequests(requestVars);
+        refetchAllocations?.();
+        refetchRequests?.();
     };
 
     const handleReset = () => {
         setSelectedBranch(null);
         setSelectedMonth(null);
         setSelectedYear(null);
-        refetchAllocations();
-        refetchRequests();
+        refetchAllocations?.();
+        refetchRequests?.();
     };
 
     // Client-side filtering for month/year
     const filteredAllocations = allocations.filter((a) => {
         if (selectedMonth && a.month !== selectedMonth) return false;
         if (selectedYear && a.year !== selectedYear) return false;
-        if (selectedBranch && a.branch_id !== selectedBranch) return false;
+        if (selectedBranch && Number(a.branch_id) !== Number(selectedBranch)) return false;
         return true;
     });
 
     const filteredRequests = requests.filter((r) => {
-        if (selectedBranch && r.branch_id !== selectedBranch) return false;
+        if (selectedBranch && Number(r.branch_id) !== Number(selectedBranch)) return false;
         return true;
     });
 
@@ -198,13 +200,13 @@ export default function PettyCashHistory() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Location",
             dataIndex: "branch",
             key: "location",
-            render: (v) => v?.location || "-",
+            render: (v) => v?.address || "-",
         },
         {
             title: "Amount",
@@ -221,7 +223,7 @@ export default function PettyCashHistory() {
             title: "Allocated By",
             dataIndex: "allocated_by_staff",
             key: "allocated_by_staff",
-            render: (v) => `${v?.first_name || ""} ${v?.last_name || ""}`.trim() || "-",
+            render: (_, record) => record.allocated_by ? `Staff #${record.allocated_by}` : "-",
         },
         {
             title: "Date",
@@ -248,13 +250,13 @@ export default function PettyCashHistory() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Requested By",
             dataIndex: "requested_by_staff",
             key: "requested_by_staff",
-            render: (v) => `${v?.first_name || ""} ${v?.last_name || ""}`.trim() || "-",
+            render: (_, record) => record.requested_by ? `Staff #${record.requested_by}` : "-",
         },
         {
             title: "Amount",
@@ -287,7 +289,7 @@ export default function PettyCashHistory() {
             title: "Reviewed By",
             dataIndex: "reviewed_by_staff",
             key: "reviewed_by_staff",
-            render: (v) => (v ? `${v.first_name} ${v.last_name}` : "-"),
+            render: (_, record) => record.reviewed_by ? `Staff #${record.reviewed_by}` : "-",
         },
         {
             title: "Rejection Reason",
@@ -364,6 +366,7 @@ export default function PettyCashHistory() {
                                 value={selectedBranch}
                                 onChange={setSelectedBranch}
                                 allowClear
+                                loading={branchesLoading}
                             >
                                 {branches.map((branch) => (
                                     <Option key={branch.id} value={branch.id}>
@@ -420,6 +423,7 @@ export default function PettyCashHistory() {
                 <Table
                     columns={allocationColumns}
                     dataSource={filteredAllocations}
+                    loading={allocationsLoading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                 />
@@ -429,6 +433,7 @@ export default function PettyCashHistory() {
                 <Table
                     columns={requestColumns}
                     dataSource={filteredRequests}
+                    loading={requestsLoading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                 />

@@ -23,7 +23,6 @@ import DistributionHistoryTable from '../../component/owner/stock-handling/Distr
 import BranchStockTable from '../../component/owner/stock-handling/BranchStockTable'
 import DistributionModal from '../../component/owner/stock-handling/DistributionModal'
 import AddStockModal from '../../component/owner/stock-handling/AddStockModal'
-import StockMovementHistoryTable from '../../component/owner/stock-handling/StockMovementHistoryTable'
 import DamageHistoryTable from '../../component/owner/stock-handling/DamageHistoryTable'
 
 const { Title, Text } = Typography
@@ -175,6 +174,10 @@ const LOAD_MAIN_DAMAGED_STOCK = gql `
           damaged_quantity
           reason
           status_bool
+          review_status
+          rejection_reason
+          reviewed_by
+          reviewed_at
           stock{
             id
             branch_id        
@@ -304,41 +307,6 @@ const LOAD_DISTRIBUTIONS = gql`
           branch {
             id
             branch_name
-          }
-        }
-      }
-    }
-  }
-`
-
-const LOAD_STOCK_MOVEMENT_HISTORY = gql`
-  query LoadStockMovementHistory {
-    stock_movement_historyCollection(orderBy: [{ created_at: DescNullsLast }]) {
-      edges {
-        node {
-          id
-          reference_table
-          reference_id
-          movement_type
-          stock_id
-          frame_id
-          source_branch_id
-          target_branch_id
-          quantity
-          status
-          notes
-          created_at
-          stock {
-            id
-            product {
-              id
-              name
-              sku
-            }
-          }
-          frame {
-            id
-            serial_no
           }
         }
       }
@@ -556,6 +524,7 @@ const INSERT_DAMAGED_STOCK = gql`
           damaged_quantity: $quantity
           reason: $reason
           status_bool: false
+          review_status: "Pending"
       }]
     ) {
       records { 
@@ -564,6 +533,7 @@ const INSERT_DAMAGED_STOCK = gql`
         damaged_quantity 
         reason 
         status_bool 
+        review_status
       }
     }
   }
@@ -751,14 +721,31 @@ const LOAD_CATEGORY_BRAND_MAP = gql`
 `;
 
 const UPDATE_DAMAGED_STOCK_STATUS = gql`
-  mutation UpdateDamagedStockStatus($id: BigInt!, $status_bool: Boolean!) {
+  mutation UpdateDamagedStockStatus(
+    $id: BigInt!
+    $status_bool: Boolean!
+    $review_status: String!
+    $reviewed_by: Int
+    $reviewed_at: Datetime
+    $rejection_reason: String
+  ) {
     updatedamaged_stockCollection(
-      set: { status_bool: $status_bool }
+      set: {
+        status_bool: $status_bool
+        review_status: $review_status
+        reviewed_by: $reviewed_by
+        reviewed_at: $reviewed_at
+        rejection_reason: $rejection_reason
+      }
       filter: { id: { eq: $id } }
     ) {
       records {
         id
         status_bool
+        review_status
+        rejection_reason
+        reviewed_by
+        reviewed_at
       }
     }
   }
@@ -895,12 +882,6 @@ export default function MainStockHandling() {
       pollInterval: 5000,
     })
 
-    const { data: movementHistoryData, refetch: refetchMovementHistory } = useQuery(LOAD_STOCK_MOVEMENT_HISTORY, {
-      fetchPolicy: 'network-only',
-      pollInterval: 5000,
-    })
-
-
     const {data: branchesData} = useQuery(LOAD_BRANCHES, {fetchPolicy: 'network-only'})
 
     const allBranches = branchesData?.branchCollection?.edges
@@ -996,7 +977,6 @@ export default function MainStockHandling() {
       refetchOut()
       refetchDamaged()
       refetchDamagedFrames()
-      refetchMovementHistory()
       refetchDamageHistory()
     }
 
@@ -1049,6 +1029,10 @@ export default function MainStockHandling() {
       reason: item.node.reason,
       created_at: item.node.created_at,
       status_bool: item.node.status_bool,
+      review_status: item.node.review_status || (item.node.status_bool ? 'Approved' : 'Pending'),
+      rejection_reason: item.node.rejection_reason,
+      reviewed_by: item.node.reviewed_by,
+      reviewed_at: item.node.reviewed_at,
   })) || []
 
   const damagedFramesList = damagedFramesData?.frameCollection?.edges?.map((item, index) => ({
@@ -1114,31 +1098,13 @@ export default function MainStockHandling() {
     productSku: item.node.stock?.product?.sku || '',
   })) || []
 
-  const movementHistoryList = movementHistoryData?.stock_movement_historyCollection?.edges?.map((item, index) => ({
-    id: item.node.id,
-    reference_table: item.node.reference_table,
-    reference_id: item.node.reference_id,
-    movement_type: item.node.movement_type,
-    stock_id: item.node.stock_id,
-    frame_id: item.node.frame_id,
-    source_branch_id: item.node.source_branch_id,
-    target_branch_id: item.node.target_branch_id,
-    quantity: Number(item.node.quantity ?? 0),
-    status: item.node.status,
-    notes: item.node.notes,
-    created_at: item.node.created_at,
-    productName: item.node.stock?.product?.name || '—',
-    productSku: item.node.stock?.product?.sku || '',
-    frameSerialNo: item.node.frame?.serial_no || '',
-  })) || []
-
   //STATCARDS
   const totalProducts = productTypeList.length
   const totalAvailable = stockList.reduce((sum, item) => sum+item.stockQuantity, 0)
   const lowStockItems = lowStockList.length
   const outOfStockItems = outOfStockList.length
   const pendingDist = distributionList.filter(d => d.status === 'Pending Approval').length
-  const pendingDamaged = damagedStockList.filter(i => i.status_bool === false).length
+  const pendingDamaged = damagedStockList.filter(i => (i.review_status || 'Pending') === 'Pending').length
 
   const handleApproveDamage = async (record) => {
     try {
@@ -1162,6 +1128,10 @@ export default function MainStockHandling() {
         variables: {
           id: Number(record.id),
           status_bool: true,
+          review_status: 'Approved',
+          reviewed_by: staff?.id ? Number(staff.id) : null,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: null,
         },
       })
 
@@ -1170,6 +1140,27 @@ export default function MainStockHandling() {
     } catch (err) {
       console.error('Approve damage failed:', err)
       message.error('Unable to approve damaged stock.')
+    }
+  }
+
+  const handleRejectDamage = async (record) => {
+    try {
+      await updateDamagedStockStatus({
+        variables: {
+          id: Number(record.id),
+          status_bool: false,
+          review_status: 'Rejected',
+          reviewed_by: staff?.id ? Number(staff.id) : null,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: 'Rejected by owner',
+        },
+      })
+
+      refetchAll()
+      message.success('Damage request rejected.')
+    } catch (err) {
+      console.error('Reject damage failed:', err)
+      message.error('Unable to reject damaged stock.')
     }
   }
 
@@ -1387,7 +1378,7 @@ export default function MainStockHandling() {
             updateStock={updateStock}
             insertDamageStock={insertDamageStock}
             onDistribute={handleDistribute}
-            deductImmediately={true}
+            deductImmediately={false}
             onRefetch={refetchAll}
             productTypeList={productTypeList}
           />
@@ -1408,21 +1399,6 @@ export default function MainStockHandling() {
         children: (
           <DistributionHistoryTable
             data={distributionList}
-          />
-        ),
-      },
-      {
-        key: 'movementhistory',
-        label: (
-          <TabLabel
-            icon={<ClockCircleOutlined />}
-            text="Movement History"
-          />
-        ),
-        children: (
-          <StockMovementHistoryTable
-            data={movementHistoryList}
-            branches={allBranchesForStock}
           />
         ),
       },
@@ -1496,6 +1472,7 @@ export default function MainStockHandling() {
             data={damagedStockList}
             damagedFrames={damagedFramesList}
             onApproveDamage={handleApproveDamage}
+            onRejectDamage={handleRejectDamage}
             ownerBranchId={headOfficeBranchId}
          />
         ),

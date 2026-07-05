@@ -1,11 +1,11 @@
 import { Button, Card, Col, DatePicker, Input, Modal, Row, Space, Table, Tag, message, Select, Statistic, Typography } from "antd";
-import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, HistoryOutlined } from "@ant-design/icons";
-import { useEffect, useMemo, useState } from "react";
+import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
 import { useLazyQuery, useMutation } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
-import { headerStyles, buttonStyles, cardStyles, modalStyles, formStyles, statusColors } from "../../const/designSystem";
+import { headerStyles, buttonStyles, cardStyles, modalStyles, formStyles } from "../../const/designSystem";
 
 const { Title, Text } = Typography;
 
@@ -18,8 +18,8 @@ const LOAD_BRANCHES = gql`
             edges {
                 node {
                     id
-                    name
-                    location
+                    branch_name
+                    address
                 }
             }
         }
@@ -41,13 +41,8 @@ const LOAD_ALLOCATIONS = gql`
                     year
                     branch {
                         id
-                        name
-                        location
-                    }
-                    allocated_by_staff {
-                        id
-                        first_name
-                        last_name
+                        branch_name
+                        address
                     }
                 }
             }
@@ -72,13 +67,8 @@ const LOAD_REQUESTS = gql`
                     request_status
                     branch {
                         id
-                        name
-                        location
-                    }
-                    requested_by_staff {
-                        id
-                        first_name
-                        last_name
+                        branch_name
+                        address
                     }
                 }
             }
@@ -184,7 +174,6 @@ export default function PettyCashAllocation() {
     const [branches, setBranches] = useState([]);
     const [allocations, setAllocations] = useState([]);
     const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [allocationModalVisible, setAllocationModalVisible] = useState(false);
     const [rejectionModalVisible, setRejectionModalVisible] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState(null);
@@ -194,9 +183,36 @@ export default function PettyCashAllocation() {
     const [notes, setNotes] = useState("");
     const [selectedMonth, setSelectedMonth] = useState(dayjs());
 
-    const [loadBranches, { data: branchesData }] = useLazyQuery(LOAD_BRANCHES);
-    const [loadAllocations, { data: allocationsData, refetch: refetchAllocations }] = useLazyQuery(LOAD_ALLOCATIONS);
-    const [loadRequests, { data: requestsData, refetch: refetchRequests }] = useLazyQuery(LOAD_REQUESTS);
+    const [loadBranches, { data: branchesData, loading: branchesLoading }] = useLazyQuery(
+        LOAD_BRANCHES,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading branches:", error);
+                message.error("Failed to load branches: " + error.message);
+            },
+        }
+    );
+    const [loadAllocations, { data: allocationsData, loading: allocationsLoading, refetch: refetchAllocations }] = useLazyQuery(
+        LOAD_ALLOCATIONS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading petty cash allocations:", error);
+                message.error("Failed to load petty cash allocations: " + error.message);
+            },
+        }
+    );
+    const [loadRequests, { data: requestsData, loading: requestsLoading, refetch: refetchRequests }] = useLazyQuery(
+        LOAD_REQUESTS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading petty cash requests:", error);
+                message.error("Failed to load petty cash requests: " + error.message);
+            },
+        }
+    );
 
     const [createAllocation] = useMutation(CREATE_ALLOCATION);
     const [approveRequest] = useMutation(APPROVE_REQUEST);
@@ -242,24 +258,48 @@ export default function PettyCashAllocation() {
             return;
         }
 
+        if (!selectedMonth) {
+            message.error("Please select a month");
+            return;
+        }
+
+        const parsedAmount = parseFloat(amount);
+        const selectedBranchRecord = branches.find((branch) => Number(branch.id) === Number(selectedBranch));
+        const allocationMonth = selectedMonth?.month() + 1;
+        const allocationYear = selectedMonth?.year();
+
         try {
             await createAllocation({
                 variables: {
                     allocatedBy: staff.id,
                     branchId: selectedBranch,
-                    amount: parseFloat(amount),
+                    amount: parsedAmount,
                     notes: notes,
-                    month: selectedMonth.month() + 1,
-                    year: selectedMonth.year(),
+                    month: allocationMonth,
+                    year: allocationYear,
                 },
             });
+            setAllocations((prev) => [
+                {
+                    id: `new-${Date.now()}`,
+                    created_at: dayjs().toISOString(),
+                    allocated_by: staff.id,
+                    branch_id: selectedBranch,
+                    amount: parsedAmount,
+                    notes,
+                    month: allocationMonth,
+                    year: allocationYear,
+                    branch: selectedBranchRecord,
+                },
+                ...prev,
+            ]);
             message.success("Petty cash allocated successfully");
             setAllocationModalVisible(false);
             setSelectedBranch(null);
             setAmount("");
             setNotes("");
             setSelectedMonth(dayjs());
-            refetchAllocations();
+            await refetchAllocations?.();
         } catch (error) {
             console.error("Error creating allocation:", error);
             message.error("Failed to allocate petty cash: " + error.message);
@@ -274,16 +314,31 @@ export default function PettyCashAllocation() {
                     allocatedBy: staff.id,
                     branchId: request.branch_id,
                     amount: request.amount,
-                    notes: `Approved request from ${request.requested_by_staff?.first_name} ${request.requested_by_staff?.last_name}`,
+                    notes: `Approved petty cash request #${request.id} from staff #${request.requested_by}`,
                     month: dayjs().month() + 1,
                     year: dayjs().year(),
                     reviewedBy: staff.id,
                     reviewedAt: dayjs().toISOString(),
                 },
             });
+            setRequests((prev) => prev.filter((item) => Number(item.id) !== Number(request.id)));
+            setAllocations((prev) => [
+                {
+                    id: `approved-${request.id}`,
+                    created_at: dayjs().toISOString(),
+                    allocated_by: staff.id,
+                    branch_id: request.branch_id,
+                    amount: request.amount,
+                    notes: `Approved petty cash request #${request.id} from staff #${request.requested_by}`,
+                    month: dayjs().month() + 1,
+                    year: dayjs().year(),
+                    branch: request.branch,
+                },
+                ...prev,
+            ]);
             message.success("Request approved and petty cash allocated");
-            refetchRequests();
-            refetchAllocations();
+            await refetchRequests?.();
+            await refetchAllocations?.();
         } catch (error) {
             console.error("Error approving request:", error);
             message.error("Failed to approve request: " + error.message);
@@ -311,11 +366,12 @@ export default function PettyCashAllocation() {
                     rejectionReason: rejectionReason,
                 },
             });
+            setRequests((prev) => prev.filter((item) => Number(item.id) !== Number(selectedRequest.id)));
             message.success("Request rejected");
             setRejectionModalVisible(false);
             setSelectedRequest(null);
             setRejectionReason("");
-            refetchRequests();
+            await refetchRequests?.();
         } catch (error) {
             console.error("Error rejecting request:", error);
             message.error("Failed to reject request: " + error.message);
@@ -336,13 +392,13 @@ export default function PettyCashAllocation() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Location",
             dataIndex: "branch",
             key: "location",
-            render: (v) => v?.location || "-",
+            render: (v) => v?.address || "-",
         },
         {
             title: "Amount",
@@ -359,7 +415,7 @@ export default function PettyCashAllocation() {
             title: "Allocated By",
             dataIndex: "allocated_by_staff",
             key: "allocated_by_staff",
-            render: (v) => `${v?.first_name || ""} ${v?.last_name || ""}`.trim() || "-",
+            render: (_, record) => record.allocated_by ? `Staff #${record.allocated_by}` : "-",
         },
         {
             title: "Date",
@@ -386,13 +442,13 @@ export default function PettyCashAllocation() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Requested By",
             dataIndex: "requested_by_staff",
             key: "requested_by_staff",
-            render: (v) => `${v?.first_name || ""} ${v?.last_name || ""}`.trim() || "-",
+            render: (_, record) => record.requested_by ? `Staff #${record.requested_by}` : "-",
         },
         {
             title: "Amount",
@@ -493,7 +549,7 @@ export default function PettyCashAllocation() {
                 <Table
                     columns={requestColumns}
                     dataSource={requests}
-                    loading={loading}
+                    loading={requestsLoading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                 />
@@ -503,7 +559,7 @@ export default function PettyCashAllocation() {
                 <Table
                     columns={allocationColumns}
                     dataSource={allocations}
-                    loading={loading}
+                    loading={allocationsLoading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                 />
@@ -525,6 +581,7 @@ export default function PettyCashAllocation() {
                         placeholder="Select branch"
                         value={selectedBranch}
                         onChange={setSelectedBranch}
+                        loading={branchesLoading}
                     >
                         {branches.map((branch) => (
                             <Option key={branch.id} value={branch.id}>
@@ -589,7 +646,7 @@ export default function PettyCashAllocation() {
                             <Row gutter={16}>
                                 <Col span={12}>
                                     <p><strong>Branch:</strong> {selectedRequest.branch?.branch_name}</p>
-                                    <p><strong>Requested By:</strong> {selectedRequest.requested_by_staff?.first_name} {selectedRequest.requested_by_staff?.last_name}</p>
+                                    <p><strong>Requested By:</strong> Staff #{selectedRequest.requested_by}</p>
                                 </Col>
                                 <Col span={12}>
                                     <p><strong>Amount:</strong> {formatCurrency(selectedRequest.amount)}</p>

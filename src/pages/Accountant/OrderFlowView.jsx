@@ -54,7 +54,7 @@ const GET_ORDERS = gql`
                         left_cyl
                         left_axis
                     }
-                    lens_type {
+                    lense_type {
                         id
                         type
                     }

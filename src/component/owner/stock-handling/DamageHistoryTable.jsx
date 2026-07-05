@@ -7,6 +7,7 @@ const { Text } = Typography
 const EVENT_CONFIG = {
   damage_reported: { label: 'Reported', color: 'processing' },
   damage_approved: { label: 'Approved', color: 'success' },
+  damage_rejected: { label: 'Rejected', color: 'error' },
 }
 
 const EventPill = ({ value }) => {
@@ -122,9 +123,9 @@ export default function DamageHistoryTable({ data = [], branches = [], branchId 
         </Col>
         <Col xs={24} md={8}>
           <Card size="small" bordered={false} style={{ borderRadius: 10, background: '#FFFBEB' }}>
-            <div style={{ fontSize: 12, color: '#6B7280' }}>Pending</div>
+            <div style={{ fontSize: 12, color: '#6B7280' }}>Rejected</div>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#92400E' }}>
-              {data.filter((item) => !item.approved).length}
+              {data.filter((item) => item.event_type === 'damage_rejected').length}
             </div>
           </Card>
         </Col>
@@ -147,6 +148,7 @@ export default function DamageHistoryTable({ data = [], branches = [], branchId 
             { label: 'All Events', value: 'All' },
             { label: 'Reported', value: 'damage_reported' },
             { label: 'Approved', value: 'damage_approved' },
+            { label: 'Rejected', value: 'damage_rejected' },
           ]}
         />
       </div>

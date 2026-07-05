@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React from 'react';
 import {
     Table, 
     Tag, 
@@ -10,38 +10,19 @@ import {
     Popconfirm,
     Space
 } from 'antd';
-import { icons } from '../../../assets/icons/AdminIcons';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
-
 
 const {RangePicker} = DatePicker
 
-export default function PettyCashTable({transactions = [] , onEdit, onDelete}) {
-
-    const [category, setCategory] = useState("All");
-    const [dateRange, setDateRange] = useState(null);
-
-    //prevents unnecessary recalculations.
-    const filteredData = useMemo(() => {
-        return transactions.filter(item =>{
-            if(category !== "All" && item.category !== category) return false;
-
-            if(dateRange && dateRange[0] && dateRange[1]){
-                const itemDate = new Date(item.date);
-                const start = dateRange[0].toDate();
-                const end = dateRange[1].toDate();
-
-                if (itemDate < start || itemDate > end) return false;  
-            }
-
-            return true;
-        });
-    }, [transactions, category, dateRange]);
-
-    const totalFiltered = filteredData.reduce(
-        (sum, item) => sum + Number(item.amount || 0),
-        0
-    );
+export default function PettyCashTable({
+    transactions = [],
+    loading = false,
+    category = "All",
+    dateRange = null,
+    categoryOptions = [{ value: "All", label: "All Categories" }],
+    filteredTotal = 0,
+    onCategoryChange,
+    onDateRangeChange,
+}) {
 
     const column = [
         { title: "Date",dataIndex: "date"},
@@ -78,36 +59,36 @@ export default function PettyCashTable({transactions = [] , onEdit, onDelete}) {
         <Row gutter={16} style={{ marginBottom: 20 }}>
             <Col xs={24} md={12}>
                 <p style={{ marginBottom: 8, fontWeight: 500 }}>Filter by Date Range</p>
-                <RangePicker style={{ width: "100%" }} onChange={setDateRange} />
+                <RangePicker
+                    style={{ width: "100%" }}
+                    value={dateRange}
+                    onChange={onDateRangeChange}
+                    format="YYYY-MM-DD"
+                    allowClear
+                />
             </Col>
             <Col xs={24} md={12} >
                 <p style={{ marginBottom: 8, fontWeight: 500 }}>Filter by Category</p>
                 <Select 
                     value={category}
-                    onChange={setCategory}
+                    onChange={onCategoryChange}
                     style={{ width: "100%" }}
-                    options={[
-                        {value: "All", label: "All Categories"},
-                        { value: "Office Supplies", label: "Office Supplies" },
-                        { value: "Transportation", label: "Transportation" },
-                        { value: "Utilities", label: "Utilities" },
-                        { value: "Maintenance", label: "Maintenance" },
-                        { value: "Refreshments", label: "Refreshments" },
-                        { value: 'Courier', label: 'Courier' },
-                        { value: 'Printing', label: 'Printing' },
-                        { value: 'Cash Top-Up', label: 'Cash Top-Up' },
-                        { value: 'Bank Withdrawal', label: 'Bank Withdrawal' },
-                        { value: 'Manager Deposit', label: 'Manager Deposit' },
-                        { value: "Other", label: "Other" },
-                    ]}
+                    options={categoryOptions}
                 />
             </Col>
         </Row>
 
-        <Table columns={column} dataSource={filteredData} rowKey = "id" pagination={{ pageSize: 8 }} scroll={{ x: 900 }} />
+        <Table
+            columns={column}
+            dataSource={transactions}
+            loading={loading}
+            rowKey = "id"
+            pagination={{ pageSize: 8 }}
+            scroll={{ x: 900 }}
+        />
         <div 
             style={{marginTop: 16, textAlign: 'right', fontWeight: 600, fontSize: 16,}}
-        >Total (filtered) : LKR {totalFiltered.toLocaleString()}
+        >Total (filtered) : LKR {Number(filteredTotal || 0).toLocaleString()}
         </div>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Button, Card, Col, DatePicker, Input, Modal, Row, Space, Table, Tag, message, Statistic } from "antd";
+import { Button, Card, Col, Input, Modal, Row, Table, Tag, message, Statistic } from "antd";
 import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
@@ -9,9 +9,14 @@ import { useAuth } from "../../const/functions";
 const { TextArea } = Input;
 
 const LOAD_MY_REQUESTS = gql`
-    query getMyRequests($requestedBy: BigInt!) {
+    query getMyRequests($requestedBy: BigInt!, $branchId: Int!) {
         petty_cash_requestCollection(
-            filter: { requested_by: { eq: $requestedBy } }
+            filter: {
+                or: [
+                    { requested_by: { eq: $requestedBy } }
+                    { branch_id: { eq: $branchId } }
+                ]
+            }
             orderBy: [{ created_at: DescNullsLast }]
         ) {
             edges {
@@ -28,18 +33,8 @@ const LOAD_MY_REQUESTS = gql`
                     rejection_reason
                     branch {
                         id
-                        name
-                        location
-                    }
-                    requested_by_staff {
-                        id
-                        first_name
-                        last_name
-                    }
-                    reviewed_by_staff {
-                        id
-                        first_name
-                        last_name
+                        branch_name
+                        address
                     }
                 }
             }
@@ -65,6 +60,20 @@ const CREATE_REQUEST = gql`
         ) {
             records {
                 id
+                created_at
+                requested_by
+                branch_id
+                amount
+                reason
+                request_status
+                reviewed_at
+                reviewed_by
+                rejection_reason
+                branch {
+                    id
+                    branch_name
+                    address
+                }
             }
         }
     }
@@ -72,20 +81,30 @@ const CREATE_REQUEST = gql`
 
 export default function PettyCashRequest() {
     const { staff } = useAuth();
+    const branchId = Number(staff?.branch?.id ?? staff?.branch_id);
+    const staffId = Number(staff?.id);
     const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [requestModalVisible, setRequestModalVisible] = useState(false);
     const [amount, setAmount] = useState("");
     const [reason, setReason] = useState("");
 
-    const [loadRequests, { data: requestsData, refetch }] = useLazyQuery(LOAD_MY_REQUESTS);
+    const [loadRequests, { data: requestsData, loading: requestsLoading, refetch }] = useLazyQuery(
+        LOAD_MY_REQUESTS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading petty cash requests:", error);
+                message.error("Failed to load petty cash requests: " + error.message);
+            },
+        }
+    );
     const [createRequest] = useMutation(CREATE_REQUEST);
 
     useEffect(() => {
-        if (staff?.id) {
-            loadRequests({ variables: { requestedBy: staff.id } });
+        if (staffId && branchId) {
+            loadRequests({ variables: { requestedBy: staffId, branchId } });
         }
-    }, [loadRequests, staff]);
+    }, [loadRequests, staffId, branchId]);
 
     useEffect(() => {
         if (requestsData) {
@@ -112,20 +131,37 @@ export default function PettyCashRequest() {
             return;
         }
 
+        if (!branchId) {
+            message.error("No branch assigned to this staff account");
+            return;
+        }
+
         try {
             await createRequest({
                 variables: {
-                    requestedBy: staff.id,
-                    branchId: staff.branch.id,
+                    requestedBy: staffId,
+                    branchId,
                     amount: parseFloat(amount),
                     reason: reason,
                 },
+            }).then((result) => {
+                const created = result.data?.insertIntopetty_cash_requestCollection?.records?.[0];
+                if (created) {
+                    setRequests((prev) => [
+                        created,
+                        ...prev.filter((request) => Number(request.id) !== Number(created.id)),
+                    ]);
+                }
             });
             message.success("Petty cash request submitted successfully");
             setRequestModalVisible(false);
             setAmount("");
             setReason("");
-            refetch();
+            if (refetch) {
+                await refetch({ requestedBy: staffId, branchId });
+            } else {
+                await loadRequests({ variables: { requestedBy: staffId, branchId } });
+            }
         } catch (error) {
             console.error("Error creating request:", error);
             message.error("Failed to submit request: " + error.message);
@@ -154,7 +190,7 @@ export default function PettyCashRequest() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Amount",
@@ -188,7 +224,7 @@ export default function PettyCashRequest() {
             title: "Reviewed By",
             dataIndex: "reviewed_by_staff",
             key: "reviewed_by_staff",
-            render: (v) => (v ? `${v.first_name} ${v.last_name}` : "-"),
+            render: (_, record) => (record.reviewed_by ? `Staff #${record.reviewed_by}` : "-"),
         },
         {
             title: "Rejection Reason",
@@ -250,7 +286,7 @@ export default function PettyCashRequest() {
                 <Table
                     columns={columns}
                     dataSource={requests}
-                    loading={loading}
+                    loading={requestsLoading}
                     pagination={{ pageSize: 10 }}
                     rowKey="id"
                 />
@@ -267,7 +303,7 @@ export default function PettyCashRequest() {
             >
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Branch</label>
-                    <Input value={staff?.branch?.name} disabled />
+                    <Input value={staff?.branch?.branch_name || staff?.branch?.name || ""} disabled />
                 </div>
 
                 <div style={{ marginBottom: 16 }}>
