@@ -165,7 +165,6 @@ export default function AddBatchModal({ open, onClose, onAddBatch, branchList = 
             style={{ width: '100%' }}
             format="YYYY-MM-DD"
             onChange={handleLoadOrders}
-            disabledDate={(d) => d && d < dayjs().startOf("day")}
           />
         </Form.Item>
 

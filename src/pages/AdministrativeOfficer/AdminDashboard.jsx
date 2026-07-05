@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Layout, Col, Row, Typography, Calendar, Alert, Tag, Card } from "antd";
+import React, { useState, useEffect, useMemo } from "react";
+import { Button, Col, Row, Select, Alert, Tag, Card } from "antd";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
@@ -10,7 +10,11 @@ import StatCard from "../../component/shared/StatCard";
 import DateClinicSessionModal from "../../component/optimetrist/dashboard/DateClinicSessionModal";
 import MonthClinicSessionModal from "../../component/optimetrist/dashboard/MonthClinicSessionModal";
 
-const { Content } = Layout;
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => ({
+  value: index,
+  label: dayjs().month(index).format("MMM"),
+}));
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const LOAD_LOW_STOCK = gql`
   query getLowStock($branchId: Int!) {
@@ -31,28 +35,20 @@ const LOAD_LOW_STOCK = gql`
 
 const GET_VISIBLE_CLINICS = gql`
   query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: Int!) {
-    projectCollection(filter: { branch_id: { eq: $branchId } }) {
+    clinicCollection(filter: { date: { gte: $startDate, lte: $endDate }, branch_id: { eq: $branchId } }) {
       edges {
         node {
           id
-          project_name
-          branch_id
-          clinicCollection(filter: { date: { gte: $startDate, lte: $endDate } }) {
-            edges {
-              node {
-                id
-                date
-                venue
-                from
-                to
-                responsible_person_01
-                responsible_person_02
-                responsible_person_01_contact_no
-                responsible_person_02_contact_no
-                clinic_status { id status }
-              }
-            }
-          }
+          date
+          venue
+          from
+          to
+          project { id project_name branch_id }
+          responsible_person_01
+          responsible_person_02
+          responsible_person_01_contact_no
+          responsible_person_02_contact_no
+          clinic_status { id status }
         }
       }
     }
@@ -138,18 +134,9 @@ export default function AdminDashboard() {
   const [getVisibleClinics]                    = useLazyQuery(GET_VISIBLE_CLINICS, {
     onCompleted: (data) => {
       const grouped = {};
-      data?.projectCollection?.edges?.forEach(({ node: project }) => {
-        project.clinicCollection?.edges?.forEach(({ node: clinic }) => {
-          if (!grouped[clinic.date]) grouped[clinic.date] = [];
-          grouped[clinic.date].push({
-            ...clinic,
-            project: {
-              id: project.id,
-              project_name: project.project_name,
-              branch_id: project.branch_id,
-            },
-          });
-        });
+      data?.clinicCollection?.edges?.forEach(({ node }) => {
+        if (!grouped[node.date]) grouped[node.date] = [];
+        grouped[node.date].push(node);
       });
       setCalendarClinics(grouped);
     },
@@ -231,38 +218,38 @@ export default function AdminDashboard() {
     });
   };
 
-  const dateCellRender = (date) => {
+  const getDateCounts = (date) => {
     const key = date.format("YYYY-MM-DD");
     const clinics = calendarClinics[key] ?? [];
     const projectCount = new Set(clinics.map((clinic) => clinic.project?.id).filter(Boolean)).size;
 
-    if (!clinics.length && !projectCount) return null;
-    return (
-      <div
-        style={{
-          marginTop: 8,
-          display: "flex",
-          gap: 6,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        {projectCount > 0 && (
-          <Tag color="blue" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
-            {projectCount} Project{projectCount !== 1 ? "s" : ""}
-          </Tag>
-        )}
-        {clinics.length > 0 && (
-          <Tag color="green" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
-            {clinics.length} Clinic{clinics.length !== 1 ? "s" : ""}
-          </Tag>
-        )}
-      </div>
-    );
+    return {
+      clinics,
+      projectCount,
+      clinicCount: clinics.length,
+    };
   };
 
-  const cellRender = (current, info) =>
-    info.type === "date" ? dateCellRender(current) : info.originNode;
+  const calendarDays = useMemo(() => {
+    const start = currentPanelDate.startOf("month").startOf("week");
+    return Array.from({ length: 42 }, (_, index) => start.add(index, "day"));
+  }, [currentPanelDate]);
+
+  const yearOptions = useMemo(() => {
+    const currentYear = dayjs().year();
+    return Array.from({ length: 15 }, (_, index) => {
+      const year = currentYear - 5 + index;
+      return { value: year, label: String(year) };
+    });
+  }, []);
+
+  const setCalendarYear = (year) => {
+    setCurrentPanelDate((prev) => prev.year(year));
+  };
+
+  const setCalendarMonth = (month) => {
+    setCurrentPanelDate((prev) => prev.month(month));
+  };
 
   const damagedStockCount = cardStatsData?.damaged_stockCollection?.edges
     ?.filter(({ node }) => Number(node.stock?.branch_id) === branchId)
@@ -320,13 +307,128 @@ export default function AdminDashboard() {
       <Row className="mt-5">
         <Col span={24}>
           <Card title="Branch Schedule">
-            <Calendar
-              fullscreen
-              cellRender={cellRender}
-              onSelect={daySelected}
-              onPanelChange={(date) => setCurrentPanelDate(date)}
-              style={{ borderRadius: "var(--ve-radius-lg)", overflow: "hidden" }}
-            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginBottom: 26,
+                flexWrap: "wrap",
+              }}
+            >
+              <Select
+                value={currentPanelDate.year()}
+                options={yearOptions}
+                onChange={setCalendarYear}
+                style={{ width: 100 }}
+              />
+              <Select
+                value={currentPanelDate.month()}
+                options={MONTH_OPTIONS}
+                onChange={setCalendarMonth}
+                style={{ width: 100 }}
+              />
+              <Button.Group>
+                <Button type="primary">Month</Button>
+                <Button
+                  onClick={() => {
+                    setModelType("month");
+                    setShowModal(true);
+                  }}
+                >
+                  Year
+                </Button>
+              </Button.Group>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(7, minmax(120px, 1fr))",
+                gap: "0 10px",
+                overflowX: "auto",
+              }}
+            >
+              {WEEKDAYS.map((day) => (
+                <div
+                  key={day}
+                  style={{
+                    minWidth: 120,
+                    textAlign: "right",
+                    padding: "0 10px 8px",
+                    fontSize: 16,
+                    color: "#262626",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  {day}
+                </div>
+              ))}
+
+              {calendarDays.map((date) => {
+                const key = date.format("YYYY-MM-DD");
+                const isCurrentMonth = date.isSame(currentPanelDate, "month");
+                const isSelected = startDate === key;
+                const isToday = date.isSame(dayjs(), "day");
+                const { projectCount, clinicCount } = getDateCounts(date);
+                const hasEvents = projectCount > 0 || clinicCount > 0;
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => daySelected(date)}
+                    style={{
+                      minWidth: 120,
+                      minHeight: 128,
+                      border: "none",
+                      borderTop: isSelected ? "2px solid #1677ff" : "1px solid #edf0f3",
+                      background: isSelected ? "#e6f4ff" : "#fff",
+                      padding: "10px",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "stretch",
+                      gap: 10,
+                    }}
+                  >
+                    <span
+                      style={{
+                        alignSelf: "flex-end",
+                        color: isToday ? "#1677ff" : isCurrentMonth ? "#262626" : "#bfbfbf",
+                        fontWeight: isToday ? 700 : 400,
+                        fontSize: 16,
+                      }}
+                    >
+                      {date.format("DD")}
+                    </span>
+
+                    {hasEvents && (
+                      <span
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                        }}
+                      >
+                        {projectCount > 0 && (
+                          <Tag color="blue" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+                            {projectCount} Project{projectCount !== 1 ? "s" : ""}
+                          </Tag>
+                        )}
+                        {clinicCount > 0 && (
+                          <Tag color="green" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+                            {clinicCount} Clinic{clinicCount !== 1 ? "s" : ""}
+                          </Tag>
+                        )}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </Card>
         </Col>
       </Row>

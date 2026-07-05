@@ -100,7 +100,6 @@ const {Text} = Typography
             style={{ width: '100%', borderRadius: 8 }}
             placeholder="Select actual date"
             format="YYYY-MM-DD"
-            disabledDate={(d) => d && d < dayjs().startOf("day")}
           />
         </Form.Item>
       </Form>
