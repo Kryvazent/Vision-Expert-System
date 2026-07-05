@@ -3,16 +3,15 @@ import { PrinterOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlin
 import { useEffect, useMemo, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
-import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { useLazyQuery, useMutation, useQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
 
 const { TextArea } = Input;
 
 const LOAD_TODAY_DELIVERIES = gql`
-    query getTodayDeliveries($branchId: Int!, $todayDate: Datetime!) {
+    query getTodayDeliveries($todayDate: Date!) {
         orderCollection(
             filter: {
-                order_status_id: { eq: 9 }
                 intended_delivery_date: { eq: $todayDate }
             }
             orderBy: [{ placed_at: DescNullsLast }]
@@ -24,6 +23,10 @@ const LOAD_TODAY_DELIVERIES = gql`
                     total_price
                     balance_amount
                     intended_delivery_date
+                    order_status {
+                        id
+                        status
+                    }
                     frame {
                         id
                         serial_no
@@ -32,9 +35,9 @@ const LOAD_TODAY_DELIVERIES = gql`
                             name
                             sku
                         }
-                        frame_type {
-                            type
-                        }
+                    }
+                    frame_type {
+                        type
                     }
                     lense_type {
                         id
@@ -44,9 +47,12 @@ const LOAD_TODAY_DELIVERIES = gql`
                         id
                         clinic {
                             id
-                            name
+                            venue
                         }
                         customer_has_branch {
+                            branch {
+                                id
+                            }
                             customer {
                                 id
                                 first_name
@@ -76,10 +82,9 @@ const LOAD_TODAY_DELIVERIES = gql`
 `;
 
 const LOAD_UNDELIVERED_ORDERS = gql`
-    query getUndeliveredOrders($branchId: Int!, $beforeDate: Datetime!) {
+    query getUndeliveredOrders($beforeDate: Date!) {
         orderCollection(
             filter: {
-                order_status_id: { eq: 9 }
                 intended_delivery_date: { lt: $beforeDate }
             }
             orderBy: [{ intended_delivery_date: DescNullsLast }]
@@ -91,6 +96,10 @@ const LOAD_UNDELIVERED_ORDERS = gql`
                     total_price
                     balance_amount
                     intended_delivery_date
+                    order_status {
+                        id
+                        status
+                    }
                     frame {
                         id
                         serial_no
@@ -99,9 +108,9 @@ const LOAD_UNDELIVERED_ORDERS = gql`
                             name
                             sku
                         }
-                        frame_type {
-                            type
-                        }
+                    }
+                    frame_type {
+                        type
                     }
                     lense_type {
                         id
@@ -111,9 +120,12 @@ const LOAD_UNDELIVERED_ORDERS = gql`
                         id
                         clinic {
                             id
-                            name
+                            venue
                         }
                         customer_has_branch {
+                            branch {
+                                id
+                            }
                             customer {
                                 id
                                 first_name
@@ -168,12 +180,39 @@ const ADD_PAYMENT = gql`
     }
 `;
 
+const UPDATE_ORDER_BALANCE = gql`
+    mutation updateOrderBalance($orderId: BigInt!, $balanceAmount: Float!) {
+        updateorderCollection(
+            filter: { id: { eq: $orderId } }
+            set: { balance_amount: $balanceAmount }
+        ) {
+            records {
+                id
+                balance_amount
+            }
+        }
+    }
+`;
+
+const LOAD_ORDER_STATUSES = gql`
+    query loadOrderStatuses {
+        order_statusCollection {
+            edges {
+                node {
+                    id
+                    status
+                }
+            }
+        }
+    }
+`;
+
 const MARK_DELIVERED = gql`
-    mutation markDelivered($orderId: BigInt!, $deliveredBy: BigInt!, $deliveredAt: Datetime!) {
+    mutation markDelivered($orderId: BigInt!, $statusId: BigInt!, $deliveredBy: BigInt!, $deliveredAt: Datetime!) {
         updateorderCollection(
             filter: { id: { eq: $orderId } }
             set: {
-                order_status_id: 10
+                order_status_id: $statusId
                 delivered_by: $deliveredBy
                 delivered_at: $deliveredAt
             }
@@ -236,43 +275,56 @@ export default function DeliveryManagement() {
     });
 
     const [addPayment] = useMutation(ADD_PAYMENT);
+    const [updateOrderBalance] = useMutation(UPDATE_ORDER_BALANCE);
     const [markDelivered] = useMutation(MARK_DELIVERED);
     const [createCashTransfer] = useMutation(CREATE_CASH_TRANSFER);
+    const { data: statusData } = useQuery(LOAD_ORDER_STATUSES, { fetchPolicy: "network-only" });
 
-    const today = dayjs().startOf("day");
+    const deliveredStatusId = statusData?.order_statusCollection?.edges
+        ?.find(({ node }) => node.status === "Delivered")?.node?.id;
+
+    const todayDate = useMemo(() => dayjs().format("YYYY-MM-DD"), []);
 
     useEffect(() => {
         if (staff?.branch?.id) {
             loadTodayDeliveries({
                 variables: {
-                    branchId: staff.branch.id,
-                    todayDate: today.toISOString(),
+                    todayDate,
                 },
             });
             loadUndeliveredOrders({
                 variables: {
-                    branchId: staff.branch.id,
-                    beforeDate: today.toISOString(),
+                    beforeDate: todayDate,
                 },
             });
         }
-    }, [loadTodayDeliveries, loadUndeliveredOrders, staff, today]);
+    }, [loadTodayDeliveries, loadUndeliveredOrders, staff?.branch?.id, todayDate]);
 
     useEffect(() => {
         if (todayData) {
             const edges = todayData?.orderCollection?.edges || [];
-            const mappedOrders = edges.map(({ node }) => mapOrderData(node));
+            const mappedOrders = edges
+                .map(({ node }) => mapOrderData(node))
+                .filter((order) =>
+                    Number(order.branchId) === Number(staff?.branch?.id) &&
+                    order.status !== "Delivered"
+                );
             setTodayDeliveries(mappedOrders);
         }
-    }, [todayData]);
+    }, [todayData, staff?.branch?.id]);
 
     useEffect(() => {
         if (undeliveredData) {
             const edges = undeliveredData?.orderCollection?.edges || [];
-            const mappedOrders = edges.map(({ node }) => mapOrderData(node));
+            const mappedOrders = edges
+                .map(({ node }) => mapOrderData(node))
+                .filter((order) =>
+                    Number(order.branchId) === Number(staff?.branch?.id) &&
+                    order.status !== "Delivered"
+                );
             setUndeliveredOrders(mappedOrders);
         }
-    }, [undeliveredData]);
+    }, [undeliveredData, staff?.branch?.id]);
 
     const mapOrderData = (node) => {
         const customer = node?.clinic_attend_customer?.customer_has_branch?.customer;
@@ -283,16 +335,18 @@ export default function DeliveryManagement() {
         return {
             key: node.id,
             id: node.id,
+            branchId: node?.clinic_attend_customer?.customer_has_branch?.branch?.id,
             customerName: `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim(),
             customerMobile: customer?.contact_no || "-",
             customerAddress: customer?.address || "-",
-            clinicName: clinic?.name || "-",
+            clinicName: clinic?.venue || "-",
             placedAt: node.placed_at ? dayjs(node.placed_at).format("YYYY-MM-DD HH:mm") : "-",
+            status: node.order_status?.status || "-",
             totalPrice: node.total_price || 0,
             balanceAmount: node.balance_amount || 0,
             paidAmount: totalPaid,
             frameSerial: node.frame?.serial_no || "-",
-            frameType: node.frame?.frame_type?.type || "-",
+            frameType: node.frame_type?.type || "-",
             lenseType: node.lense_type?.type || "-",
             intendedDelivery: node.intended_delivery_date ? dayjs(node.intended_delivery_date).format("YYYY-MM-DD") : "-",
             payments: payments,
@@ -320,26 +374,38 @@ export default function DeliveryManagement() {
             return;
         }
 
+        const amountToPay = parseFloat(paymentAmount);
+        if (amountToPay > selectedOrder.balanceAmount) {
+            message.error(`Payment cannot exceed the outstanding balance (${formatCurrency(selectedOrder.balanceAmount)}).`);
+            return;
+        }
+
         try {
-            const paymentResult = await addPayment({
+            await addPayment({
                 variables: {
                     orderId: selectedOrder.id,
-                    amount: parseFloat(paymentAmount),
+                    amount: amountToPay,
                     paymentMethod: paymentMethod,
-                    paymentType: "partial",
+                    paymentType: amountToPay >= selectedOrder.balanceAmount ? "full" : "partial",
                     notes: paymentNotes,
                     receivedBy: staff.id,
                 },
             });
 
-            const paymentId = paymentResult.data.insertIntoorder_paymentCollection.records[0].id;
+            const newBalance = Math.max(selectedOrder.balanceAmount - amountToPay, 0);
+            await updateOrderBalance({
+                variables: {
+                    orderId: selectedOrder.id,
+                    balanceAmount: newBalance,
+                },
+            });
 
             // Connect to cash workflow
             try {
                 await createCashTransfer({
                     variables: {
                         by: staff.id,
-                        amount: parseFloat(paymentAmount),
+                        amount: amountToPay,
                         cashTypeId: 2, // Recovery cash type
                         branchId: staff.branch.id,
                         note: `Payment collection for order #${selectedOrder.id}`,
@@ -350,7 +416,7 @@ export default function DeliveryManagement() {
                 // Don't fail the payment if cash transfer fails, just log it
             }
 
-            message.success(`Payment of ${formatCurrency(parseFloat(paymentAmount))} recorded`);
+            message.success(`Payment of ${formatCurrency(amountToPay)} recorded`);
             setPaymentModalVisible(false);
             setSelectedOrder(null);
             refetchToday();
@@ -367,6 +433,11 @@ export default function DeliveryManagement() {
             return;
         }
 
+        if (!deliveredStatusId) {
+            message.error("Delivered order status was not found in the database.");
+            return;
+        }
+
         Modal.confirm({
             title: "Confirm Delivery",
             content: `Are you sure you want to mark order #${order.id} as delivered?`,
@@ -375,6 +446,7 @@ export default function DeliveryManagement() {
                     await markDelivered({
                         variables: {
                             orderId: order.id,
+                            statusId: deliveredStatusId,
                             deliveredBy: staff.id,
                             deliveredAt: dayjs().toISOString(),
                         },
