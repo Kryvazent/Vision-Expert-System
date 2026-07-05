@@ -116,6 +116,7 @@ const GET_DASHBOARD_CARD_STATS = gql`
 
 export default function AdminDashboard() {
   const { staff } = useAuth();
+  const branchId = Number(staff?.branch?.id ?? staff?.branch_id);
   const [modelType, setModelType]           = useState("date");
   const [showModal, setShowModal]           = useState(false);
   const [lowStockItems, setLowStockItems]   = useState([]);
@@ -139,12 +140,11 @@ export default function AdminDashboard() {
   const [getClinicsAndSessionsByDate] = useLazyQuery(GET_PROJECTS_AND_CLINICS_BY_DATE, { fetchPolicy: "network-only" });
 
   useEffect(() => {
-    if (!staff?.branch?.id) return;
+    if (!branchId) return;
 
-    const branchId = Number(staff.branch.id);
     loadLowStock({ variables: { branchId } });
     loadCardStats({ variables: { branchId, today: dayjs().format("YYYY-MM-DD") } });
-  }, [loadLowStock, loadCardStats, staff?.branch?.id]);
+  }, [loadLowStock, loadCardStats, branchId]);
 
   useEffect(() => {
     if (lowStockData) {
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
   }, [lowStockData]);
 
   useEffect(() => {
-    if (!staff?.branch?.id) return;
+    if (!branchId) return;
     const startOfMonth = currentPanelDate.startOf("month");
     const start = startOfMonth.startOf("week");
     const end   = start.add(41, "day");
@@ -161,13 +161,13 @@ export default function AdminDashboard() {
       variables: {
         startDate: start.format("YYYY-MM-DD"),
         endDate: end.format("YYYY-MM-DD"),
-        branchId: Number(staff.branch.id),
+        branchId,
       },
     });
-  }, [currentPanelDate, staff?.branch?.id, getVisibleClinics]);
+  }, [currentPanelDate, branchId, getVisibleClinics]);
 
   const daySelected = async (date) => {
-    if (!staff?.branch?.id) return;
+    if (!branchId) return;
 
     setModelType("date");
     const formattedDate = date.format("YYYY-MM-DD");
@@ -182,7 +182,7 @@ export default function AdminDashboard() {
     setShowModal(true);
 
     const result = await getClinicsAndSessionsByDate({
-      variables: { date: formattedDate, branchId: Number(staff.branch.id) },
+      variables: { date: formattedDate, branchId },
     });
 
     const projectEdges = result.data?.projectCollection?.edges ?? [];
@@ -229,12 +229,16 @@ export default function AdminDashboard() {
           alignItems: "center",
         }}
       >
-        <Tag color="blue" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
-          {projectCount} Project{projectCount !== 1 ? "s" : ""}
-        </Tag>
-        <Tag color="green" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
-          {clinics.length} Clinic{clinics.length !== 1 ? "s" : ""}
-        </Tag>
+        {projectCount > 0 && (
+          <Tag color="blue" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+            {projectCount} Project{projectCount !== 1 ? "s" : ""}
+          </Tag>
+        )}
+        {clinics.length > 0 && (
+          <Tag color="green" style={{ marginInlineEnd: 0, borderRadius: 14, fontWeight: 600 }}>
+            {clinics.length} Clinic{clinics.length !== 1 ? "s" : ""}
+          </Tag>
+        )}
       </div>
     );
   };
@@ -242,7 +246,43 @@ export default function AdminDashboard() {
   const cellRender = (current, info) =>
     info.type === "date" ? dateCellRender(current) : info.originNode;
 
-  const branchId = Number(staff?.branch?.id);
+  const fullCellRender = (date, info) => {
+    if (info.type !== "date") return info.originNode;
+
+    const labels = dateCellRender(date);
+    const isToday = date.isSame(dayjs(), "day");
+    const isSelected = date.isSame(currentPanelDate, "day");
+    const isCurrentMonth = date.isSame(currentPanelDate, "month");
+
+    return (
+      <div
+        className={`ant-picker-cell-inner ant-picker-calendar-date${isToday ? " ant-picker-calendar-date-today" : ""}`}
+        style={{
+          minHeight: 118,
+          padding: "8px 10px",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          background: isSelected ? "#e6f4ff" : undefined,
+          borderTop: isSelected ? "2px solid #1677ff" : undefined,
+        }}
+      >
+        <div
+          className="ant-picker-calendar-date-value"
+          style={{
+            color: isCurrentMonth ? undefined : "#bfbfbf",
+            lineHeight: "22px",
+          }}
+        >
+          {date.format("DD")}
+        </div>
+        <div style={{ width: "100%", alignSelf: "stretch" }}>
+          {labels}
+        </div>
+      </div>
+    );
+  };
+
   const damagedStockCount = cardStatsData?.damaged_stockCollection?.edges
     ?.filter(({ node }) => Number(node.stock?.branch_id) === branchId)
     ?.reduce((sum, { node }) => sum + Number(node.damaged_quantity || 0), 0) || 0;
@@ -302,6 +342,7 @@ export default function AdminDashboard() {
             <Calendar
               fullscreen
               cellRender={cellRender}
+              fullCellRender={fullCellRender}
               onSelect={daySelected}
               onPanelChange={(date) => setCurrentPanelDate(date)}
               style={{ borderRadius: "var(--ve-radius-lg)", overflow: "hidden" }}
