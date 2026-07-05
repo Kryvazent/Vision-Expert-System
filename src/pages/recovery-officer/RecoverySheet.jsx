@@ -41,12 +41,15 @@ const GET_RECOVERY_ORDERS = gql`
     lab_follow_upCollection(
       filter: {
         clinic_id: { eq: $clinicId }
-        lab_follow_up_status_id: { eq: 3 }
       }
     ) {
       edges {
         node {
           received_date
+          lab_follow_up_status {
+            id
+            status
+          }
           clinic {
             venue
           }
@@ -273,6 +276,9 @@ function RecoverySheet() {
     orderData.lab_follow_upCollection.edges.forEach(({ node }) => {
       const order    = node.order;
       const delivery = dayjs(order.estimated_delivery);
+      const labStatus = String(node.lab_follow_up_status?.status ?? "").trim().toLowerCase();
+
+      if (!["received", "received from lab"].includes(labStatus)) return;
 
       if (delivery.format("YYYY-MM-DD") !== selectedDate.format("YYYY-MM-DD")) return;
 

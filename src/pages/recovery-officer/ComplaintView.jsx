@@ -3,7 +3,7 @@ import { CheckCircleOutlined, ClockCircleOutlined, UserOutlined } from "@ant-des
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
-import { useLazyQuery, useMutation } from "@apollo/client/react";
+import { useLazyQuery, useMutation, useQuery } from "@apollo/client/react";
 import { useAuth } from "../../const/functions";
 
 const { TextArea } = Input;
@@ -101,16 +101,30 @@ const LOAD_COMPLAINT_STATUSES = gql`
 export default function ComplaintView() {
     const { staff } = useAuth();
     const [complaints, setComplaints] = useState([]);
-    const [loading, setLoading] = useState(false);
     const [resolveModalVisible, setResolveModalVisible] = useState(false);
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [resolutionDescription, setResolutionDescription] = useState("");
     const [statusUpdating, setStatusUpdating] = useState(false);
 
-    const [loadComplaints, { data: complaintsData, refetch }] = useLazyQuery(LOAD_MY_COMPLAINTS);
+    const [loadComplaints, { data: complaintsData, loading, refetch }] = useLazyQuery(
+        LOAD_MY_COMPLAINTS,
+        {
+            fetchPolicy: "network-only",
+            onError: (error) => {
+                console.error("Error loading recovery complaints:", error);
+                message.error("Failed to load complaints: " + error.message);
+            },
+        }
+    );
     const [updateComplaintStatus] = useMutation(UPDATE_COMPLAINT_STATUS);
     const [resolveComplaint] = useMutation(RESOLVE_COMPLAINT);
-    const { data: complaintStatusesData } = useLazyQuery(LOAD_COMPLAINT_STATUSES);
+    const { data: complaintStatusesData } = useQuery(LOAD_COMPLAINT_STATUSES, {
+        fetchPolicy: "network-only",
+        onError: (error) => {
+            console.error("Error loading complaint statuses:", error);
+            message.error("Failed to load complaint statuses: " + error.message);
+        },
+    });
 
     useEffect(() => {
         if (staff?.id) {
@@ -186,7 +200,7 @@ export default function ComplaintView() {
             await updateComplaintStatus({
                 variables: {
                     id: id,
-                    status_id: statusId,
+                    statusId: statusId,
                 }
             });
             await refetch();

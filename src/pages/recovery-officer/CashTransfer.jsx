@@ -81,6 +81,23 @@ const LOAD_DAILY_RECOVERY_COLLECTION = gql`
                 }
             }
         }
+        order_paymentCollection(
+            filter: {
+                received_by: { eq: $staffId }
+                payment_method: { eq: "cash" }
+            }
+        ) {
+            edges {
+                node {
+                    id
+                    order_id
+                    amount
+                    payment_method
+                    payment_type
+                    created_at
+                }
+            }
+        }
     }
 `;
 
@@ -263,15 +280,27 @@ function CashTransferToAdmin() {
 
     // ── Flatten Today's Deliveries ──
     const deliveries = useMemo(() => {
-        if (!recoveryData?.delivery_orderCollection?.edges) return [];
-        return recoveryData.delivery_orderCollection.edges.map(
+        const deliveryRows = recoveryData?.delivery_orderCollection?.edges?.map(
             ({ node }) => ({
+                key: `delivery-${node.id}`,
                 orderId: node.order_id,
                 paidAmount: node.paid_amount ?? 0,
                 balanceAmount: node.balance_amount ?? 0,
                 status: node.status ?? "Unknown",
             })
-        );
+        ) ?? [];
+
+        const paymentRows = recoveryData?.order_paymentCollection?.edges?.map(
+            ({ node }) => ({
+                key: `payment-${node.id}`,
+                orderId: node.order_id,
+                paidAmount: node.amount ?? 0,
+                balanceAmount: 0,
+                status: node.payment_type ?? "Payment",
+            })
+        ) ?? [];
+
+        return [...deliveryRows, ...paymentRows];
     }, [recoveryData]);
 
     // ── Daily Recovery Collection (cash currently on hand) ──
