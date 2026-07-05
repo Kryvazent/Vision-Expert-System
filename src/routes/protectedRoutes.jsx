@@ -1,6 +1,6 @@
 import { Spin } from "antd";
 import { useAuth } from "../const/functions";
-import { Navigate } from "react-router";
+import { Navigate, useLocation } from "react-router";
 
 /**
  * <ProtectedRoute allowedRoles={["accountant", "sales-executive"]}>
@@ -13,7 +13,8 @@ import { Navigate } from "react-router";
  */
 
 export default function ProtectedRoute({ children, allowedRoles }) {
-  const { isLoading, isAuthenticated, role, homeRoute } = useAuth();
+  const { isLoading, isAuthenticated, role, homeRoute, mustChangePassword } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -25,6 +26,10 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
+  }
+
+  if (mustChangePassword && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
   }
 
   if (allowedRoles && !allowedRoles.includes(role)) {

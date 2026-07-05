@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router";
 import CommonPageStructure from "../pages/CommonPageStructure";
 import Login from "../pages/login/Login";
 import Track from "../pages/track/Track";
+import ChangePasswordPage from "../pages/ChangePassword.page";
 
 // Optometrist
 import OptimetristDashboard from "../pages/optimetrist/OptimetristDashboard";
@@ -97,8 +98,9 @@ function Page({ roles, children }) {
 }
 
 function RoleRedirect() {
-  const { isAuthenticated, homeRoute, isLoading } = useAuth();
+  const { isAuthenticated, homeRoute, isLoading, mustChangePassword } = useAuth();
   if (isLoading) return null;
+  if (isAuthenticated && mustChangePassword) return <Navigate to="/change-password" replace />;
   if (isAuthenticated) return <Navigate to={homeRoute} replace />;
   return <Login />;
 }
@@ -110,6 +112,7 @@ export default function App() {
       {/* ── Public ── */}
       <Route path="/" element={<RoleRedirect />} />
       <Route path="/track" element={<Track />} />
+      <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
 
       {/* ── Optometrist ── */}
       <Route path="/optometrist-dashboard" element={<Page roles={["optometrist"]}><OptimetristDashboard /></Page>} />
