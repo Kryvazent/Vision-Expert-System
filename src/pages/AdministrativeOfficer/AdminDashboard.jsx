@@ -34,21 +34,29 @@ const LOAD_LOW_STOCK = gql`
 `;
 
 const GET_VISIBLE_CLINICS = gql`
-  query GetVisibleClinics($startDate: Date!, $endDate: Date!, $branchId: Int!) {
-    clinicCollection(filter: { date: { gte: $startDate, lte: $endDate }, branch_id: { eq: $branchId } }) {
+  query GetVisibleClinics($branchId: Int!) {
+    projectCollection(filter: { branch_id: { eq: $branchId } }) {
       edges {
         node {
           id
-          date
-          venue
-          from
-          to
-          project { id project_name branch_id }
-          responsible_person_01
-          responsible_person_02
-          responsible_person_01_contact_no
-          responsible_person_02_contact_no
-          clinic_status { id status }
+          project_name
+          branch_id
+          clinicCollection {
+            edges {
+              node {
+                id
+                date
+                venue
+                from
+                to
+                responsible_person_01
+                responsible_person_02
+                responsible_person_01_contact_no
+                responsible_person_02_contact_no
+                clinic_status { id status }
+              }
+            }
+          }
         }
       }
     }
@@ -134,9 +142,18 @@ export default function AdminDashboard() {
   const [getVisibleClinics]                    = useLazyQuery(GET_VISIBLE_CLINICS, {
     onCompleted: (data) => {
       const grouped = {};
-      data?.clinicCollection?.edges?.forEach(({ node }) => {
-        if (!grouped[node.date]) grouped[node.date] = [];
-        grouped[node.date].push(node);
+      data?.projectCollection?.edges?.forEach(({ node: project }) => {
+        project.clinicCollection?.edges?.forEach(({ node: clinic }) => {
+          if (!grouped[clinic.date]) grouped[clinic.date] = [];
+          grouped[clinic.date].push({
+            ...clinic,
+            project: {
+              id: project.id,
+              project_name: project.project_name,
+              branch_id: project.branch_id,
+            },
+          });
+        });
       });
       setCalendarClinics(grouped);
     },
@@ -159,13 +176,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!branchId) return;
-    const startOfMonth = currentPanelDate.startOf("month");
-    const start = startOfMonth.startOf("week");
-    const end   = start.add(41, "day");
     getVisibleClinics({
       variables: {
-        startDate: start.format("YYYY-MM-DD"),
-        endDate: end.format("YYYY-MM-DD"),
         branchId,
       },
     });
