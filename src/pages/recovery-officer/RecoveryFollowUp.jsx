@@ -7,6 +7,7 @@ import { gql } from "@apollo/client";
 import { useQuery, useLazyQuery, useMutation } from "@apollo/client/react";
 import dayjs from "dayjs";
 import PaymentBill from "../../component/recoveryOfficer/PaymentBill";
+import { useAuth } from "../../const/functions";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -94,19 +95,23 @@ const GET_FOLLOWUP_ORDERS = gql`
 const UPDATE_DELIVERY_ORDER = gql`
   mutation UpdateDeliveryOrder(
     $id: BigInt!
+    $deliveredBy: BigInt!
     $paymentType: String!
     $paidAmount: Float!
     $balanceAmount: Float!
     $paymentReceived: Boolean!
     $status: String!
+    $updatedDate: Datetime!
   ) {
     updatedelivery_orderCollection(
       set: {
+        delivered_by:     $deliveredBy
         payment_type:     $paymentType
         paid_amount:      $paidAmount
         balance_amount:   $balanceAmount
         payment_received: $paymentReceived
         status:           $status
+        updated_date:     $updatedDate
       }
       filter: { id: { eq: $id } }
     ) {
@@ -222,6 +227,7 @@ function FollowUpPaymentCell({
 // ── RecoveryFollowUp ──────────────────────────────────────────────────────────
 
 function RecoveryFollowUp() {
+  const { staff } = useAuth();
   const [selectedCenter, setSelectedCenter] = useState(null);
   const [data,           setData]           = useState([]);
   const [rowState,       setRowState]       = useState({});
@@ -370,11 +376,13 @@ function RecoveryFollowUp() {
       await updateDeliveryOrder({
         variables: {
           id:              record.deliveryOrderId,
+          deliveredBy:     staff.id,
           paymentType:     newPaymentType,
           paidAmount:      newPaidAmount,
           balanceAmount:   newBalance,
           paymentReceived: newPaymentReceived,
           status:          newStatus,
+          updatedDate:     dayjs().toISOString(),
         },
       });
 
