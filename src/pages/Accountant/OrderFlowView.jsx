@@ -144,7 +144,8 @@ export default function OrderFlowView() {
     useEffect(() => {
         getBranches();
         getStatuses();
-    }, [getBranches, getStatuses]);
+        getOrders({ fetchPolicy: "network-only" });
+    }, [getBranches, getStatuses, getOrders]);
 
     useEffect(() => {
         if (ordersData?.orderCollection?.edges) {
@@ -171,7 +172,7 @@ export default function OrderFlowView() {
 
     const handleLoadOrders = () => {
         setLoading(true);
-        getOrders().then(() => {
+        getOrders({ fetchPolicy: "network-only" }).then(() => {
             setLoading(false);
         }).catch((error) => {
             console.error("Error loading order flow data:", error);
