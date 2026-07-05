@@ -18,8 +18,8 @@ const LOAD_BRANCHES = gql`
             edges {
                 node {
                     id
-                    name
-                    location
+                    branch_name
+                    address
                 }
             }
         }
@@ -41,8 +41,8 @@ const LOAD_ALLOCATIONS = gql`
                     year
                     branch {
                         id
-                        name
-                        location
+                        branch_name
+                        address
                     }
                     allocated_by_staff {
                         id
@@ -72,8 +72,8 @@ const LOAD_REQUESTS = gql`
                     request_status
                     branch {
                         id
-                        name
-                        location
+                        branch_name
+                        address
                     }
                     requested_by_staff {
                         id
@@ -336,13 +336,13 @@ export default function PettyCashAllocation() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Location",
             dataIndex: "branch",
             key: "location",
-            render: (v) => v?.location || "-",
+            render: (v) => v?.address || "-",
         },
         {
             title: "Amount",
@@ -386,7 +386,7 @@ export default function PettyCashAllocation() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Requested By",

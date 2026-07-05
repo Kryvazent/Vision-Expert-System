@@ -28,8 +28,8 @@ const LOAD_MY_REQUESTS = gql`
                     rejection_reason
                     branch {
                         id
-                        name
-                        location
+                        branch_name
+                        address
                     }
                     requested_by_staff {
                         id
@@ -72,6 +72,7 @@ const CREATE_REQUEST = gql`
 
 export default function PettyCashRequest() {
     const { staff } = useAuth();
+    const branchId = staff?.branch?.id || staff?.branch_id;
     const [requests, setRequests] = useState([]);
     const [loading, setLoading] = useState(false);
     const [requestModalVisible, setRequestModalVisible] = useState(false);
@@ -112,11 +113,16 @@ export default function PettyCashRequest() {
             return;
         }
 
+        if (!branchId) {
+            message.error("No branch assigned to this staff account");
+            return;
+        }
+
         try {
             await createRequest({
                 variables: {
                     requestedBy: staff.id,
-                    branchId: staff.branch.id,
+                    branchId,
                     amount: parseFloat(amount),
                     reason: reason,
                 },
@@ -154,7 +160,7 @@ export default function PettyCashRequest() {
             title: "Branch",
             dataIndex: "branch",
             key: "branch",
-            render: (v) => v?.name || "-",
+            render: (v) => v?.branch_name || "-",
         },
         {
             title: "Amount",
@@ -267,7 +273,7 @@ export default function PettyCashRequest() {
             >
                 <div style={{ marginBottom: 16 }}>
                     <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Branch</label>
-                    <Input value={staff?.branch?.name} disabled />
+                    <Input value={staff?.branch?.branch_name || staff?.branch?.name || ""} disabled />
                 </div>
 
                 <div style={{ marginBottom: 16 }}>

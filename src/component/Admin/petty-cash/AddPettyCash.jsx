@@ -70,15 +70,16 @@ export default function AddPettyCash({open, onClose, onSave, initialValues = nul
         form.setFieldValue('category', undefined);
     };
 
-    const handleFinish = (values) => {
+    const handleFinish = async (values) => {
         const formattedDate = values.date?.format("YYYY-MM-DD");
 
-        onSave({
+        const saved = await onSave({
             ...values,      //send all form values to parent component and handle add logic there
              date: formattedDate,
         }); 
      
-    
+        if (saved === false) return;
+
         form.resetFields();
         onClose();
     };
