@@ -18,6 +18,7 @@ const {RangePicker} = DatePicker
 
 const SENT_TO_LAB_DELAY_DAYS = 2;
 const LAB_TURNAROUND_DAYS = 7;
+const CONFIRMED_ORDER_STATUS_ID = 14;
 
 const LOAD_LAB_FOLLOW_UP = gql `
     query LoadLabFollowUp($branch_id: Int!){
@@ -64,8 +65,9 @@ const LOAD_CLINICS = gql `
 `;
 
 const LOAD_ORDERS = gql `
-    query LoadOrders{
+    query LoadOrders($confirmedStatusId: BigInt!){
         orderCollection(
+            filter: {order_status_id: {eq: $confirmedStatusId}}
             orderBy: 
                 [{ placed_at: DescNullsLast }]
                 ){ 
@@ -219,6 +221,7 @@ export default function LabFollowUp() {
     })
     const {data: clinicsData } = useQuery(LOAD_CLINICS,{ variables: {branch_id: Number(branchId)}, fetchPolicy: 'network-only', skip: !branchId})
     const {data: ordersData, loading: ordersLoading, error: ordersError } = useQuery(LOAD_ORDERS,{
+        variables: { confirmedStatusId: CONFIRMED_ORDER_STATUS_ID },
         fetchPolicy: 'network-only',
         skip: !branchId
     })
