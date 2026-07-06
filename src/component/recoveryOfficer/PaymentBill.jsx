@@ -28,7 +28,6 @@ export default function PaymentBill({ visible, onClose, billData }) {
       centered
     >
       <div style={{ padding: '20px' }}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <Title level={3} style={{ margin: 0, color: '#1a237e' }}>
             VISION EXPERT SYSTEM
@@ -137,7 +136,6 @@ export default function PaymentBill({ visible, onClose, billData }) {
           </div>
         )}
 
-        {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: '#999' }}>
           <Text>Thank you for your payment!</Text>
           <br />

@@ -193,15 +193,14 @@ function RecoveryFiltering() {
       <Card className="rounded-xl">
         {/* TITLE */}
 
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Upcoming Recoveries</h1>
+
+  <div className="mb-6">
 
           <p className="text-gray-500 mt-1">
             View upcoming customer payments based on estimated delivery dates.
           </p>
         </div>
 
-        {/* SEARCH INPUTS */}
 
         <div className="flex flex-wrap gap-4 mb-6">
           {/* CUSTOMER SEARCH */}
@@ -217,7 +216,6 @@ function RecoveryFiltering() {
             />
           </div>
 
-          {/* BRANCH SEARCH */}
 
           <div>
             <p className="mb-2 font-medium">Search Branch</p>
@@ -232,7 +230,6 @@ function RecoveryFiltering() {
         </div>
 
         <div className="flex flex-wrap gap-6 mb-4">
-          {/* DATE FILTER */}
 
           <div className="flex-1 min-w-[250px]">
             <p className="mb-2 font-medium">Filter by Date</p>
@@ -256,7 +253,6 @@ function RecoveryFiltering() {
             />
           </div>
 
-          {/* BRANCH FILTER */}
 
           <div className="flex-1 min-w-[250px]">
             <p className="mb-2 font-medium">Filter by Branch</p>
@@ -277,7 +273,6 @@ function RecoveryFiltering() {
           </div>
         </div>
 
-        {/* TABLE */}
 
         <Table
           loading={loading}

@@ -201,7 +201,6 @@ export default function AdminCashHandling() {
                 }}
             >
                 <Row align="middle" justify="space-between">
-                    {/* Left side */}
                     <Col>
                         <Title  level={2} style={{ fontWeight: "bold", marginBottom: "8px" }}>
                             Cash Handling
@@ -221,7 +220,6 @@ export default function AdminCashHandling() {
                     extraRecoveryCash={extraRecoveryCash}
                 />
 
-                {/* Filters */}
                 <CashFiltersBar
                     cashTypeList={cashTypeList}
                     categoryFilter={categoryFilter}
@@ -232,7 +230,6 @@ export default function AdminCashHandling() {
                     totalAmount={filteredRecords.reduce((sum, r) => sum + r.amount, 0)}
                 />
 
-                {/* Table */}
                 <CashTable
                     data={filteredRecords}
                     onAccept={handleAccept}

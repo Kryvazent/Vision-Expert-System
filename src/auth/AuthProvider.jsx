@@ -15,7 +15,6 @@ export function AuthProvider({ children }) {
 
   async function loadStaffProfile(authUserId) {
 
-    // console.log("Loading staff profile for authUserId:", authUserId);
 
     if (!authUserId) {
       setStaff(null);
@@ -34,6 +33,7 @@ export function AuthProvider({ children }) {
               id
               first_name
               last_name
+              must_change_password
               branch{
                 id
                 branch_name
@@ -59,7 +59,6 @@ export function AuthProvider({ children }) {
       const staffData = data?.staffCollection?.edges?.[0]?.node || null;
       setStaff(staffData);
 
-      // console.log("Fetched staff profile:", staffData);
 
       const fetchedRole = staffData?.role?.role_name || null;
       setRole(fetchedRole);
@@ -108,10 +107,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signOut = async () => await supabase.auth.signOut();
+  const refreshProfile = async () => {
+    if (user?.id) {
+      await loadStaffProfile(user.id);
+    }
+  };
 
-  // console.log("ROLE:", MENU_BY_ROLE[role]?.[0]?.key);
-  // console.log("ROLE:", MENU_BY_ROLE[role][0]);
-  // console.log("ROLE:", MENU_BY_ROLE[role][0].key);
 
 
   const value = {
@@ -119,10 +120,12 @@ export function AuthProvider({ children }) {
     user,
     staff,
     role,
+    mustChangePassword: !!staff?.must_change_password,
     isLoading: session === undefined || (!!session && profileLoading),
     isAuthenticated: !!session,
     homeRoute: MENU_BY_ROLE[role]?.[0]?.key ?? "/",
     signOut,
+    refreshProfile,
   };
 
   return (

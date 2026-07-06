@@ -155,7 +155,6 @@ export default function Track() {
 
         {/* ── Search card ── */}
         <Card style={{ marginBottom: 24 }}>
-          {/* Header */}
           <div style={{ textAlign: "center", marginBottom: 28 }}>
             <div
               style={{
@@ -187,7 +186,6 @@ export default function Track() {
             </p>
           </div>
 
-          {/* Search bar */}
           <div style={{ display: "flex", gap: 8 }}>
             <Input
               size="large"
@@ -213,7 +211,6 @@ export default function Track() {
         {order && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-            {/* Status card */}
             <Card
               title={`Order ${order.trackingId}`}
               extra={

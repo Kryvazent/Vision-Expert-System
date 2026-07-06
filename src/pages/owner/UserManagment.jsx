@@ -3,6 +3,7 @@ import { useLazyQuery, useMutation } from "@apollo/client/react";
 import { Card, Table, Button, Modal, Input, Select } from "antd";
 import { useEffect, useState } from "react";
 import supabase from '../../client/supabase';
+import { DEFAULT_STAFF_PASSWORD } from "../../const/auth";
 
 export default function UserManagement() {
 
@@ -89,6 +90,50 @@ export default function UserManagement() {
   };
   // ─────────────────────────────────────────────────────────────────────────
 
+  const handleResetPassword = async (record) => {
+    const staffNode = staffData?.staffCollection?.edges.find(
+      ({ node }) => node.id === record.key
+    )?.node;
+
+    if (!staffNode?.auth_user_id) {
+      alert("This staff member is not linked to an auth user.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Reset ${record.name}'s password to the default password?`
+    );
+    if (!confirmed) return;
+
+    try {
+      const { error } = await supabase.rpc("reset_staff_password_to_default", {
+        p_staff_id: staffNode.id,
+        p_default_password: DEFAULT_STAFF_PASSWORD,
+      });
+
+      if (error) {
+        alert("Failed to reset password: " + error.message);
+        return;
+      }
+
+      Modal.success({
+        title: "Password Reset Successful",
+        content: (
+          <div>
+            <p>{record.name}'s password was reset.</p>
+            <p>
+              New password: <strong>{DEFAULT_STAFF_PASSWORD}</strong>
+            </p>
+          </div>
+        ),
+      });
+      loadStaff();
+    } catch (err) {
+      console.error("Reset password error:", err);
+      alert("Something went wrong. Please try again.");
+    }
+  };
+
   const columns = [
     { title: "Name", dataIndex: "name" },
     { title: "Email", dataIndex: "email" },
@@ -128,6 +173,12 @@ export default function UserManagement() {
             onClick={() => handleToggleStatus(record)}
           >
             {record.status === "Active" ? "Deactivate" : "Reactivate"}
+          </button>
+          <button
+            className="text-orange-500 text-sm hover:bg-orange-50 px-2 py-1 rounded transition"
+            onClick={() => handleResetPassword(record)}
+          >
+            Reset Password
           </button>
         </div>
       ),
@@ -171,6 +222,8 @@ export default function UserManagement() {
               branch_name
             }
             is_active
+            auth_user_id
+            must_change_password
           }
         }
       }
@@ -223,7 +276,8 @@ export default function UserManagement() {
           role_id: $roleId,
           branch_id: $branchId,
           auth_user_id: $authUserId,
-          email: $email
+          email: $email,
+          must_change_password: true
         }
       ) {
         records {
@@ -317,7 +371,7 @@ export default function UserManagement() {
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newStaffData.email,
-        password: Math.random().toString(36).slice(-8),
+        password: DEFAULT_STAFF_PASSWORD,
       });
 
       if (authError) {
@@ -343,7 +397,17 @@ export default function UserManagement() {
         },
       });
 
-      alert("Staff added successfully");
+      Modal.success({
+        title: "Staff Added Successfully",
+        content: (
+          <div>
+            <p>The staff member can log in with the default password.</p>
+            <p>
+              Password: <strong>{DEFAULT_STAFF_PASSWORD}</strong>
+            </p>
+          </div>
+        ),
+      });
       setIsOpen(false);
       setNewStaffData({ firstName: "", lastName: "", nic: "", roleId: null, branchId: null, email: "" });
       loadStaff();

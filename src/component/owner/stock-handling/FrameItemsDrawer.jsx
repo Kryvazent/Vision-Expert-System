@@ -243,7 +243,6 @@ export default function FrameItemsDrawer({
           </Button>
         }
       >
-        {/* Status filter */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
           <Text type="secondary" style={{ fontSize: 12 }}>Filter:</Text>
           <Select

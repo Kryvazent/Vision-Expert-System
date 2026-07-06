@@ -20,7 +20,6 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
                             {/* {selectedDate?.format('dddd, D MMMM YYYY')} */}
                             {dateClinicModalData.date}
                         </span>
-                        {/* <Tag color="blue">{selectedDayData.length} clinic{selectedDayData.length > 1 ? 's' : ''}</Tag> */}
                         <Tag color="blue">{dateClinicModalData.projectCount} Projects</Tag>
                         <Tag color="green">
                             {/* {selectedDayData.reduce((acc, c) => acc + c.sessions.length, 0)} sessions */}
@@ -59,12 +58,6 @@ function DateClinicSessionModal({ show, setShow, dateClinicModalData }) {
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 8 }}>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                                 <Text strong>{project.projectName}</Text>
-                                                {/* <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                                <EnvironmentOutlined style={{ fontSize: 12, color: '#888' }} />
-                                                <Text type="secondary" style={{ fontSize: 12 }}>
-                                                    {clinic.clinicVenue}
-                                                </Text>
-                                            </div> */}
                                             </div>
 
                                             <Tag color="green">
