@@ -37,7 +37,11 @@ function ProjectAndClinicSelect({ setSelectedClinic, selectedClinic, setSelected
 
 
 
-    const projectCount = projectData?.projectCollection?.edges?.length || 0;
+    const projects = projectData?.projectCollection?.edges || [];
+    const projectCount = projects.length;
+    const selectedProjectData = projects.find(
+        (edge) => edge.node.id === selectedProject
+    );
 
     let clinicCount;
     if (projectCount > 1) {
@@ -48,11 +52,6 @@ function ProjectAndClinicSelect({ setSelectedClinic, selectedClinic, setSelected
 
     const needsProjectSelection = projectCount > 1 && !selectedProject;
     const needsClinicSelection = selectedProject && clinicCount > 1 && !selectedClinic;
-
-
-    const selectedProjectData = projectData?.projectCollection?.edges?.find(
-        (edge) => edge.node.id === selectedProject
-    );
 
     const isDisabled = selectedProject != null && selectedClinic != null;
 

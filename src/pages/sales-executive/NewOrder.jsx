@@ -805,7 +805,7 @@ function NewOrder() {
                 <p className="font-semibold mb-2 mt-3">Warranty Notes</p>
                 <Checkbox
                   style={{ marginTop: 25, marginBottom: 5 }}
-                  value={agraharaApplied}
+                  checked={agraharaApplied}
                   onChange={(e) => setAgraharaApplied(e.target.checked)}
                 >
                   <span className="text-orange-700">Agrahara Applied</span>
@@ -853,7 +853,7 @@ function NewOrder() {
 
           <Content hidden={current !== 4} className="mt-10 flex flex-col gap-5">
             <Alert
-              message="Order Details Verification"
+              title="Order Details Verification"
               description="Please verify all customer, prescription, spectacles, and payment details before completing the order."
               type="info"
               showIcon
