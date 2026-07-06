@@ -9,6 +9,11 @@ import { useAuth } from "../const/functions";
 const { Option } = Select;
 const { RangePicker } = DatePicker;
 
+const normalizeSearchValue = (value) =>
+    String(value ?? "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
 const GET_ORDER_BY_ID = gql`
     query getOrderById($orderId: BigInt!) {
         orderCollection(filter: { id: { eq: $orderId } }) {
@@ -137,6 +142,7 @@ const GET_ALL_ORDERS = gql`
                                 first_name
                                 last_name
                                 contact_no
+                                nic
                             }
                         }
                     }
@@ -176,6 +182,7 @@ const GET_ORDER_STATUSES = gql`
 export default function OrderLookup() {
     const { staff } = useAuth();
     const [searchOrderId, setSearchOrderId] = useState("");
+    const [searchResults, setSearchResults] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [loading, setLoading] = useState(false);
     const [viewMode, setViewMode] = useState("search"); // 'search' or 'list'
@@ -216,45 +223,93 @@ export default function OrderLookup() {
         setSelectedOrder(order);
     }, [orderData, canViewAllBranches, staffBranchId]);
 
+    const filterOrdersForCurrentScope = (orders) =>
+        orders.filter((order) => {
+            if (effectiveBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(effectiveBranch)) {
+                return false;
+            }
+            if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
+                return false;
+            }
+            if (dateRange.length === 2) {
+                const placedAt = dayjs(order.placed_at);
+                if (placedAt.isBefore(dayjs(dateRange[0]).startOf("day")) || placedAt.isAfter(dayjs(dateRange[1]).endOf("day"))) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+    const orderMatchesSearch = (order, searchText) => {
+        const customer = order.clinic_attend_customer?.customer_has_branch?.customer;
+        const normalizedSearch = normalizeSearchValue(searchText);
+        const plainSearch = String(searchText ?? "").trim().toLowerCase();
+
+        return [
+            String(order.id ?? "").toLowerCase(),
+            String(customer?.nic ?? "").toLowerCase(),
+            String(customer?.contact_no ?? "").toLowerCase(),
+        ].some((value) => value.includes(plainSearch)) ||
+            [
+                order.id,
+                customer?.nic,
+                customer?.contact_no,
+            ].some((value) => normalizeSearchValue(value).includes(normalizedSearch));
+    };
+
     useEffect(() => {
         if (ordersData?.orderCollection?.edges) {
             const filteredOrders = ordersData.orderCollection.edges
                 .map((e) => e.node)
-                .filter((order) => {
-                    if (effectiveBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(effectiveBranch)) {
-                        return false;
-                    }
-                    if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
-                        return false;
-                    }
-                    if (dateRange.length === 2) {
-                        const placedAt = dayjs(order.placed_at);
-                        if (placedAt.isBefore(dayjs(dateRange[0]).startOf("day")) || placedAt.isAfter(dayjs(dateRange[1]).endOf("day"))) {
-                            return false;
-                        }
-                    }
-                    return true;
-                });
+                .filter((order) => filterOrdersForCurrentScope([order]).length > 0);
             setAllOrders(filteredOrders);
         }
     }, [ordersData, effectiveBranch, selectedStatus, dateRange]);
 
-    const handleSearch = () => {
-        if (!searchOrderId) {
-            message.error("Please enter an order ID");
+    const loadOrderDetails = (orderId) => {
+        setLoading(true);
+        getOrderById({
+            variables: { orderId: Number(orderId) },
+        }).then(() => {
+            setLoading(false);
+        }).catch((error) => {
+            console.error("Error loading order details:", error);
+            message.error("Failed to load order details");
+            setLoading(false);
+        });
+    };
+
+    const handleSearch = async () => {
+        const searchText = searchOrderId.trim();
+
+        if (!searchText) {
+            message.error("Please enter an order ID, NIC, or mobile number");
             return;
         }
 
         setLoading(true);
-        getOrderById({
-            variables: { orderId: parseInt(searchOrderId) },
-        }).then(() => {
-            setLoading(false);
-        }).catch((error) => {
+        setSelectedOrder(null);
+        setSearchResults([]);
+
+        try {
+            const { data } = await getAllOrders({ fetchPolicy: "network-only" });
+            const matches = filterOrdersForCurrentScope(
+                data?.orderCollection?.edges?.map((edge) => edge.node) || []
+            ).filter((order) => orderMatchesSearch(order, searchText));
+
+            setSearchResults(matches);
+
+            if (matches.length === 0) {
+                message.error("No matching orders found");
+            } else if (matches.length === 1) {
+                loadOrderDetails(matches[0].id);
+            }
+        } catch (error) {
             console.error("Error searching order:", error);
             message.error("Failed to find order");
+        } finally {
             setLoading(false);
-        });
+        }
     };
 
     const handleLoadAllOrders = () => {
@@ -342,7 +397,7 @@ export default function OrderLookup() {
                     type="primary"
                     size="small"
                     onClick={() => {
-                        setSelectedOrder(record);
+                        loadOrderDetails(record.id);
                         setViewMode("search");
                     }}
                 >
@@ -392,7 +447,7 @@ export default function OrderLookup() {
                         type={viewMode === "search" ? "primary" : "default"}
                         onClick={() => setViewMode("search")}
                     >
-                        Search by ID
+                        Search
                     </Button>
                     <Button
                         type={viewMode === "list" ? "primary" : "default"}
@@ -406,7 +461,7 @@ export default function OrderLookup() {
                     <div style={{ marginBottom: 24 }}>
                         <Space>
                             <Input
-                                placeholder="Enter Order ID"
+                                placeholder="Enter order ID, NIC, or mobile number"
                                 value={searchOrderId}
                                 onChange={(e) => setSearchOrderId(e.target.value)}
                                 style={{ width: 200 }}
@@ -421,6 +476,18 @@ export default function OrderLookup() {
                                 Search
                             </Button>
                         </Space>
+                        {searchResults.length > 1 && (
+                            <Card title="Matching Orders" size="small" style={{ marginTop: 16 }}>
+                                <Table
+                                    columns={orderColumns}
+                                    dataSource={searchResults}
+                                    loading={loading}
+                                    pagination={{ pageSize: 5 }}
+                                    rowKey="id"
+                                    size="small"
+                                />
+                            </Card>
+                        )}
                     </div>
                 )}
 
