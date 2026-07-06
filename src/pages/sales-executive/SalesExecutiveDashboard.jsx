@@ -151,20 +151,19 @@ function ScheduleDetails({ projects, loading }) {
   return (
     <Collapse
       defaultActiveKey={projects.map((_, index) => String(index))}
-      expandIconPosition="end"
-    >
-      {projects.map((project, index) => (
-        <Collapse.Panel
-          key={String(index)}
-          header={
+      expandIconPlacement="end"
+      items={projects.map((project, index) => ({
+        key: String(index),
+        label: (
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, paddingRight: 8 }}>
               <Text strong>{project.projectName}</Text>
               <Tag color="green" style={{ marginInlineEnd: 0 }}>
                 <TeamOutlined /> {project.clinics.length} Clinic{project.clinics.length !== 1 ? "s" : ""}
               </Tag>
             </div>
-          }
-        >
+        ),
+        children: (
+          <>
           <div
             style={{
               marginBottom: 12,
@@ -177,7 +176,7 @@ function ScheduleDetails({ projects, loading }) {
             <Text type="secondary">{project.description || "No project description."}</Text>
           </div>
 
-          <Space direction="vertical" size={8} style={{ width: "100%" }}>
+          <Space orientation="vertical" size={8} style={{ width: "100%" }}>
             {project.clinics.map((clinic, clinicIndex) => (
               <div
                 key={clinic.id ?? clinicIndex}
@@ -220,9 +219,10 @@ function ScheduleDetails({ projects, loading }) {
               </div>
             ))}
           </Space>
-        </Collapse.Panel>
-      ))}
-    </Collapse>
+          </>
+        ),
+      }))}
+    />
   );
 }
 
@@ -433,9 +433,9 @@ export default function SalesExecutiveDashboard() {
                     <Progress
                       percent={pct}
                       showInfo={false}
-                      strokeWidth={8}
+                      size={8}
                       strokeColor={STATUS_STROKE[key] || "#1677ff"}
-                      trailColor="#f0f0f0"
+                      railColor="#f0f0f0"
                     />
                   </Col>
                 );
