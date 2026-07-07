@@ -1,13 +1,10 @@
-import { Button, Card, Col, Descriptions, Input, Row, Space, Table, Tag, message, Statistic, DatePicker, Select } from "antd";
-import { SearchOutlined, DollarOutlined, ClockCircleOutlined, CheckCircleOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, Card, Col, Descriptions, Input, Row, Space, Table, Tag, message, Statistic } from "antd";
+import { SearchOutlined, DollarOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import dayjs from "dayjs";
 import { gql } from "@apollo/client";
 import { useLazyQuery } from "@apollo/client/react";
 import { useAuth } from "../const/functions";
-
-const { Option } = Select;
-const { RangePicker } = DatePicker;
 
 const normalizeSearchValue = (value) =>
     String(value ?? "")
@@ -152,58 +149,22 @@ const GET_ALL_ORDERS = gql`
     }
 `;
 
-const GET_BRANCHES = gql`
-    query getBranches {
-        branchCollection {
-            edges {
-                node {
-                    id
-                    branch_name
-                }
-            }
-        }
-    }
-`;
-
-const GET_ORDER_STATUSES = gql`
-    query getOrderStatuses {
-        order_statusCollection {
-            edges {
-                node {
-                    id
-                    status
-                    deesc
-                }
-            }
-        }
-    }
-`;
-
 export default function OrderLookup() {
     const { staff } = useAuth();
     const [searchOrderId, setSearchOrderId] = useState("");
     const [searchResults, setSearchResults] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [viewMode, setViewMode] = useState("search"); // 'search' or 'list'
-    const [selectedBranch, setSelectedBranch] = useState(null);
-    const [selectedStatus, setSelectedStatus] = useState(null);
-    const [dateRange, setDateRange] = useState([]);
-    const [allOrders, setAllOrders] = useState([]);
+    const [viewMode, setViewMode] = useState("search");
+    const [deliverySortDirection, setDeliverySortDirection] = useState("asc");
 
     const [getOrderById, { data: orderData }] = useLazyQuery(GET_ORDER_BY_ID);
     const [getAllOrders, { data: ordersData }] = useLazyQuery(GET_ALL_ORDERS);
-    const [getBranches, { data: branchesData }] = useLazyQuery(GET_BRANCHES);
-    const [getStatuses, { data: statusesData }] = useLazyQuery(GET_ORDER_STATUSES);
     const roleName = String(staff?.role?.role_name || "").toLowerCase();
     const staffBranchId = Number(staff?.branch?.id ?? staff?.branch_id);
     const canViewAllBranches = roleName === "owner" || roleName === "accountant";
-    const effectiveBranch = canViewAllBranches ? selectedBranch : staffBranchId;
-
-    useEffect(() => {
-        getBranches();
-        getStatuses();
-    }, [getBranches, getStatuses]);
+    const effectiveBranch = canViewAllBranches ? null : staffBranchId;
+    const orderNodes = ordersData?.orderCollection?.edges?.map((edge) => edge.node) || [];
 
     useEffect(() => {
         const order = orderData?.orderCollection?.edges?.[0]?.node;
@@ -228,15 +189,6 @@ export default function OrderLookup() {
             if (effectiveBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(effectiveBranch)) {
                 return false;
             }
-            if (selectedStatus && Number(order.order_status_id) !== Number(selectedStatus)) {
-                return false;
-            }
-            if (dateRange.length === 2) {
-                const placedAt = dayjs(order.placed_at);
-                if (placedAt.isBefore(dayjs(dateRange[0]).startOf("day")) || placedAt.isAfter(dayjs(dateRange[1]).endOf("day"))) {
-                    return false;
-                }
-            }
             return true;
         });
 
@@ -256,15 +208,6 @@ export default function OrderLookup() {
                 customer?.contact_no,
             ].some((value) => normalizeSearchValue(value).includes(normalizedSearch));
     };
-
-    useEffect(() => {
-        if (ordersData?.orderCollection?.edges) {
-            const filteredOrders = ordersData.orderCollection.edges
-                .map((e) => e.node)
-                .filter((order) => filterOrdersForCurrentScope([order]).length > 0);
-            setAllOrders(filteredOrders);
-        }
-    }, [ordersData, effectiveBranch, selectedStatus, dateRange]);
 
     const loadOrderDetails = (orderId) => {
         setLoading(true);
@@ -326,6 +269,49 @@ export default function OrderLookup() {
             message.error("Failed to load orders");
             setLoading(false);
         });
+    };
+
+    useEffect(() => {
+        if ((viewMode === "tomorrowDeliveries" || viewMode === "nextWeekDeliveries") && !ordersData) {
+            handleLoadAllOrders();
+        }
+    }, [viewMode, ordersData]);
+
+    const filterOrdersByDeliveryWindow = (orders, startDate, endDate) =>
+        orders.filter((order) => {
+            if (effectiveBranch && Number(order.clinic_attend_customer?.clinic?.branch?.id) !== Number(effectiveBranch)) {
+                return false;
+            }
+
+            if (!order.estimated_delivery) {
+                return false;
+            }
+
+            const deliveryDate = dayjs(order.estimated_delivery);
+            return (
+                deliveryDate.isSame(startDate, "day") ||
+                deliveryDate.isSame(endDate, "day") ||
+                (deliveryDate.isAfter(startDate, "day") && deliveryDate.isBefore(endDate, "day"))
+            );
+        });
+
+    const sortOrdersByDeliveryDate = (orders) =>
+        [...orders].sort((a, b) => {
+            const first = dayjs(a.estimated_delivery).valueOf();
+            const second = dayjs(b.estimated_delivery).valueOf();
+            return deliverySortDirection === "asc" ? first - second : second - first;
+        });
+
+    const tomorrowDeliveryOrders = sortOrdersByDeliveryDate(
+        filterOrdersByDeliveryWindow(orderNodes, dayjs().add(1, "day"), dayjs().add(1, "day"))
+    );
+    const nextWeekDeliveryOrders = sortOrdersByDeliveryDate(
+        filterOrdersByDeliveryWindow(orderNodes, dayjs().add(2, "day"), dayjs().add(8, "day"))
+    );
+
+    const handleViewModeChange = (mode) => {
+        setViewMode(mode);
+        setSelectedOrder(null);
     };
 
     const formatCurrency = (value) =>
@@ -390,6 +376,12 @@ export default function OrderLookup() {
             render: (v) => dayjs(v).format("YYYY-MM-DD"),
         },
         {
+            title: "Estimated Delivery",
+            dataIndex: "estimated_delivery",
+            key: "estimated_delivery",
+            render: (v) => v ? dayjs(v).format("YYYY-MM-DD") : "-",
+        },
+        {
             title: "Action",
             key: "action",
             render: (_, record) => (
@@ -398,7 +390,6 @@ export default function OrderLookup() {
                     size="small"
                     onClick={() => {
                         loadOrderDetails(record.id);
-                        setViewMode("search");
                     }}
                 >
                     View Details
@@ -441,21 +432,50 @@ export default function OrderLookup() {
 
     return (
         <div className="m-5">
-            <Card title="Order Lookup">
-                <Space style={{ marginBottom: 16 }}>
-                    <Button
-                        type={viewMode === "search" ? "primary" : "default"}
-                        onClick={() => setViewMode("search")}
-                    >
-                        Search
-                    </Button>
-                    <Button
-                        type={viewMode === "list" ? "primary" : "default"}
-                        onClick={() => setViewMode("list")}
-                    >
-                        Browse All Orders
-                    </Button>
-                </Space>
+            <Card
+                title="Order Lookup"
+                extra={
+                    <Space wrap>
+                        <Button
+                            size="small"
+                            type={viewMode === "search" ? "primary" : "default"}
+                            onClick={() => handleViewModeChange("search")}
+                        >
+                            Search
+                        </Button>
+                        <Button
+                            size="small"
+                            type={viewMode === "tomorrowDeliveries" ? "primary" : "default"}
+                            onClick={() => handleViewModeChange("tomorrowDeliveries")}
+                        >
+                            Tomorrow Deliveries
+                        </Button>
+                        <Button
+                            size="small"
+                            type={viewMode === "nextWeekDeliveries" ? "primary" : "default"}
+                            onClick={() => handleViewModeChange("nextWeekDeliveries")}
+                        >
+                            Next 7 Days
+                        </Button>
+                    </Space>
+                }
+            >
+                {(viewMode === "tomorrowDeliveries" || viewMode === "nextWeekDeliveries") && (
+                    <Space style={{ marginBottom: 16 }}>
+                        <Button
+                            type="primary"
+                            onClick={handleLoadAllOrders}
+                            loading={loading}
+                        >
+                            Refresh Deliveries
+                        </Button>
+                        <Button
+                            onClick={() => setDeliverySortDirection((prev) => prev === "asc" ? "desc" : "asc")}
+                        >
+                            {deliverySortDirection === "asc" ? "Ascending" : "Descending"}
+                        </Button>
+                    </Space>
+                )}
 
                 {viewMode === "search" && (
                     <div style={{ marginBottom: 24 }}>
@@ -491,72 +511,25 @@ export default function OrderLookup() {
                     </div>
                 )}
 
-                {viewMode === "list" && (
-                    <Card size="small" style={{ marginBottom: 16 }}>
-                        <Row gutter={16}>
-                            {canViewAllBranches && (
-                                <Col span={6}>
-                                    <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Branch</label>
-                                    <Select
-                                        style={{ width: "100%" }}
-                                        placeholder="All branches"
-                                        value={selectedBranch}
-                                        onChange={setSelectedBranch}
-                                        allowClear
-                                    >
-                                        {branchesData?.branchCollection?.edges?.map((edge) => (
-                                            <Option key={edge.node.id} value={edge.node.id}>
-                                                {edge.node.branch_name || `Branch ${edge.node.id}`}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Col>
-                            )}
-                            <Col span={canViewAllBranches ? 6 : 8}>
-                                <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Status</label>
-                                <Select
-                                    style={{ width: "100%" }}
-                                    placeholder="All statuses"
-                                    value={selectedStatus}
-                                    onChange={setSelectedStatus}
-                                    allowClear
-                                >
-                                    {statusesData?.order_statusCollection?.edges?.map((edge) => (
-                                        <Option key={edge.node.id} value={edge.node.id}>
-                                            {edge.node.status}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Col>
-                            <Col span={canViewAllBranches ? 6 : 8}>
-                                <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>Date Range</label>
-                                <RangePicker
-                                    style={{ width: "100%" }}
-                                    value={dateRange}
-                                    onChange={setDateRange}
-                                />
-                            </Col>
-                            <Col span={canViewAllBranches ? 6 : 8}>
-                                <label style={{ fontWeight: 600, display: "block", marginBottom: 8 }}>&nbsp;</label>
-                                <Button
-                                    type="primary"
-                                    onClick={handleLoadAllOrders}
-                                    loading={loading}
-                                    block
-                                >
-                                    Load Orders
-                                </Button>
-                            </Col>
-                        </Row>
-                    </Card>
-                )}
             </Card>
 
-            {viewMode === "list" && (
-                <Card title="All Orders" style={{ marginTop: 16 }}>
+            {viewMode === "tomorrowDeliveries" && (
+                <Card title="Tomorrow Deliveries" style={{ marginTop: 16 }}>
                     <Table
                         columns={orderColumns}
-                        dataSource={allOrders}
+                        dataSource={tomorrowDeliveryOrders}
+                        loading={loading}
+                        pagination={{ pageSize: 10 }}
+                        rowKey="id"
+                    />
+                </Card>
+            )}
+
+            {viewMode === "nextWeekDeliveries" && (
+                <Card title="Next 7 Days Deliveries" style={{ marginTop: 16 }}>
+                    <Table
+                        columns={orderColumns}
+                        dataSource={nextWeekDeliveryOrders}
                         loading={loading}
                         pagination={{ pageSize: 10 }}
                         rowKey="id"
